@@ -1,0 +1,367 @@
+
+\section{Simulation Results}
+\label{sec:simulation_results}
+
+We evaluate the proposed communication-error-calibrated and C2F DD-aware
+Lagrangian link-selection scheme in a high-mobility multi-UAV aerial sensing
+scenario. Unless otherwise specified, $15$ UAVs cooperatively sense $10$ aerial
+targets in a $4000~\mathrm{m}\times4000~\mathrm{m}$ area. The UAVs and targets
+move with speeds of $30$--$60~\mathrm{m/s}$ and $50$--$90~\mathrm{m/s}$,
+respectively. We use the all-neighbor scheme as an upper-resource reference
+and set the target false-alarm probability to $P_{\mathrm{FA}}=0.05$ in all
+tests. Table~\ref{tab:simulation_parameters} lists the main simulation
+parameters.
+
+\begin{table}[!t]
+	\centering
+	\caption{Main simulation parameters}
+	\label{tab:simulation_parameters}
+	\footnotesize
+	\setlength{\tabcolsep}{3pt}
+	\begin{tabular}{@{}p{0.43\linewidth}p{0.51\linewidth}@{}}
+		\toprule
+		Parameter & Value \\
+		\midrule
+		UAVs / targets
+		& $M=15$, $Q=10$ \\
+		Area and comm. range
+		& $4000\times4000~\mathrm{m}^2$, $d_{\max}=2500~\mathrm{m}$ \\
+		UAV / target speed
+		& $30$--$60~\mathrm{m/s}$ / $50$--$90~\mathrm{m/s}$ \\
+		Carrier and DD grid
+		& $f_c=5.9~\mathrm{GHz}$, $N=L=64$, $\Delta f=30~\mathrm{kHz}$ \\
+		Power split / Tx power
+		& $\rho=0.8$, $P_i=1~\mathrm{W}$ \\
+		Comm. channel
+		& $\alpha_{\mathrm c}=2$, shadowing std. $1~\mathrm{dB}$,
+		Rician $K=15~\mathrm{dB}$ \\
+		Rate constraint / false alarm
+		& $R_{\min}=0.2~\mathrm{Mbit/s}$, $P_{\mathrm{FA}}=0.05$ \\
+		Payload size
+		& $K_{\mathrm{pkt}}=4$, $b_{\mathrm d}=160~\mathrm{bits}$,
+		$B_q=640~\mathrm{bits}$ \\
+		Link-selection parameters
+		& $D_{\min}=3$, $\lambda_c=0.005$, $L_{\max}=6$,
+		$L_{\mathrm{tot}}=60$ \\
+		C2F DD parameters
+		& $W=1$, $\kappa_{\mathrm{dd}}=0.45$, $\eta_{\min}=0.25$,
+		$L_{\mathrm{short}}=25$ \\
+		Monte Carlo trials
+		& $1000$ \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\begin{figure*}[!t]
+	\centering
+	\includegraphics[width=0.80\textwidth]{figs/fig2_main_comparison.pdf}
+	\caption{Main performance comparison under C2F DD refinement.}
+	\label{fig:main_comparison}
+\end{figure*}
+
+\subsection{Performance and Tradeoff Analysis}
+
+For the main comparison in Fig.~\ref{fig:main_comparison}, the proposed method
+achieves $P_D=0.6648$, which retains about $94.8\%$ of the all-neighbor
+detection probability. At the same time, it reduces signaling overhead and
+exchange delay by approximately $92.1\%$ and $94.8\%$, respectively. In
+absolute terms, the exchange delay decreases from about $5.1\times10^2$ ms
+under all-neighbor fusion to about $27$ ms with the proposed method. This
+confirms that all-neighbor fusion is a useful upper-resource reference, but its
+reporting cost is too high for low-latency cooperative sensing.
+
+A major source of this gain is the avoidance of ineffective soft-information
+reporting. Sensing-SINR-based selection tends to choose links with strong
+sensing responses, without explicitly checking whether their soft statistics
+can be reported reliably and quickly. By combining communication-error-
+calibrated marginal deflection with delay-aware Lagrangian pricing, the
+proposed method keeps most useful cooperative observations and discards links
+whose reporting cost is not justified by their effective fusion contribution.
+
+Under the same per-target selected-link budget, the proposed method achieves
+higher detection probability than Sensing-SINR and Top-K Sensing-SINR. Compared
+with Top-K Deflection, it provides similar detection performance while reducing
+exchange delay by about $29\%$. This behavior is consistent with the
+delay-aware Lagrangian term, which discourages unreliable or slow
+soft-information links even when their sensing or deflection scores are high.
+
+\begin{figure}[!t]
+	\centering
+	\includegraphics[width=0.82\linewidth]{figs/fig3_lambda_tradeoff.pdf}
+	\caption{Sensitivity to the Lagrangian communication price $\lambda_c$.}
+	\label{fig:lambda_tradeoff}
+\end{figure}
+
+\begin{figure}[!t]
+	\centering
+	\includegraphics[width=0.85\linewidth]{figs/fig5_comm_sweep.pdf}
+	\caption{Sensitivity to the communication-rate constraint $R_{\min}$.}
+	\label{fig:comm_sweep}
+\end{figure}
+
+Varying $\lambda_c$ in Fig.~\ref{fig:lambda_tradeoff} changes the selected-link
+pattern directly. A larger $\lambda_c$ reduces the number of selected links,
+signaling overhead, and exchange delay, with only a moderate loss in detection
+probability. Hence, $\lambda_c$ serves as a practical control knob for the
+detection--delay tradeoff. Changing $R_{\min}$ in
+Fig.~\ref{fig:comm_sweep} affects the problem in a different way: a larger rate
+requirement shrinks the feasible reporting graph and weakens the cooperative
+sensing gain. In the low-to-moderate constraint region, the proposed method
+still maintains a better sensing--communication tradeoff than Sensing-SINR by
+prioritizing reliable and low-delay links.
+
+Taken together, these two sensitivity tests separate the roles of algorithmic
+pricing and communication feasibility. The Lagrangian price adjusts the penalty
+on reporting delay, whereas the rate constraint changes which inter-UAV links
+can be used for soft-information exchange. When the feasible reporting graph
+becomes too sparse, all cooperative schemes degrade, indicating that
+communication feasibility remains a fundamental bottleneck.
+
+\subsection{Ablation and Robustness Analysis}
+
+\begin{table}[!t]
+	\centering
+	\caption{Component ablation under the same selected-link budget}
+	\label{tab:ablation_compact}
+	\footnotesize
+	\setlength{\tabcolsep}{2pt}
+	\begin{tabular}{lcccc}
+		\toprule
+		Variant & $P_D$ & Bits & Delay & Worst \\
+		& & (kbit) & (ms) & $P_D$ \\
+		\midrule
+		Full & 0.6540 & 16.26 & 26.82 & 0.631 \\
+		w/o target priority & 0.6198 & 16.63 & 29.59 & 0.601 \\
+		w/o delay price & 0.6564 & 16.48 & 29.21 & 0.635 \\
+		w/o comm.-error calib. & 0.5856 & 13.77 & 28.48 & 0.572 \\
+		w/o C2F refine & 0.6223 & 16.41 & 27.42 & 0.604 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+For the component study in Table~\ref{tab:ablation_compact}, all variants are
+evaluated under a fixed selected-link budget. The ``Full'' row is therefore
+used for within-table comparison and is not intended to duplicate the
+main-comparison value in Fig.~\ref{fig:main_comparison}. Among the tested
+variants, removing communication-error calibration causes the largest
+degradation, reducing $P_D$ from $0.6540$ to $0.5856$. This highlights the
+importance of calibrating unreliable exchanged soft information before fusion.
+Without C2F refinement, $P_D$ decreases to $0.6223$, which indicates that local
+DD refinement helps recover fractional delay-Doppler energy leakage. Removing
+target priority degrades both average and worst-target detection performance.
+Without delay-aware pricing, $P_D$ and worst-target $P_D$ slightly increase,
+but the exchange delay also becomes larger; this matches the role of the
+delay-price term in trading a small amount of detection gain for lower
+reporting latency.
+
+In a separate DD-domain ablation under the main-comparison configuration, C2F
+refinement improves $P_D$ from $0.6262$ to $0.6648$. It matches full local
+refinement while reducing fine DD-grid evaluations by about $41.1\%$. This
+experiment isolates the effect of DD-domain refinement and shows that local
+DD-grid recovery is useful, whereas applying it to every feasible triplet is
+unnecessary.
+
+\begin{figure*}[!t]
+	\centering
+	\includegraphics[width=0.80\textwidth]{figs/fig6_robustness.pdf}
+	\caption{Robustness under communication errors and residual interference.}
+	\label{fig:robustness}
+\end{figure*}
+
+Robustness is further evaluated under communication errors and residual
+interference in Fig.~\ref{fig:robustness}. As the soft-error scale or residual
+factor increases, all methods degrade. The proposed method still maintains a
+favorable detection--delay tradeoff because communication reliability and
+residual-interference-aware calibration penalize unreliable links before
+fusion. These results support the robustness of the proposed soft-information
+fusion strategy under imperfect reporting conditions.
+
+\FloatBarrier
+
+
+
+
+
+
+
+
+
+%
+%\section{Simulation Results}
+%\label{sec:simulation_results}
+%
+%This section evaluates the proposed communication-error-calibrated and
+%C2F DD-aware Lagrangian link-selection scheme in a high-mobility multi-UAV
+%aerial sensing scenario. Unless otherwise specified, $15$ UAVs cooperatively
+%sense $10$ aerial targets in a $4000~\mathrm{m}\times4000~\mathrm{m}$ area.
+%The UAVs and targets move with speeds of $30$--$60~\mathrm{m/s}$ and
+%$50$--$90~\mathrm{m/s}$, respectively. The all-neighbor scheme is used as a
+%resource-unlimited reference, and the target false-alarm probability is set to
+%$P_{\mathrm{FA}}=0.05$ in all tests. The main simulation parameters are listed
+%in Table~\ref{tab:simulation_parameters}.
+%
+%\begin{table}[!t]
+%	\centering
+%	\caption{Main simulation parameters}
+%	\label{tab:simulation_parameters}
+%	\footnotesize
+%	\setlength{\tabcolsep}{3pt}
+%	\begin{tabular}{@{}p{0.43\linewidth}p{0.51\linewidth}@{}}
+%		\toprule
+%		Parameter & Value \\
+%		\midrule
+%		UAVs / targets
+%		& $M=15$, $Q=10$ \\
+%		Area and comm. range
+%		& $4000\times4000~\mathrm{m}^2$, $d_{\max}=2500~\mathrm{m}$ \\
+%		UAV / target speed
+%		& $30$--$60~\mathrm{m/s}$ / $50$--$90~\mathrm{m/s}$ \\
+%		Carrier and DD grid
+%		& $f_c=5.9~\mathrm{GHz}$, $N=L=64$, $\Delta f=30~\mathrm{kHz}$ \\
+%		Power split / Tx power
+%		& $\rho=0.8$, $P_i=1~\mathrm{W}$ \\
+%		Comm. channel
+%		& $\alpha_{\mathrm c}=2$, shadowing std. $1~\mathrm{dB}$,
+%		Rician $K=15~\mathrm{dB}$ \\
+%		Rate constraint / false alarm
+%		& $R_{\min}=0.2~\mathrm{Mbit/s}$, $P_{\mathrm{FA}}=0.05$ \\
+%		Payload size
+%		& $K_{\mathrm{pkt}}=4$, $b_{\mathrm d}=160~\mathrm{bits}$,
+%		$B_q=640~\mathrm{bits}$ \\
+%		Link-selection parameters
+%		& $D_{\min}=3$, $\lambda_c=0.005$, $L_{\max}=6$,
+%		$L_{\mathrm{tot}}=60$ \\
+%		C2F DD parameters
+%		& $W=1$, $\kappa_{\mathrm{dd}}=0.45$, $\eta_{\min}=0.25$,
+%		$L_{\mathrm{short}}=25$ \\
+%		Monte Carlo trials
+%		& $1000$ \\
+%		\bottomrule
+%	\end{tabular}
+%\end{table}
+%
+%\begin{figure*}[!t]
+%	\centering
+%	\includegraphics[width=0.80\textwidth]{figs/fig2_main_comparison.pdf}
+%	\caption{Main performance comparison under C2F DD refinement.}
+%	\label{fig:main_comparison}
+%\end{figure*}
+%
+%\subsection{Performance and Tradeoff Analysis}
+%
+%Fig.~\ref{fig:main_comparison} compares the proposed method with representative
+%benchmarks. The proposed method achieves $P_D=0.6648$, retaining about
+%$94.8\%$ of the all-neighbor detection probability while reducing signaling
+%overhead and exchange delay by approximately $92.1\%$ and $94.8\%$,
+%respectively. This indicates that all-neighbor fusion is a useful
+%upper-resource reference, but its reporting cost is too high for low-latency
+%cooperative sensing.
+%
+%A closer inspection of Fig.~\ref{fig:main_comparison} shows that the advantage
+%of the proposed method mainly comes from avoiding ineffective cooperative
+%reporting. The all-neighbor reference activates almost all feasible soft
+%observations and therefore obtains strong detection performance, but it also
+%incurs the largest signaling overhead and exchange delay. In contrast,
+%Sensing-SINR-based selection favors links with strong sensing responses without
+%explicitly considering whether their soft statistics can be reliably and
+%quickly reported. The proposed method avoids this mismatch by evaluating each
+%candidate through communication-error-calibrated marginal deflection and
+%delay-aware pricing. As a result, it preserves most of the useful spatial
+%diversity gain while discarding links whose reporting cost is not justified by
+%their effective sensing contribution.
+%
+%Compared with Sensing-SINR and Top-K Sensing-SINR under the same per-target
+%selected-link budget, the proposed method achieves higher detection
+%probability. Compared with the strong Top-K Deflection baseline, it provides
+%comparable detection performance with about $29\%$ lower exchange delay. This
+%is because the proposed method evaluates links by communication-error-calibrated
+%marginal deflection and reporting delay, rather than by sensing strength alone.
+%Thus, unreliable or slow soft-information links are less likely to be activated.
+%
+%\begin{figure}[!t]
+%	\centering
+%	\includegraphics[width=0.82\linewidth]{figs/fig3_lambda_tradeoff.pdf}
+%	\caption{Sensitivity to the Lagrangian communication price $\lambda_c$.}
+%	\label{fig:lambda_tradeoff}
+%\end{figure}
+%
+%\begin{figure}[!t]
+%	\centering
+%	\includegraphics[width=0.85\linewidth]{figs/fig5_comm_sweep.pdf}
+%	\caption{Sensitivity to the communication-rate constraint $R_{\min}$.}
+%	\label{fig:comm_sweep}
+%\end{figure}
+%
+%Fig.~\ref{fig:lambda_tradeoff} shows that increasing $\lambda_c$ reduces
+%selected links, signaling overhead, and exchange delay, while causing only a
+%moderate decrease in detection probability. Therefore, $\lambda_c$ provides a
+%direct operating knob for the detection--delay tradeoff. Fig.~\ref{fig:comm_sweep}
+%shows that a more stringent $R_{\min}$ reduces the feasible reporting graph and
+%weakens the cooperative sensing gain. In the low-to-moderate constraint region,
+%the proposed method maintains a better sensing--communication tradeoff than
+%Sensing-SINR, confirming the importance of reliability-aware link selection.
+%These two sensitivity tests also show that the proposed method is not tied to a
+%single operating point. The Lagrangian price $\lambda_c$ controls how
+%aggressively the algorithm penalizes reporting delay, while the rate constraint
+%$R_{\min}$ changes the set of feasible inter-UAV reporting links. When
+%communication resources are moderately limited, the proposed method can still
+%retain informative cooperative observations by prioritizing reliable and
+%low-delay links. When the reporting graph becomes highly constrained, all cooperative schemes
+%degrade, indicating that communication feasibility is a fundamental bottleneck.
+%
+%\subsection{Ablation and Robustness Analysis}
+%
+%\begin{table}[!t]
+%	\centering
+%	\caption{Component ablation under the same selected-link budget}
+%	\label{tab:ablation_compact}
+%	\footnotesize
+%	\setlength{\tabcolsep}{2pt}
+%	\begin{tabular}{lcccc}
+%		\toprule
+%		Variant & $P_D$ & Bits & Delay & Worst \\
+%		& & (kbit) & (ms) & $P_D$ \\
+%		\midrule
+%		Full & 0.6540 & 16.26 & 26.82 & 0.631 \\
+%		w/o target priority & 0.6198 & 16.63 & 29.59 & 0.601 \\
+%		w/o delay price & 0.6564 & 16.48 & 29.21 & 0.635 \\
+%		w/o comm.-error calib. & 0.5856 & 13.77 & 28.48 & 0.572 \\
+%		w/o C2F refine & 0.6223 & 16.41 & 27.42 & 0.604 \\
+%		\bottomrule
+%	\end{tabular}
+%\end{table}
+%
+%Table~\ref{tab:ablation_compact} summarizes the component ablation results.
+%Removing communication-error calibration causes the largest degradation,
+%reducing $P_D$ from $0.6540$ to $0.5856$, which verifies the necessity of
+%calibrating unreliable exchanged soft information. Removing C2F refinement
+%reduces $P_D$ to $0.6223$, showing that DD-domain refinement helps recover
+%fractional delay-Doppler energy leakage. Removing target priority degrades both
+%average and worst-target detection performance, while removing the delay-price
+%term slightly increases $P_D$ but also increases exchange delay. These results
+%confirm the respective roles of reliability calibration, target prioritization,
+%DD refinement, and delay-aware link pricing.
+%
+%The DD-domain ablation further shows that C2F refinement improves $P_D$ from
+%$0.6262$ to $0.6648$, matching full local refinement while reducing fine
+%DD-grid evaluations by about $41.1\%$. This demonstrates that local DD-grid
+%refinement is beneficial, but applying it to every feasible triplet is
+%unnecessary.
+%
+%\begin{figure*}[!t]
+%	\centering
+%	\includegraphics[width=0.80\textwidth]{figs/fig6_robustness.pdf}
+%	\caption{Robustness under communication errors and residual interference.}
+%	\label{fig:robustness}
+%\end{figure*}
+%
+%Fig.~\ref{fig:robustness} evaluates robustness under communication errors and
+%residual interference. As the soft-error scale or residual factor increases,
+%all methods degrade. Nevertheless, the proposed method maintains a favorable
+%detection--delay tradeoff because unreliable links are penalized through
+%communication reliability and residual-interference-aware soft-statistic
+%calibration. This supports the robustness of the proposed soft-information
+%fusion strategy under imperfect reporting conditions.
+%
+%\FloatBarrier
+%

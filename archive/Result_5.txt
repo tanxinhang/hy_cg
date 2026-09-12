@@ -1,0 +1,158 @@
+MC  100/1000: proposed_lagrangian P_D=0.6400, P_FA=0.0430
+MC  200/1000: proposed_lagrangian P_D=0.6525, P_FA=0.0437
+MC  300/1000: proposed_lagrangian P_D=0.6513, P_FA=0.0442
+MC  400/1000: proposed_lagrangian P_D=0.6462, P_FA=0.0442
+MC  500/1000: proposed_lagrangian P_D=0.6474, P_FA=0.0439
+MC  600/1000: proposed_lagrangian P_D=0.6497, P_FA=0.0440
+MC  700/1000: proposed_lagrangian P_D=0.6473, P_FA=0.0440
+MC  800/1000: proposed_lagrangian P_D=0.6464, P_FA=0.0439
+MC  900/1000: proposed_lagrangian P_D=0.6437, P_FA=0.0440
+MC 1000/1000: proposed_lagrangian P_D=0.6449, P_FA=0.0443
+
+========== Lagrangian DOTFS-ISAC Simplified Simulation Summary ==========
+
+[proposed_lagrangian]
+  P_D                    : 0.6449 (95% CI [0.6355, 0.6542], +/- 0.0094)
+  P_FA active            : 0.0443 (95% CI [0.0436, 0.0450], +/- 0.0007)
+  P_FA overall           : 0.0443 (95% CI [0.0435, 0.0450], +/- 0.0007)
+  Overhead B             : 16446.72 bit (std 3834.71)
+  Overhead T             : 24.9440 ms (std 9.7784)
+  Selected links         : 25.70 (std 5.99)
+  Active target ratio    : 0.9994
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  D mean/median          : 48.8575 / 6.3854
+  D p10/p90              : 0.2600 / 115.1242
+  All targets satisfy    : 0.0250
+  Worst target D mean    : 35.3917
+  Worst target sat. prob : 0.6420
+  Efficiency P_D/kbit    : 0.0392
+  Efficiency P_D/ms      : 0.0259
+
+[all_neighbor]
+  P_D                    : 0.6876 (95% CI [0.6784, 0.6966], +/- 0.0091)
+  P_FA active            : 0.0475 (95% CI [0.0467, 0.0482], +/- 0.0008)
+  P_FA overall           : 0.0475 (95% CI [0.0467, 0.0482], +/- 0.0008)
+  Overhead B             : 275827.20 bit (std 32511.80)
+  Overhead T             : 675.3878 ms (std 133.7584)
+  Selected links         : 430.98 (std 50.80)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  D mean/median          : 82.6760 / 9.6809
+  D p10/p90              : 0.2815 / 188.3026
+  All targets satisfy    : 0.0250
+  Worst target D mean    : 59.3426
+  Worst target sat. prob : 0.6570
+  Efficiency P_D/kbit    : 0.0025
+  Efficiency P_D/ms      : 0.0010
+
+[random]
+  P_D                    : 0.1094 (95% CI [0.1034, 0.1157], +/- 0.0061)
+  P_FA active            : 0.0470 (95% CI [0.0462, 0.0477], +/- 0.0008)
+  P_FA overall           : 0.0470 (95% CI [0.0462, 0.0477], +/- 0.0008)
+  Overhead B             : 16446.72 bit (std 3834.71)
+  Overhead T             : 39.9634 ms (std 11.3981)
+  Selected links         : 25.70 (std 5.99)
+  Active target ratio    : 0.9994
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  D mean/median          : 1.9047 / 0.0043
+  D p10/p90              : 0.0000 / 0.8470
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 0.9088
+  Worst target sat. prob : 0.0380
+  Efficiency P_D/kbit    : 0.0067
+  Efficiency P_D/ms      : 0.0027
+
+[nearest]
+  P_D                    : 0.1533 (95% CI [0.1464, 0.1605], +/- 0.0071)
+  P_FA active            : 0.0411 (95% CI [0.0404, 0.0419], +/- 0.0007)
+  P_FA overall           : 0.0411 (95% CI [0.0404, 0.0418], +/- 0.0007)
+  Overhead B             : 16446.72 bit (std 3834.71)
+  Overhead T             : 9.7188 ms (std 5.1317)
+  Selected links         : 25.70 (std 5.99)
+  Active target ratio    : 0.9994
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  D mean/median          : 10.8673 / 0.0082
+  D p10/p90              : 0.0000 / 2.5875
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 6.4987
+  Worst target sat. prob : 0.0790
+  Efficiency P_D/kbit    : 0.0093
+  Efficiency P_D/ms      : 0.0158
+
+[shortest_bistatic]
+  P_D                    : 0.4936 (95% CI [0.4838, 0.5034], +/- 0.0098)
+  P_FA active            : 0.0450 (95% CI [0.0443, 0.0458], +/- 0.0007)
+  P_FA overall           : 0.0450 (95% CI [0.0442, 0.0457], +/- 0.0007)
+  Overhead B             : 16446.72 bit (std 3834.71)
+  Overhead T             : 35.6855 ms (std 12.1081)
+  Selected links         : 25.70 (std 5.99)
+  Active target ratio    : 0.9994
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  D mean/median          : 32.4116 / 2.0974
+  D p10/p90              : 0.0690 / 60.9148
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 22.0227
+  Worst target sat. prob : 0.4100
+  Efficiency P_D/kbit    : 0.0300
+  Efficiency P_D/ms      : 0.0138
+
+[raw_sense_sinr]
+  P_D                    : 0.5099 (95% CI [0.5001, 0.5197], +/- 0.0098)
+  P_FA active            : 0.0466 (95% CI [0.0459, 0.0474], +/- 0.0008)
+  P_FA overall           : 0.0466 (95% CI [0.0459, 0.0474], +/- 0.0008)
+  Overhead B             : 16446.72 bit (std 3834.71)
+  Overhead T             : 182.4816 ms (std 240.9988)
+  Selected links         : 25.70 (std 5.99)
+  Active target ratio    : 0.9994
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  D mean/median          : 42.0888 / 2.9247
+  D p10/p90              : 0.0815 / 96.8430
+  All targets satisfy    : 0.0020
+  Worst target D mean    : 29.3176
+  Worst target sat. prob : 0.4830
+  Efficiency P_D/kbit    : 0.0310
+  Efficiency P_D/ms      : 0.0028
+
+[sense_sinr]
+  P_D                    : 0.6076 (95% CI [0.5980, 0.6171], +/- 0.0096)
+  P_FA active            : 0.0459 (95% CI [0.0452, 0.0467], +/- 0.0007)
+  P_FA overall           : 0.0459 (95% CI [0.0452, 0.0467], +/- 0.0007)
+  Overhead B             : 16446.72 bit (std 3834.71)
+  Overhead T             : 36.6967 ms (std 11.9651)
+  Selected links         : 25.70 (std 5.99)
+  Active target ratio    : 0.9994
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  D mean/median          : 45.0803 / 5.3822
+  D p10/p90              : 0.2504 / 103.0484
+  All targets satisfy    : 0.0100
+  Worst target D mean    : 31.5824
+  Worst target sat. prob : 0.6130
+  Efficiency P_D/kbit    : 0.0369
+  Efficiency P_D/ms      : 0.0166
+
+[single_best]
+  P_D                    : 0.5995 (95% CI [0.5899, 0.6091], +/- 0.0096)
+  P_FA active            : 0.0422 (95% CI [0.0415, 0.0430], +/- 0.0007)
+  P_FA overall           : 0.0422 (95% CI [0.0415, 0.0430], +/- 0.0007)
+  Overhead B             : 6400.00 bit (std 0.00)
+  Overhead T             : 8.4992 ms (std 2.4454)
+  Selected links         : 10.00 (std 0.00)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  D mean/median          : 47.2053 / 5.0144
+  D p10/p90              : 0.1222 / 110.8901
+  All targets satisfy    : 0.0050
+  Worst target D mean    : 33.7525
+  Worst target sat. prob : 0.5520
+  Efficiency P_D/kbit    : 0.0937
+  Efficiency P_D/ms      : 0.0705
+
+进程已结束，退出代码为 0

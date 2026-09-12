@@ -1,0 +1,150 @@
+MC   20/200: proposed_lagrangian P_D=0.6450, P_FA=0.0448
+MC   40/200: proposed_lagrangian P_D=0.6100, P_FA=0.0441
+MC   60/200: proposed_lagrangian P_D=0.6483, P_FA=0.0452
+MC   80/200: proposed_lagrangian P_D=0.6500, P_FA=0.0453
+MC  100/200: proposed_lagrangian P_D=0.6500, P_FA=0.0445
+MC  120/200: proposed_lagrangian P_D=0.6558, P_FA=0.0439
+MC  140/200: proposed_lagrangian P_D=0.6600, P_FA=0.0439
+MC  160/200: proposed_lagrangian P_D=0.6581, P_FA=0.0439
+MC  180/200: proposed_lagrangian P_D=0.6617, P_FA=0.0440
+MC  200/200: proposed_lagrangian P_D=0.6565, P_FA=0.0443
+
+========== Lagrangian DOTFS-ISAC Simplified Simulation Summary ==========
+
+[proposed_lagrangian]
+  P_D                    : 0.6565 (95% CI [0.6354, 0.6770], +/- 0.0208)
+  P_FA                   : 0.0443 (95% CI [0.0427, 0.0460], +/- 0.0016)
+  Overhead B             : 16294.40 bit (std 3728.98)
+  Overhead T             : 24.7244 ms (std 9.2149)
+  Selected links         : 25.46 (std 5.83)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 432.72
+  D mean/median          : 51.0886 / 6.5312
+  D p10/p90              : 0.2540 / 117.5757
+  All targets satisfy    : 0.0150
+  Worst target D mean    : 32.6828
+  Worst target sat. prob : 0.6250
+  Efficiency P_D/kbit    : 0.0403
+  Efficiency P_D/ms      : 0.0266
+
+[all_neighbor]
+  P_D                    : 0.6865 (95% CI [0.6658, 0.7065], +/- 0.0203)
+  P_FA                   : 0.0469 (95% CI [0.0453, 0.0487], +/- 0.0017)
+  Overhead B             : 276940.80 bit (std 28789.77)
+  Overhead T             : 674.8776 ms (std 113.2960)
+  Selected links         : 432.72 (std 44.98)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 432.72
+  D mean/median          : 86.7095 / 9.9992
+  D p10/p90              : 0.2760 / 194.6069
+  All targets satisfy    : 0.0150
+  Worst target D mean    : 55.1176
+  Worst target sat. prob : 0.6250
+  Efficiency P_D/kbit    : 0.0025
+  Efficiency P_D/ms      : 0.0010
+
+[random]
+  P_D                    : 0.1225 (95% CI [0.1089, 0.1376], +/- 0.0144)
+  P_FA                   : 0.0456 (95% CI [0.0439, 0.0473], +/- 0.0017)
+  Overhead B             : 16294.40 bit (std 3728.98)
+  Overhead T             : 38.8254 ms (std 10.5914)
+  Selected links         : 25.46 (std 5.83)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 432.72
+  D mean/median          : 3.7088 / 0.0044
+  D p10/p90              : 0.0000 / 1.0215
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 0.2651
+  Worst target sat. prob : 0.0150
+  Efficiency P_D/kbit    : 0.0075
+  Efficiency P_D/ms      : 0.0032
+
+[nearest]
+  P_D                    : 0.1715 (95% CI [0.1556, 0.1886], +/- 0.0165)
+  P_FA                   : 0.0421 (95% CI [0.0405, 0.0437], +/- 0.0016)
+  Overhead B             : 16294.40 bit (std 3728.98)
+  Overhead T             : 10.0617 ms (std 5.4215)
+  Selected links         : 25.46 (std 5.83)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 432.72
+  D mean/median          : 14.0994 / 0.0090
+  D p10/p90              : 0.0000 / 4.1647
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 4.2338
+  Worst target sat. prob : 0.0850
+  Efficiency P_D/kbit    : 0.0105
+  Efficiency P_D/ms      : 0.0170
+
+[shortest_bistatic]
+  P_D                    : 0.5020 (95% CI [0.4801, 0.5239], +/- 0.0219)
+  P_FA                   : 0.0455 (95% CI [0.0439, 0.0472], +/- 0.0017)
+  Overhead B             : 16294.40 bit (std 3728.98)
+  Overhead T             : 35.0022 ms (std 11.1389)
+  Selected links         : 25.46 (std 5.83)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 432.72
+  D mean/median          : 32.4275 / 2.1191
+  D p10/p90              : 0.0691 / 54.8000
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 19.7112
+  Worst target sat. prob : 0.3800
+  Efficiency P_D/kbit    : 0.0308
+  Efficiency P_D/ms      : 0.0143
+
+[raw_sense_sinr]
+  P_D                    : 0.5095 (95% CI [0.4876, 0.5314], +/- 0.0219)
+  P_FA                   : 0.0467 (95% CI [0.0450, 0.0484], +/- 0.0017)
+  Overhead B             : 16294.40 bit (std 3728.98)
+  Overhead T             : 189.4590 ms (std 327.1752)
+  Selected links         : 25.46 (std 5.83)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 432.72
+  D mean/median          : 43.7544 / 3.0442
+  D p10/p90              : 0.0814 / 95.8505
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 26.6933
+  Worst target sat. prob : 0.4450
+  Efficiency P_D/kbit    : 0.0313
+  Efficiency P_D/ms      : 0.0027
+
+[sense_sinr]
+  P_D                    : 0.6105 (95% CI [0.5889, 0.6316], +/- 0.0214)
+  P_FA                   : 0.0443 (95% CI [0.0427, 0.0460], +/- 0.0016)
+  Overhead B             : 16294.40 bit (std 3728.98)
+  Overhead T             : 36.1500 ms (std 11.0455)
+  Selected links         : 25.46 (std 5.83)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 432.72
+  D mean/median          : 46.7825 / 5.3094
+  D p10/p90              : 0.2479 / 106.7160
+  All targets satisfy    : 0.0050
+  Worst target D mean    : 29.4132
+  Worst target sat. prob : 0.5950
+  Efficiency P_D/kbit    : 0.0375
+  Efficiency P_D/ms      : 0.0169
+
+[single_best]
+  P_D                    : 0.5970 (95% CI [0.5753, 0.6183], +/- 0.0215)
+  P_FA                   : 0.0406 (95% CI [0.0391, 0.0423], +/- 0.0016)
+  Overhead B             : 6400.00 bit (std 0.00)
+  Overhead T             : 8.4910 ms (std 2.3139)
+  Selected links         : 10.00 (std 0.00)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 432.72
+  D mean/median          : 49.0723 / 4.8522
+  D p10/p90              : 0.1203 / 114.9943
+  All targets satisfy    : 0.0100
+  Worst target D mean    : 30.0425
+  Worst target sat. prob : 0.5300
+  Efficiency P_D/kbit    : 0.0933
+  Efficiency P_D/ms      : 0.0703
+
+进程已结束，退出代码为 0

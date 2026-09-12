@@ -1,0 +1,75 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{booktabs}       % 修复 toprule midrule bottomrule
+\usepackage{placeins}       % 修复 FloatBarrier
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{textcomp} 
+\usepackage{xcolor}
+\usepackage{cite}
+%\usepackage{float}
+%\usepackage[inkscapelatex=false]{svg} % 关键包
+\graphicspath{{figs/}} % 图片放 figures 文件夹
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+		T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+	
+	% ===================== 标题 =====================
+	\title{Communication-Constrained Soft-Information Fusion for Multi-UAV OTFS-ISAC Cooperative Sensing}
+	
+	% ===================== 作者（标准格式） =====================
+	\author{
+		\IEEEauthorblockN{
+			Xinhang Tan,
+			Zhengquan Zhang,
+			L Hao
+		}
+		\IEEEauthorblockA{
+			\textit{Southwest Jiaotong University}\\
+			Chengdu, China\\
+			Email: tanxinhang6478@163.com, zhang.zhengquan@swjtu.edu.cn, lhao@home.swjtu.edu.cn
+		}
+		\thanks{Corresponding author: Xinhang Tan.}
+	}
+	\maketitle
+	
+	% ===================== 摘要（纯净版） =====================
+
+	\begin{abstract}
+		In multi-UAV OTFS-ISAC networks, inter-UAV soft-information exchange can
+		improve cooperative sensing, but excessive signaling overhead, exchange
+		delay, and unreliable reporting links may offset the sensing gain. To address
+		this issue, this paper proposes a communication-error-calibrated and
+		coarse-to-fine (C2F) delay-Doppler (DD)-aware Lagrangian link-selection
+		method for communication-constrained multi-UAV cooperative sensing. The
+		proposed method evaluates each target-dependent cooperative link according to
+		its calibrated marginal deflection gain, reporting reliability, exchange
+		delay, and DD-domain energy-capture efficiency. A coarse DD-domain Lagrangian utility
+		is first used to screen candidate links, and local DD-grid refinement is then
+		applied only to shortlisted candidates, thereby reducing unnecessary fine-grid
+		evaluations. Simulation results in a 15-UAV, 10-target aerial sensing
+		scenario show that the proposed method retains about 94.8\% of the
+		all-neighbor detection probability while reducing signaling overhead and
+		exchange delay by approximately 92.1\% and 94.8\%, respectively. Under the
+		same per-target selected-link budget, it outperforms Sensing-SINR-based
+		selection and achieves comparable detection to Top-K Deflection with about
+		29\% lower exchange delay.
+	\end{abstract}
+
+	\begin{IEEEkeywords}
+		Multi-UAV networks, OTFS-ISAC, cooperative sensing, soft-information fusion,
+		DD-domain refinement, Lagrangian link selection.
+	\end{IEEEkeywords}
+
+
+	\input{Introduction.tex}
+	\input{SystemModel.tex}
+	\input{ProposedMethod.tex}  % 已修复无空格
+	\input{SimulationResults.tex}
+	
+	\input{Conclusion.tex}
+	% ===================== 参考文献（IEEE 标准格式） =====================
+	\input{References.tex}
+	
+\end{document}

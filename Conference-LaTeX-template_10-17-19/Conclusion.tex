@@ -1,0 +1,59 @@
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper investigated communication-constrained cooperative sensing in a
+multi-UAV OTFS-ISAC network. We developed a communication-error-calibrated and
+C2F DD-aware Lagrangian link-selection method that jointly accounts for
+marginal deflection gain, reporting reliability, exchange delay, and
+DD-domain energy-capture loss. By calibrating exchanged soft statistics
+according to reporting reliability, the proposed method reduces the impact of
+unreliable reports on the fused statistic. The C2F DD-aware design further
+applies local DD-grid refinement only to shortlisted candidates, thereby
+recovering useful DD-domain energy while avoiding unnecessary fine-grid
+evaluations.
+
+Simulation results showed that the proposed method retains most of the
+all-neighbor detection gain with much lower signaling overhead and exchange
+delay. Under the same per-target selected-link budget, it achieves higher
+detection probability than Sensing-SINR-based selection and provides detection
+performance comparable to the Top-K Deflection baseline with lower delay.
+Ablation and robustness results further support the benefits of
+communication-error calibration, target-priority weighting, delay-aware
+Lagrangian pricing, and C2F DD refinement.
+
+Future work will extend the current geometry-driven soft-information
+abstraction toward waveform-level OTFS-ISAC receiver modeling, more realistic
+inter-UAV reporting protocols, and joint detection-tracking design for dynamic
+multi-target UAV sensing networks.
+
+
+
+
+%
+%\section{Conclusion}
+%\label{sec:conclusion}
+%
+%This paper studied communication-constrained cooperative sensing in a
+%multi-UAV OTFS-ISAC network. A communication-error-calibrated and C2F
+%DD-aware Lagrangian link-selection method was developed to jointly account for
+%marginal deflection gain, reporting reliability, exchange delay, and fractional
+%DD-domain mismatch. By calibrating exchanged soft statistics according to
+%reporting reliability, the proposed method suppresses unreliable links before
+%fusion. The C2F DD-aware design further applies local DD-grid refinement only
+%to shortlisted candidates, preserving DD-domain energy recovery while reducing
+%unnecessary fine-grid evaluations.
+%
+%Simulation results show that the proposed method approaches the all-neighbor
+%detection reference with much lower signaling overhead and exchange delay.
+%Under the same per-target selected-link budget, it outperforms
+%Sensing-SINR-based selection and achieves comparable detection to the strong
+%Top-K Deflection baseline with lower delay. Ablation and robustness results
+%verify the benefits of communication-error calibration, target-priority
+%weighting, delay-aware Lagrangian pricing, and C2F DD refinement.
+%
+%Future work will extend the current geometry-driven soft-information
+%abstraction toward waveform-level OTFS-ISAC receiver modeling, more realistic
+%inter-UAV communication protocols, and joint detection-tracking design for
+%dynamic multi-target UAV sensing networks.
+%

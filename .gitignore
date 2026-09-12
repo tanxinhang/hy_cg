@@ -1,0 +1,34 @@
+# --- WorkBuddy 工作区内部数据（记忆等，绝不提交）---
+.workbuddy/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+
+# --- 日志 ---
+*.log
+
+# --- LaTeX 编译产物 ---
+*.aux
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.toc
+*.bbl
+*.blg
+
+# --- 实验中间产物（Code / CodeCg 的运行输出，非代码）---
+Code/gate1_*/
+Code/tracking_*/
+Code/sweep_*/
+Code/pred_*/
+CodeCg/outputs_*/
