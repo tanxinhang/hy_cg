@@ -35,3 +35,6 @@ CodeCg/outputs_*/
 
 # --- 小规模预览跑（MC=2 等冒烟数据，非论文结果）---
 archive/results_preview_*/
+
+# --- 离线传输包（git bundle 产物）---
+*.bundle
