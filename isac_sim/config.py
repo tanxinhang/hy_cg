@@ -116,6 +116,14 @@ class CommCfg:
     comm_direct_leakage_factor: float = 0.0
     K_candidates: int = 4
     b_d: float = 160.0
+    # How the communication interference term is built.
+    # "full_concurrent": every UAV is assumed to transmit at full comm power.
+    #     Conservative worst case; independent of which links are selected.
+    # "active_set": only UAVs that actually act as the *transmitting* end of a
+    #     selected reporting link contribute interference.  A method that
+    #     selects fewer links therefore sees less interference, a higher rate
+    #     and a lower delay -- which is the physically correct behaviour.
+    interference_model: str = "full_concurrent"
 
 
 @dataclass

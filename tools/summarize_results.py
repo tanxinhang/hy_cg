@@ -24,6 +24,17 @@ from pathlib import Path
 from typing import Dict, List
 
 
+def mode_csv(res: Path, subdir: str, mode: str | None = None) -> Path:
+    """Path of a mode's CSV.
+
+    ``rerun_paper.py`` passes ``--out <results>/<subdir>`` and the CLI then
+    writes to ``<out>/<mode>/<mode>.csv``, so the full path is
+    ``<results>/<subdir>/<mode>/<mode>.csv``.
+    """
+    mode = subdir if mode is None else mode
+    return res / subdir / mode / f"{mode}.csv"
+
+
 def load_rows(path: Path) -> List[Dict[str, str]]:
     if not path.exists():
         return []
@@ -70,7 +81,7 @@ def main() -> int:
     # ------------------------------------------------------------------
     # Main comparison
     # ------------------------------------------------------------------
-    main_rows = load_rows(res / "main" / "main.csv")
+    main_rows = load_rows(mode_csv(res, "main"))
     if main_rows:
         m = by_method(main_rows)
         add("## 1. 主对比（Fig. 2）\n")
@@ -111,28 +122,53 @@ def main() -> int:
                     pass
         add("")
 
+    # Control run under the conservative full-concurrent interference model.
+    ctrl_rows = load_rows(mode_csv(res, "main_full_concurrent", "main"))
+    if main_rows and ctrl_rows:
+        m_new, m_old = by_method(main_rows), by_method(ctrl_rows)
+        if "proposed_lagrangian" in m_new and "proposed_lagrangian" in m_old:
+            add("### 1.1 干扰模型对照（active_set vs full_concurrent）\n")
+            add("| 干扰模型 | proposed P_D | proposed 时延 (ms) | 保留率 |")
+            add("|---|---|---|---|")
+            for tag, m in [("active_set（新，活跃集并发）", m_new),
+                           ("full_concurrent（保守全并发）", m_old)]:
+                p, a = m["proposed_lagrangian"], m["all_neighbor"]
+                try:
+                    pp, pa = float(p["P_D"]), float(a["P_D"])
+                    tt = float(p["T_mean_ms"])
+                    add(f"| {tag} | {pp:.4f} | {tt:.2f} | {pp / pa:.1%} |")
+                except (KeyError, ValueError):
+                    continue
+            add("")
+
     # ------------------------------------------------------------------
     # C2F / DD refinement
     # ------------------------------------------------------------------
-    c2f_rows = load_rows(res / "c2f" / "c2f.csv")
+    c2f_rows = load_rows(mode_csv(res, "c2f"))
     if c2f_rows:
         m = by_method(c2f_rows)
         add("## 2. C2F DD 精化（Fig. 2 / §4 DD 消融）\n")
-        add("| Method | P_D | Fine-grid eval | T (ms) |")
-        add("|---|---|---|---|")
-        for name in ["proposed_lagrangian", "proposed_c2f", "proposed_c2f_full"]:
+        add("| Method | P_D | Fine-grid eval | T (ms) | Bits (kbit) |")
+        add("|---|---|---|---|---|")
+        for name in ["proposed_lagrangian", "proposed_c2f", "proposed_c2f_full", "all_neighbor"]:
             if name not in m:
                 continue
             r = m[name]
             add(f"| {name} | {fnum(r, 'P_D')} | "
                 f"{fnum(r, 'fine_eval_c2f_mean', 1) if 'fine_eval_c2f_mean' in r else '-'} | "
-                f"{fnum(r, 'T_mean_ms', 2)} |")
-        if "proposed_c2f" in m and "proposed_c2f_full" in m:
-            sc, sf = m["proposed_c2f"], m["proposed_c2f_full"]
+                f"{fnum(r, 'T_mean_ms', 2)} | {fnum(r, 'B_mean_bits', 0)} |")
+        if {"proposed_lagrangian", "proposed_c2f", "proposed_c2f_full"} <= set(m):
+            s0, sc, sf = m["proposed_lagrangian"], m["proposed_c2f"], m["proposed_c2f_full"]
             try:
                 fc = float(sc["fine_eval_c2f_mean"])
                 ff = float(sf["fine_eval_full_mean"])
-                add(f"\n- fine-grid 评估减少：`{pct(ff - fc, ff)}`"
+                p0, pc, pf = (float(x["P_D"]) for x in (s0, sc, sf))
+                add("")
+                add(f"- **C2F 精化增益**：P_D `{p0:.4f}` → `{pc:.4f}`"
+                    f"（{pc - p0:+.4f}，论文 0.6262→0.6648）")
+                add(f"- **C2F 匹配全量精化**：`{pc:.4f}` vs `{pf:.4f}`"
+                    f"（差 {abs(pc - pf):.4f}），但 fine-grid 评估只用 `{fc:.0f}` / `{ff:.0f}`")
+                add(f"- **fine-grid 评估减少**：`{pct(ff - fc, ff)}`"
                     f"（`{fc:.0f}` vs `{ff:.0f}`，论文 41.1%）")
             except (KeyError, ValueError):
                 pass
@@ -141,7 +177,7 @@ def main() -> int:
     # ------------------------------------------------------------------
     # Ablation (Table II)
     # ------------------------------------------------------------------
-    fair_rows = load_rows(res / "fair-ablation" / "fair-ablation.csv")
+    fair_rows = load_rows(mode_csv(res, "fair-ablation"))
     if fair_rows:
         add("## 3. 组件消融（Table II，固定预算）\n")
         add("| Variant | P_D | Bits (kbit) | Delay (ms) | Worst P_D |")
@@ -154,7 +190,7 @@ def main() -> int:
                 f"{fnum(r, 'actual_worst_target_P_D')} |")
         add("")
 
-    dd_rows = load_rows(res / "dd-ablation" / "dd-ablation.csv")
+    dd_rows = load_rows(mode_csv(res, "dd-ablation"))
     if dd_rows:
         add("## 4. DD 机制消融\n")
         add("| Variant | Method | P_D |")
@@ -167,8 +203,8 @@ def main() -> int:
     # Sweeps
     # ------------------------------------------------------------------
     for label, path, xkey in [
-        ("λ_c 扫描（Fig. 3）", res / "lambda-sweep" / "lambda-sweep.csv", "lambda_cost"),
-        ("R_min 扫描（Fig. 5）", res / "comm-sweep" / "comm-sweep.csv", "R_min_mbps"),
+        ("λ_c 扫描（Fig. 3）", mode_csv(res, "lambda-sweep"), "lambda_cost"),
+        ("R_min 扫描（Fig. 5）", mode_csv(res, "comm-sweep"), "R_min_mbps"),
     ]:
         rows = load_rows(path)
         if rows:
@@ -176,7 +212,7 @@ def main() -> int:
             add("| x | Method | P_D | T (ms) | links |")
             add("|---|---|---|---|---|")
             for r in rows:
-                add(f"| {fnum(r, xkey, 3)} | {r.get('method', '-')} | "
+                add(f"| {fnum(r, xkey, 4)} | {r.get('method', '-')} | "
                     f"{fnum(r, 'P_D')} | {fnum(r, 'T_mean_ms', 2)} | "
                     f"{fnum(r, 'selected_links_mean', 1)} |")
             add("")

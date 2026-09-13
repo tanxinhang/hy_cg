@@ -14,7 +14,12 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from .config import Config, Link, MethodName
-from .fusion import compute_weights, fusion_weight_mode_for_method, h0_variance_for_link
+from .fusion import (
+    compute_weights,
+    deflection_for_links,
+    fusion_weight_mode_for_method,
+    h0_variance_for_link,
+)
 from .model import (
     BaseGains,
     LinkTables,
@@ -89,7 +94,7 @@ def draw_h1_soft_stat(cfg: Config, tables: LinkTables, link: Link, q: int, rng: 
     if not d.enable_comm_error_pollution:
         return float(rng.normal(mu, sigma1))
 
-    chi = float(np.clip(tables.chi_comm[i, j], 0.0, 1.0))
+    chi = float(tables.chi_comm[j, i])  # reporting j -> i (already clipped)
     if rng.random() < chi:
         return float(rng.normal(mu, sigma1))
 
@@ -112,7 +117,7 @@ def draw_h0_soft_stat(cfg: Config, tables: LinkTables, link: Link, rng: np.rando
     if not d.enable_comm_error_pollution:
         return float(rng.normal(0.0, sigma0))
 
-    chi = float(np.clip(tables.chi_comm[i, j], 0.0, 1.0))
+    chi = float(tables.chi_comm[j, i])  # reporting j -> i (already clipped)
     if rng.random() < chi:
         return float(rng.normal(0.0, sigma0))
 
@@ -264,9 +269,9 @@ def communication_metrics_for_selection(
             "comm_feasible_edge_ratio": float(comm_feasible_edge_ratio),
         }
 
-    rates = np.array([tables.rate[i, j] for i, j in selected_unique], dtype=float)
-    chis = np.array([tables.chi_comm[i, j] for i, j in selected_unique], dtype=float)
-    gammas = np.array([tables.gamma_comm[i, j] for i, j in selected_unique], dtype=float)
+    rates = np.array([tables.rate[j, i] for i, j in selected_unique], dtype=float)
+    chis = np.array([tables.chi_comm[j, i] for i, j in selected_unique], dtype=float)
+    gammas = np.array([tables.gamma_comm[j, i] for i, j in selected_unique], dtype=float)
     gamma_db = 10.0 * np.log10(np.maximum(gammas, EPS))
 
     return {
@@ -307,17 +312,26 @@ def run_method_on_trial(
         selected, D = cached_lagrangian if cached_lagrangian is not None else select_lagrangian(cfg, base, tables)
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
+        sel_tables = tables
     elif method in C2F_METHODS:
-        # C2F selectors need the fine-grained tables produced in run_one_trial.
-        if c2f_tables is None:
-            c2f_tables = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
-        selected, D, c2f_stats = select_c2f(cfg, base, c2f_tables)
+        # C2F selectors must score the coarse stage with the *coarse* table
+        # (``tables``) and only rebuild the fine table for the links they
+        # actually refine.  Passing a globally refined table here would make
+        # the shortlist itself fine-grained and silently collapse C2F into the
+        # full-refinement variant.
+        selected, D, c2f_stats = select_c2f(
+            cfg, base, tables, apply_to_all=C2F_METHODS[method]
+        )
         fine_eval_full = float(c2f_stats["fine_eval_full"])
         fine_eval_c2f = float(c2f_stats["fine_eval_c2f"])
+        # The selector committed to these links under the refined DD gain, so
+        # evaluation uses a refined table too (rebuilt on the active set below).
+        sel_tables = c2f_tables if c2f_tables is not None else tables
     elif method == "all_neighbor":
         selected, D = select_all_neighbor(cfg, base, tables)
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
+        sel_tables = tables
     else:
         if reference_counts is None:
             ref_selected, _ = select_lagrangian(cfg, base, tables)
@@ -325,11 +339,37 @@ def run_method_on_trial(
         selected, D = select_topk_baseline(cfg, base, tables, reference_counts, method, rng)
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
+        sel_tables = tables
 
-    detection = evaluate_detection(cfg, tables, selected, rng, method)
+    # "active_set" interference model: rebuild the tables counting only the
+    # UAVs that actually transmit.  For a selected sensing pair (i, j) the
+    # reporting direction is j -> i, so the *transmitting* end is j.  Fewer
+    # selected links therefore means a smaller interfering set, a higher rate
+    # and a lower delay -- the physically correct concurrent-interference
+    # behaviour that the "full_concurrent" model cannot express.
+    tables_eval = tables
+    if cfg.comm.interference_model == "active_set":
+        active_tx = np.zeros(cfg.scale.M, dtype=bool)
+        for q, links in selected.items():
+            for (i, j) in links:
+                active_tx[j] = True
+        tables_eval = compute_link_tables(
+            cfg, base, active_tx_mask=active_tx, reuse_from=sel_tables
+        )
+        # Recompute the fused deflection under the real (reduced) interference
+        # so the reported D matches the evaluation table.
+        D = np.array([
+            deflection_for_links(
+                cfg, tables_eval, q, selected.get(q, []),
+                weight_mode=fusion_weight_mode_for_method(method),
+            )
+            for q in range(cfg.scale.Q)
+        ])
+
+    detection = evaluate_detection(cfg, tables_eval, selected, rng, method)
     detected, total_targets, fa, total_false, fa_overall, total_false_overall, detected_per_target = detection
     feasible_targets, feasible_links = feasible_stats(cfg, base, tables)
-    comm_metrics = communication_metrics_for_selection(cfg, base, tables, selected)
+    comm_metrics = communication_metrics_for_selection(cfg, base, tables_eval, selected)
 
     return MethodResult(
         name=method,
@@ -341,7 +381,7 @@ def run_method_on_trial(
         false_alarm_overall=fa_overall,
         total_false_overall=total_false_overall,
         overhead_bits=total_overhead_bits(cfg, selected),
-        overhead_delay_s=total_overhead_delay_s(cfg, tables, selected),
+        overhead_delay_s=total_overhead_delay_s(cfg, tables_eval, selected),
         selected_links=selected,
         D_fuse_per_target=D,
         active_targets=active_target_count(selected),

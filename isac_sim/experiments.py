@@ -74,7 +74,7 @@ def lambda_sweep(cfg: Config, values: List[float] | None = None) -> List[Dict[st
     for lam in (values if values is not None else LAMBDA_VALUES):
         variant = apply_overrides(cfg, {"selector.lambda_c": float(lam)})
         _banner(f"Running lambda-cost sweep: lambda_c = {lam:g}")
-        s = run_simulation(variant)["proposed_lagrangian"]
+        s = run_simulation(variant, methods=["proposed_lagrangian"])["proposed_lagrangian"]
         row = {
             "lambda_cost": float(lam),
             "P_D": s["P_D"],
@@ -128,7 +128,7 @@ def _variant_suite(
     for name, overrides in variants.items():
         variant = apply_overrides(cfg, overrides)
         _banner(f"Running {label} variant: {name}")
-        summary = run_simulation(variant)
+        summary = run_simulation(variant, methods=methods)
         for method in methods:
             if method not in summary:
                 continue
@@ -210,7 +210,7 @@ def comm_sweep(cfg: Config, values: List[float] | None = None) -> List[Dict[str,
     for r_min in (values if values is not None else R_MIN_VALUES):
         variant = apply_overrides(cfg, {"comm.R_min": float(r_min)})
         _banner(f"Running communication constraint sweep: R_min = {r_min:g} bit/s")
-        summary = run_simulation(variant)
+        summary = run_simulation(variant, methods=SWEEP_METHODS)
         for method in SWEEP_METHODS:
             if method not in summary:
                 continue
@@ -248,7 +248,7 @@ def robustness(cfg: Config, axis: str = "comm_model", values: List[Any] | None =
     for value in values:
         variant = apply_overrides(cfg, {field_by_axis[axis]: value})
         _banner(f"Running robustness sweep: {axis} = {value}")
-        summary = run_simulation(variant)
+        summary = run_simulation(variant, methods=SWEEP_METHODS)
         for method in SWEEP_METHODS:
             if method not in summary:
                 continue

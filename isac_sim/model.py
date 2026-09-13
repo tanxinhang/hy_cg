@@ -290,7 +290,7 @@ def build_base_gains(cfg: Config, geom: Geometry, rng: np.random.Generator) -> B
                 a = (p_i - p_q) / d_iq
                 b = (p_j - p_q) / d_jq
                 sin_angle = float(np.linalg.norm(np.cross(a, b)))
-                geom_factor[i, j, q] = 0.1 + 0.9 * np.clip(sin_angle, 0.0, 1.0)
+                geom_factor[i, j, q] = 0.1 + 0.9 * min(max(sin_angle, 0.0), 1.0)
 
     dd_collision_count = np.ones((M, M, Q), dtype=float)
     if cfg.dd.enable_dd_collision_penalty:
@@ -358,6 +358,8 @@ def compute_link_tables(
     cfg: Config,
     base: BaseGains,
     dd_gain: np.ndarray | None = None,
+    active_tx_mask: np.ndarray | None = None,
+    reuse_from: LinkTables | None = None,
 ) -> LinkTables:
     """Per-link communication / sensing-SINR quantities.
 
@@ -365,10 +367,39 @@ def compute_link_tables(
     omitted (the default) the original coarse ``dd_frac_loss`` is used so the
     trial outputs stay bit-exact.  The C2F selector passes ``base.eta_fine``
     to obtain the fine-grain sensing-SINR table used at the fine stage.
+
+    ``active_tx_mask`` is an optional ``(M,)`` boolean array marking the UAVs
+    that are concurrently transmitting.  When ``cfg.comm.interference_model``
+    is ``"active_set"`` only those UAVs contribute to the communication
+    interference term, so a smaller selected link set sees less interference.
+    ``None`` (the default, and the ``"full_concurrent"`` model) keeps the
+    original worst-case behaviour where every UAV contributes.
+
+    ``reuse_from`` is a performance fast path for the ``active_set`` model.
+    Under the default ``sensing_only`` (or ``joint_waveform``) power model the
+    sensing-side quantities -- ``gamma_sense``, ``mu_soft``, ``sigma0``,
+    ``rinr``, ``raw_gamma_sense`` -- do **not** depend on the communication
+    interference, so they can be copied verbatim from the table built at
+    selection time and only the O(M^2) communication block needs recomputing.
+    This removes the O(M^2 * Q) sensing loop (by far the dominant cost) from
+    every re-evaluation.  It is ignored for ``reliable_comm_assisted``, where
+    the sensing power itself depends on ``chi_comm``.
     """
     M, Q = cfg.scale.M, cfg.scale.Q
     r, c, d = cfg.radio, cfg.comm, cfg.detect
     dd_used = base.dd_frac_loss if dd_gain is None else dd_gain
+
+    # Sensing quantities are independent of the communication interference
+    # except for the "reliable_comm_assisted" power model, where the effective
+    # sensing power is inflated by chi_comm.
+    # Sensing quantities depend on ``dd_gain``, so the fast path is only valid
+    # when the caller did not override it (the active_set re-evaluation passes
+    # ``dd_gain=None`` and reuses the selection-stage sensing block).
+    can_reuse_sensing = (
+        reuse_from is not None
+        and dd_gain is None
+        and r.isac_power_model != "reliable_comm_assisted"
+    )
 
     P = np.full(M, r.P_default, dtype=float)
     P_sense = r.rho * P
@@ -393,6 +424,11 @@ def compute_link_tables(
             for k in range(M):
                 if k == i or k == j:
                     continue
+                # "active_set" model: a UAV only interferes if it is actually
+                # transmitting (i.e. it is the sending end of a selected
+                # reporting link).  Silent UAVs contribute nothing.
+                if active_tx_mask is not None and not active_tx_mask[k]:
+                    continue
                 interf += (P_comm[k] + c.comm_leakage_from_sensing * P_sense[k]) * base.direct_gain[k, j]
 
             direct_leakage = c.comm_direct_leakage_factor * P_sense[i] * base.direct_gain[i, j]
@@ -401,10 +437,41 @@ def compute_link_tables(
             rate[i, j] = B * np.log2(1.0 + gamma)
             chi_comm[i, j] = gamma / (gamma + gamma_req + EPS)
 
+    # chi_comm = gamma / (gamma + gamma_req) lies in [0, 1) by construction.
+    # Clip once here (vectorised, O(M^2)) so the fusion hot path -- which is
+    # called millions of times -- never pays for a scalar np.clip.
+    np.clip(chi_comm, 0.0, 1.0, out=chi_comm)
+
+    # Feasibility of the *reporting* link.  The soft statistic s_{ijq} is
+    # produced at the receiving UAV j and reported back to the transmitting
+    # UAV i, so the reporting direction is j -> i and feasibility is judged by
+    # rate[j, i] / chi_comm[j, i] (NOT rate[i, j]).
+    for i in range(M):
+        for j in range(M):
+            if i == j or not base.edge_mask[i, j]:
+                continue
             if c.enforce_chi_min:
-                feasible_comm[i, j] = (rate[i, j] >= c.R_min) and (chi_comm[i, j] >= c.chi_min)
+                feasible_comm[i, j] = (rate[j, i] >= c.R_min) and (chi_comm[j, i] >= c.chi_min)
             else:
-                feasible_comm[i, j] = (rate[i, j] >= c.R_min)
+                feasible_comm[i, j] = (rate[j, i] >= c.R_min)
+
+    # ---- Fast path -------------------------------------------------------
+    # Only the communication block depends on the active transmitting set, so
+    # the (much larger) sensing block can be reused.  This is what makes the
+    # "active_set" model affordable inside the Monte-Carlo loop.
+    if can_reuse_sensing:
+        return LinkTables(
+            gamma_comm=gamma_comm,
+            rate=rate,
+            chi_comm=chi_comm,
+            feasible_comm=feasible_comm,
+            raw_gamma_sense=reuse_from.raw_gamma_sense,
+            gamma_sense=reuse_from.gamma_sense,
+            rinr=reuse_from.rinr,
+            beta=reuse_from.beta,
+            mu_soft=reuse_from.mu_soft,
+            sigma0=reuse_from.sigma0,
+        )
 
     raw_gamma_sense = np.zeros((M, M, Q))
     gamma_sense = np.zeros((M, M, Q))
@@ -461,8 +528,10 @@ def compute_link_tables(
                 mu_soft[i, j, q] = d.soft_mu_scale * np.log1p(gamma)
 
                 if feasible_comm[i, j]:
-                    chi_eff = float(np.clip(chi_comm[i, j], 0.0, 1.0))
-                    delay_ms = 1e3 * packet_bits_for_target(cfg, q) / max(rate[i, j], EPS)
+                    # Reporting direction is j -> i: reliability and delay are
+                    # those of the j -> i communication leg.
+                    chi_eff = float(chi_comm[j, i])  # already clipped to [0, 1]
+                    delay_ms = 1e3 * packet_bits_for_target(cfg, q) / max(rate[j, i], EPS)
                     beta[i, j, q] = (
                         cfg.selector.beta_scale
                         * np.log1p(gamma)

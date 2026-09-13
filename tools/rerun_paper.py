@@ -33,27 +33,37 @@ ROOT = Path(__file__).resolve().parent.parent
 RUN = ROOT / "run_isac_sim.py"
 
 # Paper Table I kinematic values (the only fields that differ from the
-# package defaults).
+# package defaults), plus the corrected communication model:
+#   * reporting reliability uses the j -> i direction (the soft statistic is
+#     produced at the receiving UAV j and reported back to the transmitter i);
+#   * the deflection denominator includes the between-group variance term
+#     chi*(1-chi)*mu^2 of the Bernoulli drop-out mixture;
+#   * interference is built from the *active* concurrent set, so a method that
+#     selects fewer links sees less interference.
 PAPER_SET = [
     "geometry.uav_speed_min=30",
     "geometry.target_speed_min=50",
     "geometry.target_speed_max=90",
+    "comm.interference_model=active_set",
 ]
 
-# (mode, extra argv).  Every mode uses the same paper parameter set + MC.
-# Robustness is run per axis; each axis needs its own output subdirectory so
-# the three runs don't overwrite each other's CSV.
-MODES: List[Tuple[str, List[str]]] = [
-    ("main", []),
-    ("c2f", []),
-    ("dd-ablation", []),
-    ("fair-ablation", []),
-    ("ablation", []),
-    ("comm-sweep", []),
-    ("lambda-sweep", []),
-    ("robustness", ["--axis", "comm_model"]),
-    ("robustness", ["--axis", "error_sigma"]),
-    ("robustness", ["--axis", "residual_direct"]),
+# (mode, extra argv, output subdirectory).  Every mode uses the same paper
+# parameter set + MC.  Robustness is run per axis, each into its own
+# subdirectory, so the three axes don't overwrite each other's CSV.
+MODES: List[Tuple[str, List[str], str]] = [
+    ("main", [], "main"),
+    # Control run under the conservative full-concurrent interference model,
+    # so the gain from the active-set model is visible in the summary.
+    ("main", ["--set", "comm.interference_model=full_concurrent"], "main_full_concurrent"),
+    ("c2f", [], "c2f"),
+    ("dd-ablation", [], "dd-ablation"),
+    ("fair-ablation", [], "fair-ablation"),
+    ("ablation", [], "ablation"),
+    ("comm-sweep", [], "comm-sweep"),
+    ("lambda-sweep", [], "lambda-sweep"),
+    ("robustness", ["--axis", "comm_model"], "robustness_comm_model"),
+    ("robustness", ["--axis", "error_sigma"], "robustness_error_sigma"),
+    ("robustness", ["--axis", "residual_direct"], "robustness_residual_direct"),
 ]
 
 
@@ -85,19 +95,27 @@ def main() -> int:
     parser.add_argument("--mc", type=int, default=1000)
     parser.add_argument("--out", type=Path, default=ROOT / "results")
     parser.add_argument("--seed", type=int, default=2026)
+    parser.add_argument("--only", nargs="+", default=None, metavar="SUBDIR",
+                        help="run only these output subdirectories (e.g. --only "
+                             "lambda-sweep robustness_comm_model); the rest are "
+                             "skipped so already-completed runs are not repeated")
     args = parser.parse_args()
 
     out: Path = args.out
     out.mkdir(parents=True, exist_ok=True)
 
+    selected = MODES
+    if args.only:
+        wanted = set(args.only)
+        selected = [m for m in MODES if m[2] in wanted]
+        missing = wanted - {m[2] for m in MODES}
+        if missing:
+            raise SystemExit(f"unknown subdir(s): {sorted(missing)}")
+        print(f"running only: {[m[2] for m in selected]}")
+
     t_start = time.time()
-    for mode, extra in MODES:
-        # Robustness runs write to <out>/robustness_<axis>/ so the three axes
-        # coexist instead of overwriting robustness.csv.
-        mode_out = out
-        if "--axis" in extra:
-            axis = extra[extra.index("--axis") + 1]
-            mode_out = out / f"robustness_{axis}"
+    for mode, extra, subdir in selected:
+        mode_out = out / subdir
         run_one(mode, extra, args.mc, mode_out, args.seed)
 
     print(f"\nAll modes finished in {(time.time() - t_start) / 60:.1f} min; "

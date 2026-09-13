@@ -23,14 +23,22 @@ from .model import EPS, d_pd_d_D, pd_from_deflection
 # Per-link effective first / second order statistics
 # ==========================================================================
 def effective_h1_mean_for_link(cfg: Config, tables, link: Link, q: int) -> float:
-    """Communication-error-calibrated H1 mean of the soft statistic."""
+    """Communication-error-calibrated H1 mean of the soft statistic.
+
+    The soft statistic ``s_{ijq}`` is produced at the *receiving* UAV ``j``.
+    It is then reported back to the *transmitting* UAV ``i`` (the sensing
+    initiator that fuses the information for target ``q``), so the reporting
+    reliability is the ``j -> i`` communication quality ``chi_comm[j, i]``
+    (NOT ``chi_comm[i, j]``).
+    """
     i, j = link
     mu = float(tables.mu_soft[i, j, q])
 
     if (not cfg.detect.enable_comm_error_pollution) or (not cfg.selector.use_comm_error_calibration):
         return mu
 
-    chi = float(np.clip(tables.chi_comm[i, j], 0.0, 1.0))
+    # chi_comm is already clipped to [0, 1] when the tables are built.
+    chi = float(tables.chi_comm[j, i])
     model = cfg.detect.comm_error_model
     if model == "erasure":
         return chi * mu
@@ -42,31 +50,56 @@ def effective_h1_mean_for_link(cfg: Config, tables, link: Link, q: int) -> float
 
 
 def h0_variance_for_link(cfg: Config, tables, link: Link) -> float:
-    """H0 variance of the soft statistic, inflated by failed packets."""
+    """H0 variance of the soft statistic, inflated by failed packets.
+
+    Uses the ``j -> i`` reporting reliability (see
+    :func:`effective_h1_mean_for_link`).
+    """
     i, j = link
     sigma0 = float(tables.sigma0[i, j])
 
     if not cfg.detect.enable_comm_error_pollution:
         return sigma0 ** 2
 
-    chi = float(np.clip(tables.chi_comm[i, j], 0.0, 1.0))
+    # chi_comm is already clipped to [0, 1] when the tables are built.
+    chi = float(tables.chi_comm[j, i])
     sigma_err = cfg.detect.soft_error_sigma_scale * sigma0
     return chi * sigma0 ** 2 + (1.0 - chi) * sigma_err ** 2
 
 
-def deflection_variance_for_link(cfg: Config, tables, link: Link) -> float:
-    """Variance used by the *algorithm-side* deflection estimate.
+def deflection_variance_for_link(cfg: Config, tables, link: Link, q: int) -> float:
+    """Full effective variance of the soft statistic used by the deflection.
 
-    Detection always uses :func:`h0_variance_for_link`.  For the
-    ``w/o comm. calib.`` ablation this function intentionally ignores the
-    communication-error variance inflation while the Monte-Carlo detector
-    remains polluted.
+    Models the communication error as a Bernoulli drop-out mixture
+    ``s_eff = B * s + (1 - B) * e`` with ``B ~ Bern(chi)``.  The total
+    variance is, by the law of total variance,
+
+        Var(s_eff) = E[Var(s_eff | B)] + Var(E[s_eff | B])
+                   = chi*sigma^2 + (1-chi)*sigma_err^2   (within-group)
+                   + chi*(1-chi)*mu^2                    (between-group)
+
+    The first term is :func:`h0_variance_for_link`; the second (between-group)
+    term ``chi*(1-chi)*mu^2`` was previously dropped and is added here.
+
+    ``q`` is required because the between-group term depends on the H1 mean
+    ``mu_soft[i, j, q]``.
+
+    Detection still uses :func:`h0_variance_for_link` (the standard
+    detection-threshold denominator).  For the ``w/o comm. calib.`` ablation
+    this function intentionally ignores the communication-error inflation
+    while the Monte-Carlo detector remains polluted.
     """
     i, j = link
     sigma0 = float(tables.sigma0[i, j])
     if (not cfg.detect.enable_comm_error_pollution) or (not cfg.selector.use_comm_error_calibration):
         return sigma0 ** 2
-    return h0_variance_for_link(cfg, tables, link)
+
+    var_within = h0_variance_for_link(cfg, tables, link)
+    # chi_comm is already clipped to [0, 1] when the tables are built.
+    chi = float(tables.chi_comm[j, i])
+    mu = float(tables.mu_soft[i, j, q])
+    var_between = chi * (1.0 - chi) * mu ** 2
+    return var_within + var_between
 
 
 # ==========================================================================
@@ -84,7 +117,7 @@ def compute_weights(cfg: Config, tables, q: int, links: List[Link], mode: str = 
         i, j = link
         if mode == "deflection":
             mu_eff = effective_h1_mean_for_link(cfg, tables, link, q)
-            vals.append(max(mu_eff, 0.0) / (deflection_variance_for_link(cfg, tables, link) + EPS))
+            vals.append(max(mu_eff, 0.0) / (deflection_variance_for_link(cfg, tables, link, q) + EPS))
         else:
             vals.append(max(float(tables.beta[i, j, q]), 0.0))
 
@@ -114,7 +147,7 @@ def deflection_for_links(cfg: Config, tables, q: int, links: List[Link], weight_
     var0 = 0.0
     for link, w in weights.items():
         mean_gap += w * effective_h1_mean_for_link(cfg, tables, link, q)
-        var0 += (w ** 2) * deflection_variance_for_link(cfg, tables, link)
+        var0 += (w ** 2) * deflection_variance_for_link(cfg, tables, link, q)
 
     return float((max(mean_gap, 0.0) ** 2) / (var0 + EPS))
 

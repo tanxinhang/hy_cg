@@ -1,38 +1,255 @@
 
 ===== main  =====
 mode: main  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\main
+non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, comm.interference_model=active_set, run.num_mc=1000, run.verbose=False
+output: results\main\main
 
 ========== Lagrangian DOTFS-ISAC Simplified Simulation Summary ==========
 
 [proposed_lagrangian]
-  P_D                    : 0.6105 (95% CI [0.6009, 0.6200], +/- 0.0096)
-  P_FA active            : 0.0437 (95% CI [0.0430, 0.0445], +/- 0.0007)
-  P_FA system-level      : 0.0437 (95% CI [0.0430, 0.0444], +/- 0.0007)
-  Overhead B             : 17674.88 bit (std 3942.75)
-  Overhead T             : 28.6365 ms (std 9.9596)
-  Selected links         : 27.62 (std 6.16)
-  Active target ratio    : 0.9992
+  P_D                    : 0.6506 (95% CI [0.6412, 0.6599], +/- 0.0093)
+  P_FA active            : 0.0443 (95% CI [0.0435, 0.0450], +/- 0.0007)
+  P_FA system-level      : 0.0442 (95% CI [0.0435, 0.0450], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 29.2124 ms (std 10.8427)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  Comm feasible edge ratio: 0.3870
+  Selected rate mean/min : 1.3814 / 0.2739 Mbps
+  Selected chi mean/min  : 0.8012 / 0.5741
+  Rate/chi sat. ratio    : 1.0000 / 1.0000
+  D mean/median          : 7.7152 / 4.0982
+  D p10/p90              : 0.2219 / 15.4833
+  All targets satisfy    : 0.0060
+  Worst target D mean    : 7.0138
+  Worst target sat. prob : 0.5850
+  Actual worst-target P_D: 0.6270
+  Efficiency P_D/kbit    : 0.0308
+  Efficiency P_D/ms      : 0.0223
+
+[all_neighbor]
+  P_D                    : 0.6646 (95% CI [0.6553, 0.6738], +/- 0.0093)
+  P_FA active            : 0.0479 (95% CI [0.0472, 0.0487], +/- 0.0008)
+  P_FA system-level      : 0.0479 (95% CI [0.0472, 0.0487], +/- 0.0008)
+  Overhead B             : 275827.20 bit (std 32511.80)
+  Overhead T             : 665.6112 ms (std 133.1852)
+  Selected links         : 430.98 (std 50.80)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  Comm feasible edge ratio: 0.3231
+  Selected rate mean/min : 0.8076 / 0.2080 Mbps
+  Selected chi mean/min  : 0.7116 / 0.5100
+  Rate/chi sat. ratio    : 1.0000 / 1.0000
+  D mean/median          : 11.3819 / 4.6420
+  D p10/p90              : 0.2153 / 28.6714
+  All targets satisfy    : 0.0060
+  Worst target D mean    : 10.0253
+  Worst target sat. prob : 0.5680
+  Actual worst-target P_D: 0.6350
+  Efficiency P_D/kbit    : 0.0024
+  Efficiency P_D/ms      : 0.0010
+
+[random]
+  P_D                    : 0.1374 (95% CI [0.1308, 0.1443], +/- 0.0067)
+  P_FA active            : 0.0452 (95% CI [0.0445, 0.0459], +/- 0.0007)
+  P_FA system-level      : 0.0452 (95% CI [0.0444, 0.0459], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 45.2899 ms (std 12.4807)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  Comm feasible edge ratio: 0.3702
+  Selected rate mean/min : 0.9128 / 0.2312 Mbps
+  Selected chi mean/min  : 0.7364 / 0.5363
+  Rate/chi sat. ratio    : 1.0000 / 1.0000
+  D mean/median          : 0.4809 / 0.0129
+  D p10/p90              : 0.0000 / 1.0558
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 0.3620
+  Worst target sat. prob : 0.0220
+  Actual worst-target P_D: 0.1230
+  Efficiency P_D/kbit    : 0.0065
+  Efficiency P_D/ms      : 0.0030
+
+[nearest]
+  P_D                    : 0.1842 (95% CI [0.1767, 0.1919], +/- 0.0076)
+  P_FA active            : 0.0448 (95% CI [0.0441, 0.0456], +/- 0.0007)
+  P_FA system-level      : 0.0448 (95% CI [0.0441, 0.0456], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 7.4374 ms (std 4.5365)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  Comm feasible edge ratio: 0.6043
+  Selected rate mean/min : 4.4374 / 2.0681 Mbps
+  Selected chi mean/min  : 0.9525 / 0.8779
+  Rate/chi sat. ratio    : 1.0000 / 1.0000
+  D mean/median          : 3.6376 / 0.0178
+  D p10/p90              : 0.0001 / 3.2980
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 2.9081
+  Worst target sat. prob : 0.0910
+  Actual worst-target P_D: 0.1650
+  Efficiency P_D/kbit    : 0.0087
+  Efficiency P_D/ms      : 0.0248
+
+[shortest_bistatic]
+  P_D                    : 0.5497 (95% CI [0.5399, 0.5594], +/- 0.0097)
+  P_FA active            : 0.0446 (95% CI [0.0439, 0.0454], +/- 0.0007)
+  P_FA system-level      : 0.0446 (95% CI [0.0439, 0.0453], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 39.7982 ms (std 12.8639)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  Comm feasible edge ratio: 0.4055
+  Selected rate mean/min : 1.0620 / 0.2497 Mbps
+  Selected chi mean/min  : 0.7613 / 0.5534
+  Rate/chi sat. ratio    : 1.0000 / 1.0000
+  D mean/median          : 4.9760 / 2.0617
+  D p10/p90              : 0.0973 / 10.2708
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 4.3604
+  Worst target sat. prob : 0.3700
+  Actual worst-target P_D: 0.5290
+  Efficiency P_D/kbit    : 0.0260
+  Efficiency P_D/ms      : 0.0138
+
+[raw_sense_sinr]
+  P_D                    : 0.5352 (95% CI [0.5254, 0.5450], +/- 0.0098)
+  P_FA active            : 0.0479 (95% CI [0.0471, 0.0486], +/- 0.0008)
+  P_FA system-level      : 0.0478 (95% CI [0.0471, 0.0486], +/- 0.0008)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 196.0787 ms (std 250.6545)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  Comm feasible edge ratio: 0.4014
+  Selected rate mean/min : 0.5803 / 0.0313 Mbps
+  Selected chi mean/min  : 0.5571 / 0.1239
+  Rate/chi sat. ratio    : 0.5821 / 0.8149
+  D mean/median          : 4.9883 / 1.6247
+  D p10/p90              : 0.0854 / 10.2576
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 4.3594
+  Worst target sat. prob : 0.3280
+  Actual worst-target P_D: 0.5180
+  Efficiency P_D/kbit    : 0.0253
+  Efficiency P_D/ms      : 0.0027
+
+[sense_sinr]
+  P_D                    : 0.6408 (95% CI [0.6313, 0.6501], +/- 0.0094)
+  P_FA active            : 0.0449 (95% CI [0.0441, 0.0456], +/- 0.0007)
+  P_FA system-level      : 0.0449 (95% CI [0.0441, 0.0456], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 42.3881 ms (std 13.0015)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  Comm feasible edge ratio: 0.3928
+  Selected rate mean/min : 0.9897 / 0.2400 Mbps
+  Selected chi mean/min  : 0.7492 / 0.5450
+  Rate/chi sat. ratio    : 1.0000 / 1.0000
+  D mean/median          : 6.0633 / 3.1247
+  D p10/p90              : 0.2128 / 11.3743
+  All targets satisfy    : 0.0010
+  Worst target D mean    : 5.4164
+  Worst target sat. prob : 0.4940
+  Actual worst-target P_D: 0.6240
+  Efficiency P_D/kbit    : 0.0303
+  Efficiency P_D/ms      : 0.0151
+
+[single_best]
+  P_D                    : 0.6318 (95% CI [0.6223, 0.6412], +/- 0.0095)
+  P_FA active            : 0.0406 (95% CI [0.0399, 0.0413], +/- 0.0007)
+  P_FA system-level      : 0.0406 (95% CI [0.0399, 0.0413], +/- 0.0007)
+  Overhead B             : 6400.00 bit (std 0.00)
+  Overhead T             : 4.7356 ms (std 1.6353)
+  Selected links         : 10.00 (std 0.00)
+  Active target ratio    : 1.0000
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  Comm feasible edge ratio: 0.5775
+  Selected rate mean/min : 2.4541 / 0.6819 Mbps
+  Selected chi mean/min  : 0.8970 / 0.7603
+  Rate/chi sat. ratio    : 1.0000 / 1.0000
+  D mean/median          : 9.8962 / 3.2304
+  D p10/p90              : 0.1362 / 22.4551
+  All targets satisfy    : 0.0010
+  Worst target D mean    : 8.5649
+  Worst target sat. prob : 0.4970
+  Actual worst-target P_D: 0.6160
+  Efficiency P_D/kbit    : 0.0987
+  Efficiency P_D/ms      : 0.1334
+
+[topk_deflection]
+  P_D                    : 0.6593 (95% CI [0.6500, 0.6685], +/- 0.0093)
+  P_FA active            : 0.0441 (95% CI [0.0433, 0.0448], +/- 0.0007)
+  P_FA system-level      : 0.0440 (95% CI [0.0433, 0.0448], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 32.6400 ms (std 11.5844)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
+  Feasible target ratio  : 1.0000
+  Feasible links/trial   : 430.98
+  Comm feasible edge ratio: 0.3885
+  Selected rate mean/min : 1.2716 / 0.2604 Mbps
+  Selected chi mean/min  : 0.7874 / 0.5629
+  Rate/chi sat. ratio    : 1.0000 / 1.0000
+  D mean/median          : 7.6803 / 4.1035
+  D p10/p90              : 0.2191 / 15.3646
+  All targets satisfy    : 0.0060
+  Worst target D mean    : 6.9679
+  Worst target sat. prob : 0.5850
+  Actual worst-target P_D: 0.6450
+  Efficiency P_D/kbit    : 0.0312
+  Efficiency P_D/ms      : 0.0202
+
+Saved: results\main\main\main.csv, results\main\main\main_summary.tex, figures in results\main\main\figs
+[done] main  in 838s
+
+===== main --set comm.interference_model=full_concurrent =====
+mode: main  |  MC: 1000  |  seed: 2026
+non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
+output: results\main_full_concurrent\main
+
+========== Lagrangian DOTFS-ISAC Simplified Simulation Summary ==========
+
+[proposed_lagrangian]
+  P_D                    : 0.6303 (95% CI [0.6208, 0.6397], +/- 0.0095)
+  P_FA active            : 0.0444 (95% CI [0.0437, 0.0452], +/- 0.0007)
+  P_FA system-level      : 0.0444 (95% CI [0.0437, 0.0451], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 33.8441 ms (std 11.2260)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
   Feasible target ratio  : 1.0000
   Feasible links/trial   : 430.98
   Comm feasible edge ratio: 0.3195
-  Selected rate mean/min : 1.1396 / 0.2421 Mbps
-  Selected chi mean/min  : 0.7741 / 0.5444
+  Selected rate mean/min : 1.1285 / 0.2359 Mbps
+  Selected chi mean/min  : 0.7727 / 0.5390
   Rate/chi sat. ratio    : 1.0000 / 1.0000
-  D mean/median          : 42.4931 / 5.1969
-  D p10/p90              : 0.1962 / 95.2442
-  All targets satisfy    : 0.0100
-  Worst target D mean    : 30.0793
-  Worst target sat. prob : 0.6130
-  Actual worst-target P_D: 0.5920
-  Efficiency P_D/kbit    : 0.0345
-  Efficiency P_D/ms      : 0.0213
+  D mean/median          : 6.0390 / 3.4538
+  D p10/p90              : 0.1880 / 11.8728
+  All targets satisfy    : 0.0050
+  Worst target D mean    : 5.4604
+  Worst target sat. prob : 0.5400
+  Actual worst-target P_D: 0.6090
+  Efficiency P_D/kbit    : 0.0298
+  Efficiency P_D/ms      : 0.0186
 
 [all_neighbor]
-  P_D                    : 0.6631 (95% CI [0.6538, 0.6723], +/- 0.0093)
-  P_FA active            : 0.0461 (95% CI [0.0453, 0.0468], +/- 0.0008)
-  P_FA system-level      : 0.0461 (95% CI [0.0453, 0.0468], +/- 0.0008)
+  P_D                    : 0.6624 (95% CI [0.6531, 0.6716], +/- 0.0093)
+  P_FA active            : 0.0478 (95% CI [0.0471, 0.0486], +/- 0.0008)
+  P_FA system-level      : 0.0478 (95% CI [0.0471, 0.0486], +/- 0.0008)
   Overhead B             : 275827.20 bit (std 32511.80)
   Overhead T             : 675.3878 ms (std 133.7584)
   Selected links         : 430.98 (std 50.80)
@@ -43,463 +260,327 @@ output: results\main
   Selected rate mean/min : 0.7913 / 0.2056 Mbps
   Selected chi mean/min  : 0.7085 / 0.5070
   Rate/chi sat. ratio    : 1.0000 / 1.0000
-  D mean/median          : 78.1309 / 7.8917
-  D p10/p90              : 0.2160 / 169.8603
-  All targets satisfy    : 0.0100
-  Worst target D mean    : 53.8911
-  Worst target sat. prob : 0.6250
-  Actual worst-target P_D: 0.6530
+  D mean/median          : 11.0478 / 4.5598
+  D p10/p90              : 0.2106 / 27.9152
+  All targets satisfy    : 0.0060
+  Worst target D mean    : 9.8517
+  Worst target sat. prob : 0.5650
+  Actual worst-target P_D: 0.6320
   Efficiency P_D/kbit    : 0.0024
   Efficiency P_D/ms      : 0.0010
 
 [random]
-  P_D                    : 0.1109 (95% CI [0.1049, 0.1172], +/- 0.0062)
-  P_FA active            : 0.0468 (95% CI [0.0460, 0.0475], +/- 0.0008)
-  P_FA system-level      : 0.0467 (95% CI [0.0460, 0.0475], +/- 0.0008)
-  Overhead B             : 17674.88 bit (std 3942.75)
-  Overhead T             : 42.8841 ms (std 11.7612)
-  Selected links         : 27.62 (std 6.16)
-  Active target ratio    : 0.9992
+  P_D                    : 0.1315 (95% CI [0.1250, 0.1383], +/- 0.0066)
+  P_FA active            : 0.0461 (95% CI [0.0453, 0.0468], +/- 0.0008)
+  P_FA system-level      : 0.0461 (95% CI [0.0453, 0.0468], +/- 0.0008)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 51.3505 ms (std 12.1674)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
   Feasible target ratio  : 1.0000
   Feasible links/trial   : 430.98
   Comm feasible edge ratio: 0.3195
-  Selected rate mean/min : 0.7857 / 0.2121 Mbps
-  Selected chi mean/min  : 0.7090 / 0.5147
+  Selected rate mean/min : 0.7931 / 0.2110 Mbps
+  Selected chi mean/min  : 0.7085 / 0.5134
   Rate/chi sat. ratio    : 1.0000 / 1.0000
-  D mean/median          : 1.6120 / 0.0043
-  D p10/p90              : 0.0000 / 0.7162
+  D mean/median          : 0.4137 / 0.0111
+  D p10/p90              : 0.0000 / 0.9163
   All targets satisfy    : 0.0000
-  Worst target D mean    : 0.7197
-  Worst target sat. prob : 0.0320
-  Actual worst-target P_D: 0.1020
-  Efficiency P_D/kbit    : 0.0063
+  Worst target D mean    : 0.3203
+  Worst target sat. prob : 0.0170
+  Actual worst-target P_D: 0.1210
+  Efficiency P_D/kbit    : 0.0062
   Efficiency P_D/ms      : 0.0026
 
 [nearest]
-  P_D                    : 0.1488 (95% CI [0.1420, 0.1559], +/- 0.0070)
-  P_FA active            : 0.0409 (95% CI [0.0402, 0.0417], +/- 0.0007)
-  P_FA system-level      : 0.0409 (95% CI [0.0402, 0.0416], +/- 0.0007)
-  Overhead B             : 17674.88 bit (std 3942.75)
-  Overhead T             : 10.5604 ms (std 5.4243)
-  Selected links         : 27.62 (std 6.16)
-  Active target ratio    : 0.9992
+  P_D                    : 0.1668 (95% CI [0.1596, 0.1742], +/- 0.0073)
+  P_FA active            : 0.0414 (95% CI [0.0407, 0.0421], +/- 0.0007)
+  P_FA system-level      : 0.0414 (95% CI [0.0407, 0.0421], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 12.8533 ms (std 6.4279)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
   Feasible target ratio  : 1.0000
   Feasible links/trial   : 430.98
   Comm feasible edge ratio: 0.3195
-  Selected rate mean/min : 2.3694 / 0.9815 Mbps
-  Selected chi mean/min  : 0.9068 / 0.8078
+  Selected rate mean/min : 2.3619 / 0.9684 Mbps
+  Selected chi mean/min  : 0.9064 / 0.8068
   Rate/chi sat. ratio    : 1.0000 / 1.0000
-  D mean/median          : 9.3486 / 0.0065
-  D p10/p90              : 0.0000 / 2.0450
+  D mean/median          : 1.7798 / 0.0133
+  D p10/p90              : 0.0000 / 2.3231
   All targets satisfy    : 0.0000
-  Worst target D mean    : 5.3268
-  Worst target sat. prob : 0.0750
-  Actual worst-target P_D: 0.1400
-  Efficiency P_D/kbit    : 0.0084
-  Efficiency P_D/ms      : 0.0141
+  Worst target D mean    : 1.5313
+  Worst target sat. prob : 0.0780
+  Actual worst-target P_D: 0.1500
+  Efficiency P_D/kbit    : 0.0079
+  Efficiency P_D/ms      : 0.0130
 
 [shortest_bistatic]
-  P_D                    : 0.4783 (95% CI [0.4685, 0.4881], +/- 0.0098)
-  P_FA active            : 0.0444 (95% CI [0.0436, 0.0451], +/- 0.0007)
-  P_FA system-level      : 0.0443 (95% CI [0.0436, 0.0451], +/- 0.0007)
-  Overhead B             : 17674.88 bit (std 3942.75)
-  Overhead T             : 38.4891 ms (std 12.4286)
-  Selected links         : 27.62 (std 6.16)
-  Active target ratio    : 0.9992
+  P_D                    : 0.5226 (95% CI [0.5128, 0.5324], +/- 0.0098)
+  P_FA active            : 0.0452 (95% CI [0.0445, 0.0460], +/- 0.0007)
+  P_FA system-level      : 0.0452 (95% CI [0.0445, 0.0459], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 46.6982 ms (std 13.3620)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
   Feasible target ratio  : 1.0000
   Feasible links/trial   : 430.98
   Comm feasible edge ratio: 0.3195
-  Selected rate mean/min : 0.8943 / 0.2210 Mbps
-  Selected chi mean/min  : 0.7295 / 0.5239
+  Selected rate mean/min : 0.8616 / 0.2167 Mbps
+  Selected chi mean/min  : 0.7261 / 0.5198
   Rate/chi sat. ratio    : 1.0000 / 1.0000
-  D mean/median          : 28.2441 / 1.8540
-  D p10/p90              : 0.0605 / 53.0470
+  D mean/median          : 3.7805 / 1.7197
+  D p10/p90              : 0.0810 / 7.6441
   All targets satisfy    : 0.0000
-  Worst target D mean    : 18.6721
-  Worst target sat. prob : 0.3710
-  Actual worst-target P_D: 0.4540
-  Efficiency P_D/kbit    : 0.0271
-  Efficiency P_D/ms      : 0.0124
+  Worst target D mean    : 3.2901
+  Worst target sat. prob : 0.3020
+  Actual worst-target P_D: 0.4930
+  Efficiency P_D/kbit    : 0.0247
+  Efficiency P_D/ms      : 0.0112
 
 [raw_sense_sinr]
-  P_D                    : 0.4891 (95% CI [0.4793, 0.4989], +/- 0.0098)
-  P_FA active            : 0.0473 (95% CI [0.0466, 0.0481], +/- 0.0008)
-  P_FA system-level      : 0.0473 (95% CI [0.0465, 0.0480], +/- 0.0008)
-  Overhead B             : 17674.88 bit (std 3942.75)
-  Overhead T             : 199.2915 ms (std 247.3327)
-  Selected links         : 27.62 (std 6.16)
-  Active target ratio    : 0.9992
+  P_D                    : 0.5012 (95% CI [0.4914, 0.5110], +/- 0.0098)
+  P_FA active            : 0.0481 (95% CI [0.0474, 0.0489], +/- 0.0008)
+  P_FA system-level      : 0.0481 (95% CI [0.0473, 0.0489], +/- 0.0008)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 226.0827 ms (std 253.9918)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
   Feasible target ratio  : 1.0000
   Feasible links/trial   : 430.98
   Comm feasible edge ratio: 0.3195
-  Selected rate mean/min : 0.5024 / 0.0279 Mbps
-  Selected chi mean/min  : 0.5200 / 0.1120
-  Rate/chi sat. ratio    : 0.5190 / 0.7625
-  D mean/median          : 37.0481 / 2.2781
-  D p10/p90              : 0.0668 / 82.2089
-  All targets satisfy    : 0.0020
-  Worst target D mean    : 25.3438
-  Worst target sat. prob : 0.4500
-  Actual worst-target P_D: 0.4650
-  Efficiency P_D/kbit    : 0.0277
-  Efficiency P_D/ms      : 0.0025
+  Selected rate mean/min : 0.4746 / 0.0257 Mbps
+  Selected chi mean/min  : 0.5162 / 0.1059
+  Rate/chi sat. ratio    : 0.5141 / 0.7672
+  D mean/median          : 3.8773 / 1.3179
+  D p10/p90              : 0.0705 / 7.8331
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 3.2404
+  Worst target sat. prob : 0.2740
+  Actual worst-target P_D: 0.4820
+  Efficiency P_D/kbit    : 0.0237
+  Efficiency P_D/ms      : 0.0022
 
 [sense_sinr]
-  P_D                    : 0.5855 (95% CI [0.5758, 0.5951], +/- 0.0097)
-  P_FA active            : 0.0452 (95% CI [0.0445, 0.0459], +/- 0.0007)
-  P_FA system-level      : 0.0452 (95% CI [0.0444, 0.0459], +/- 0.0007)
-  Overhead B             : 17674.88 bit (std 3942.75)
-  Overhead T             : 40.2625 ms (std 12.2605)
-  Selected links         : 27.62 (std 6.16)
-  Active target ratio    : 0.9992
+  P_D                    : 0.6127 (95% CI [0.6031, 0.6222], +/- 0.0095)
+  P_FA active            : 0.0455 (95% CI [0.0447, 0.0462], +/- 0.0007)
+  P_FA system-level      : 0.0455 (95% CI [0.0447, 0.0462], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 48.9765 ms (std 13.3584)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
   Feasible target ratio  : 1.0000
   Feasible links/trial   : 430.98
   Comm feasible edge ratio: 0.3195
-  Selected rate mean/min : 0.8521 / 0.2163 Mbps
-  Selected chi mean/min  : 0.7207 / 0.5190
+  Selected rate mean/min : 0.8256 / 0.2131 Mbps
+  Selected chi mean/min  : 0.7166 / 0.5158
   Rate/chi sat. ratio    : 1.0000 / 1.0000
-  D mean/median          : 39.2008 / 4.4697
-  D p10/p90              : 0.1911 / 86.0208
-  All targets satisfy    : 0.0040
-  Worst target D mean    : 26.7171
-  Worst target sat. prob : 0.5750
-  Actual worst-target P_D: 0.5630
-  Efficiency P_D/kbit    : 0.0331
-  Efficiency P_D/ms      : 0.0145
+  D mean/median          : 4.8357 / 2.6803
+  D p10/p90              : 0.1836 / 8.8047
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 4.1911
+  Worst target sat. prob : 0.4170
+  Actual worst-target P_D: 0.5980
+  Efficiency P_D/kbit    : 0.0290
+  Efficiency P_D/ms      : 0.0125
 
 [single_best]
-  P_D                    : 0.5656 (95% CI [0.5559, 0.5753], +/- 0.0097)
-  P_FA active            : 0.0424 (95% CI [0.0417, 0.0431], +/- 0.0007)
-  P_FA system-level      : 0.0424 (95% CI [0.0417, 0.0431], +/- 0.0007)
+  P_D                    : 0.5632 (95% CI [0.5535, 0.5729], +/- 0.0097)
+  P_FA active            : 0.0419 (95% CI [0.0412, 0.0427], +/- 0.0007)
+  P_FA system-level      : 0.0419 (95% CI [0.0412, 0.0427], +/- 0.0007)
   Overhead B             : 6400.00 bit (std 0.00)
-  Overhead T             : 8.6351 ms (std 2.4504)
+  Overhead T             : 8.5953 ms (std 2.4684)
   Selected links         : 10.00 (std 0.00)
   Active target ratio    : 1.0000
   Feasible target ratio  : 1.0000
   Feasible links/trial   : 430.98
   Comm feasible edge ratio: 0.3195
-  Selected rate mean/min : 1.3368 / 0.3609 Mbps
-  Selected chi mean/min  : 0.8137 / 0.6319
+  Selected rate mean/min : 1.3589 / 0.3667 Mbps
+  Selected chi mean/min  : 0.8157 / 0.6353
   Rate/chi sat. ratio    : 1.0000 / 1.0000
-  D mean/median          : 40.9415 / 3.8032
-  D p10/p90              : 0.0843 / 93.4423
-  All targets satisfy    : 0.0030
-  Worst target D mean    : 28.7007
-  Worst target sat. prob : 0.5100
-  Actual worst-target P_D: 0.5480
-  Efficiency P_D/kbit    : 0.0884
+  D mean/median          : 4.7355 / 1.7822
+  D p10/p90              : 0.0816 / 10.0609
+  All targets satisfy    : 0.0000
+  Worst target D mean    : 4.1535
+  Worst target sat. prob : 0.3270
+  Actual worst-target P_D: 0.5380
+  Efficiency P_D/kbit    : 0.0880
   Efficiency P_D/ms      : 0.0655
 
 [topk_deflection]
-  P_D                    : 0.6191 (95% CI [0.6095, 0.6286], +/- 0.0095)
-  P_FA active            : 0.0440 (95% CI [0.0433, 0.0447], +/- 0.0007)
-  P_FA system-level      : 0.0439 (95% CI [0.0432, 0.0447], +/- 0.0007)
-  Overhead B             : 17674.88 bit (std 3942.75)
-  Overhead T             : 31.5919 ms (std 10.6545)
-  Selected links         : 27.62 (std 6.16)
-  Active target ratio    : 0.9992
+  P_D                    : 0.6394 (95% CI [0.6299, 0.6488], +/- 0.0094)
+  P_FA active            : 0.0444 (95% CI [0.0437, 0.0452], +/- 0.0007)
+  P_FA system-level      : 0.0444 (95% CI [0.0437, 0.0452], +/- 0.0007)
+  Overhead B             : 21129.60 bit (std 3927.78)
+  Overhead T             : 37.6296 ms (std 11.9054)
+  Selected links         : 33.02 (std 6.14)
+  Active target ratio    : 0.9997
   Feasible target ratio  : 1.0000
   Feasible links/trial   : 430.98
   Comm feasible edge ratio: 0.3195
-  Selected rate mean/min : 1.0570 / 0.2325 Mbps
-  Selected chi mean/min  : 0.7603 / 0.5353
+  Selected rate mean/min : 1.0493 / 0.2266 Mbps
+  Selected chi mean/min  : 0.7586 / 0.5297
   Rate/chi sat. ratio    : 1.0000 / 1.0000
-  D mean/median          : 42.5058 / 5.2469
-  D p10/p90              : 0.1978 / 95.2442
-  All targets satisfy    : 0.0100
-  Worst target D mean    : 30.0934
-  Worst target sat. prob : 0.6140
-  Actual worst-target P_D: 0.6040
-  Efficiency P_D/kbit    : 0.0350
-  Efficiency P_D/ms      : 0.0196
+  D mean/median          : 6.0590 / 3.4810
+  D p10/p90              : 0.1888 / 11.9201
+  All targets satisfy    : 0.0050
+  Worst target D mean    : 5.4861
+  Worst target sat. prob : 0.5410
+  Actual worst-target P_D: 0.6250
+  Efficiency P_D/kbit    : 0.0303
+  Efficiency P_D/ms      : 0.0170
 
-Saved: results\main\main.csv, results\main\main_summary.tex, figures in results\main\figs
-[done] main  in 516s
+Saved: results\main_full_concurrent\main\main.csv, results\main_full_concurrent\main\main_summary.tex, figures in results\main_full_concurrent\main\figs
+[done] main --set comm.interference_model=full_concurrent in 765s
 
 ===== c2f  =====
 mode: c2f  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\c2f
+non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, comm.interference_model=active_set, run.num_mc=1000, run.verbose=False
+output: results\c2f\c2f
 
 ========================================================================
 Running C2F ablation (proposed_lagrangian vs proposed_c2f vs proposed_c2f_full)
 ========================================================================
-C2F vs full-refine: fine-grid eval 173.1 vs 431.0 (reduction 59.8%);  P_D c2f=0.6083  full=0.6116;  T c2f=27.07 ms  full=27.07 ms
+C2F vs full-refine: fine-grid eval 172.8 vs 431.0 (reduction 59.9%);  P_D c2f=0.6490  full=0.6521;  T c2f=27.77 ms  full=27.77 ms
 
-CSV saved to: results\c2f\c2f.csv
-Figures saved to: results\c2f\figs
-[done] c2f  in 767s
+CSV saved to: results\c2f\c2f\c2f.csv
+Figures saved to: results\c2f\c2f\figs
+[done] c2f  in 1297s
 
 ===== dd-ablation  =====
 mode: dd-ablation  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\dd-ablation
+non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, comm.interference_model=active_set, run.num_mc=1000, run.verbose=False
+output: results\dd-ablation\dd-ablation
 
 ========================================================================
 Running OTFS-DD ablation variant: full_dd
 ========================================================================
-full_dd | proposed P_D=0.6105, T=28.6365 ms, links=27.62, P_D/ms=0.0213
+full_dd | proposed P_D=0.6506, T=29.2124 ms, links=33.02, P_D/ms=0.0223
 
 ========================================================================
 Running OTFS-DD ablation variant: w/o_dd_validity
 ========================================================================
-w/o_dd_validity | proposed P_D=0.6105, T=28.6365 ms, links=27.62, P_D/ms=0.0213
+w/o_dd_validity | proposed P_D=0.6506, T=29.2124 ms, links=33.02, P_D/ms=0.0223
 
 ========================================================================
 Running OTFS-DD ablation variant: w/o_dd_fractional_loss
 ========================================================================
-w/o_dd_fractional_loss | proposed P_D=0.6922, T=24.5018 ms, links=24.25, P_D/ms=0.0283
+w/o_dd_fractional_loss | proposed P_D=0.7502, T=25.5071 ms, links=30.54, P_D/ms=0.0294
 
 ========================================================================
 Running OTFS-DD ablation variant: w/o_dd_collision_penalty
 ========================================================================
-w/o_dd_collision_penalty | proposed P_D=0.6106, T=28.6384 ms, links=27.59, P_D/ms=0.0213
+w/o_dd_collision_penalty | proposed P_D=0.6499, T=29.2530 ms, links=33.03, P_D/ms=0.0222
 
 ========================================================================
 Running OTFS-DD ablation variant: w/o_all_dd_effects
 ========================================================================
-w/o_all_dd_effects | proposed P_D=0.6952, T=24.4816 ms, links=24.20, P_D/ms=0.0284
+w/o_all_dd_effects | proposed P_D=0.7515, T=25.4664 ms, links=30.52, P_D/ms=0.0295
 
-CSV saved to: results\dd-ablation\dd-ablation.csv
-Figures saved to: results\dd-ablation\figs
-[done] dd-ablation  in 2439s
+CSV saved to: results\dd-ablation\dd-ablation\dd-ablation.csv
+Figures saved to: results\dd-ablation\dd-ablation\figs
+[done] dd-ablation  in 3979s
 
 ===== fair-ablation  =====
 mode: fair-ablation  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\fair-ablation
+non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, comm.interference_model=active_set, run.num_mc=1000, run.verbose=False
+output: results\fair-ablation\fair-ablation
 
 ========================================================================
 Running fair ablation variant: full
 ========================================================================
-full | proposed P_D=0.6047, T=25.4540 ms, links=24.30, P_D/ms=0.0238
+full | proposed P_D=0.6547, T=21.7134 ms, links=25.64, P_D/ms=0.0302
 
 ========================================================================
 Running fair ablation variant: w/o_alpha
 ========================================================================
-w/o_alpha | proposed P_D=0.5932, T=29.8565 ms, links=25.99, P_D/ms=0.0199
+w/o_alpha | proposed P_D=0.6186, T=22.0313 ms, links=25.99, P_D/ms=0.0281
 
 ========================================================================
 Running fair ablation variant: w/o_delay_price
 ========================================================================
-w/o_delay_price | proposed P_D=0.6077, T=29.8107 ms, links=25.89, P_D/ms=0.0204
+w/o_delay_price | proposed P_D=0.6538, T=23.6541 ms, links=25.95, P_D/ms=0.0276
 
 ========================================================================
 Running fair ablation variant: w/o_comm_error_calib
 ========================================================================
-w/o_comm_error_calib | proposed P_D=0.5463, T=26.7781 ms, links=20.11, P_D/ms=0.0204
+w/o_comm_error_calib | proposed P_D=0.6061, T=20.5561 ms, links=20.26, P_D/ms=0.0295
 
 ========================================================================
 Running fair ablation variant: w/o_softmin_alpha
 ========================================================================
-w/o_softmin_alpha | proposed P_D=0.6223, T=27.4157 ms, links=25.63, P_D/ms=0.0227
+w/o_softmin_alpha | proposed P_D=0.6659, T=21.6542 ms, links=25.96, P_D/ms=0.0308
 
-CSV saved to: results\fair-ablation\fair-ablation.csv
-Figures saved to: results\fair-ablation\figs
-[done] fair-ablation  in 2128s
+CSV saved to: results\fair-ablation\fair-ablation\fair-ablation.csv
+Figures saved to: results\fair-ablation\fair-ablation\figs
+[done] fair-ablation  in 2909s
 
 ===== ablation  =====
 mode: ablation  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\ablation
+non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, comm.interference_model=active_set, run.num_mc=1000, run.verbose=False
+output: results\ablation\ablation
 
 ========================================================================
 Running ablation variant: full
 ========================================================================
-full | proposed P_D=0.6105, T=28.6365 ms, links=27.62, P_D/ms=0.0213
+full | proposed P_D=0.6506, T=29.2124 ms, links=33.02, P_D/ms=0.0223
 
 ========================================================================
 Running ablation variant: w/o_alpha
 ========================================================================
-w/o_alpha | proposed P_D=0.6551, T=66.3227 ms, links=55.03, P_D/ms=0.0099
+w/o_alpha | proposed P_D=0.6627, T=59.9206 ms, links=55.07, P_D/ms=0.0111
 
 ========================================================================
 Running ablation variant: w/o_delay_price
 ========================================================================
-w/o_delay_price | proposed P_D=0.6510, T=75.8340 ms, links=59.35, P_D/ms=0.0086
+w/o_delay_price | proposed P_D=0.6595, T=70.1051 ms, links=59.78, P_D/ms=0.0094
 
 ========================================================================
 Running ablation variant: w/o_comm_error_calib
 ========================================================================
-w/o_comm_error_calib | proposed P_D=0.5495, T=27.4111 ms, links=20.72, P_D/ms=0.0200
+w/o_comm_error_calib | proposed P_D=0.6068, T=21.2689 ms, links=20.92, P_D/ms=0.0285
 
 ========================================================================
 Running ablation variant: w/o_softmin_alpha
 ========================================================================
-w/o_softmin_alpha | proposed P_D=0.6262, T=36.4529 ms, links=34.83, P_D/ms=0.0172
+w/o_softmin_alpha | proposed P_D=0.6623, T=44.3992 ms, links=46.20, P_D/ms=0.0149
 
-CSV saved to: results\ablation\ablation.csv
-Figures saved to: results\ablation\figs
-[done] ablation  in 2877s
+CSV saved to: results\ablation\ablation\ablation.csv
+Figures saved to: results\ablation\ablation\figs
+[done] ablation  in 4396s
 
 ===== comm-sweep  =====
 mode: comm-sweep  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\comm-sweep
+non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, comm.interference_model=active_set, run.num_mc=1000, run.verbose=False
+output: results\comm-sweep\comm-sweep
 
 ========================================================================
 Running communication constraint sweep: R_min = 100000 bit/s
 ========================================================================
-R_min=100000 | proposed P_D=0.6889, T=35.98 ms, links=25.53, rate=1.005 Mbps, chi=0.833, feasible-edge=0.540
+R_min=100000 | proposed P_D=0.7261, T=33.86 ms, links=29.20, rate=1.278 Mbps, chi=0.859, feasible-edge=0.630
 
 ========================================================================
 Running communication constraint sweep: R_min = 200000 bit/s
 ========================================================================
-R_min=200000 | proposed P_D=0.6105, T=28.64 ms, links=27.62, rate=1.140 Mbps, chi=0.774, feasible-edge=0.320
+R_min=200000 | proposed P_D=0.6506, T=29.21 ms, links=33.02, rate=1.381 Mbps, chi=0.801, feasible-edge=0.387
 
 ========================================================================
 Running communication constraint sweep: R_min = 500000 bit/s
 ========================================================================
-R_min=500000 | proposed P_D=0.4526, T=16.11 ms, links=28.17, rate=1.581 Mbps, chi=0.717, feasible-edge=0.136
+R_min=500000 | proposed P_D=0.5111, T=15.59 ms, links=34.24, rate=2.070 Mbps, chi=0.769, feasible-edge=0.177
 
 ========================================================================
 Running communication constraint sweep: R_min = 1e+06 bit/s
 ========================================================================
-R_min=1e+06 | proposed P_D=0.2923, T=7.47 ms, links=21.88, rate=2.267 Mbps, chi=0.687, feasible-edge=0.063
+R_min=1e+06 | proposed P_D=0.3841, T=4.96 ms, links=25.20, rate=4.218 Mbps, chi=0.835, feasible-edge=0.139
 
 ========================================================================
 Running communication constraint sweep: R_min = 2e+06 bit/s
 ========================================================================
-R_min=2e+06 | proposed P_D=0.1392, T=2.34 ms, links=11.79, rate=3.205 Mbps, chi=0.613, feasible-edge=0.024
+R_min=2e+06 | proposed P_D=0.2132, T=1.09 ms, links=12.71, rate=8.171 Mbps, chi=0.858, feasible-edge=0.198
 
-CSV saved to: results\comm-sweep\comm-sweep.csv
-Figures saved to: results\comm-sweep\figs
-[done] comm-sweep  in 1684s
+CSV saved to: results\comm-sweep\comm-sweep\comm-sweep.csv
+Figures saved to: results\comm-sweep\comm-sweep\figs
+[done] comm-sweep  in 2563s
 
 ===== lambda-sweep  =====
-mode: lambda-sweep  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\lambda-sweep
-
-========================================================================
-Running lambda-cost sweep: lambda_c = 0.0005
-========================================================================
-lambda=0.0005 | P_D=0.6187, T=36.9043 ms, links=32.90, P_D/ms=0.0168, worst-sat=0.6170
-
-========================================================================
-Running lambda-cost sweep: lambda_c = 0.001
-========================================================================
-lambda=0.001 | P_D=0.6085, T=34.8255 ms, links=31.60, P_D/ms=0.0175, worst-sat=0.6170
-
-========================================================================
-Running lambda-cost sweep: lambda_c = 0.003
-========================================================================
-lambda=0.003 | P_D=0.6090, T=30.9075 ms, links=29.10, P_D/ms=0.0197, worst-sat=0.6150
-
-========================================================================
-Running lambda-cost sweep: lambda_c = 0.005
-========================================================================
-lambda=0.005 | P_D=0.6105, T=28.6365 ms, links=27.62, P_D/ms=0.0213, worst-sat=0.6130
-
-========================================================================
-Running lambda-cost sweep: lambda_c = 0.01
-========================================================================
-lambda=0.01 | P_D=0.6083, T=24.9795 ms, links=25.21, P_D/ms=0.0244, worst-sat=0.6050
-
-========================================================================
-Running lambda-cost sweep: lambda_c = 0.02
-========================================================================
-lambda=0.02 | P_D=0.6106, T=21.1491 ms, links=22.42, P_D/ms=0.0289, worst-sat=0.6020
-
-========================================================================
-Running lambda-cost sweep: lambda_c = 0.05
-========================================================================
-lambda=0.05 | P_D=0.6010, T=15.9913 ms, links=18.27, P_D/ms=0.0376, worst-sat=0.5870
-
-========================================================================
-Running lambda-cost sweep: lambda_c = 0.1
-========================================================================
-lambda=0.1 | P_D=0.5938, T=12.8550 ms, links=15.44, P_D/ms=0.0462, worst-sat=0.5790
-
-========================================================================
-Running lambda-cost sweep: lambda_c = 0.2
-========================================================================
-lambda=0.2 | P_D=0.5920, T=10.5634 ms, links=13.11, P_D/ms=0.0560, worst-sat=0.5630
-
-CSV saved to: results\lambda-sweep\lambda-sweep.csv
-Figures saved to: results\lambda-sweep\figs
-[done] lambda-sweep  in 4122s
-
-===== robustness --axis comm_model =====
-mode: robustness  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\robustness_comm_model\robustness
-
-========================================================================
-Running robustness sweep: comm_model = erasure
-========================================================================
-comm_model=erasure | proposed P_D=0.6105, T=28.64 ms, worst=0.6130; sense_sinr P_D=0.5855, T=40.26 ms
-
-========================================================================
-Running robustness sweep: comm_model = biased
-========================================================================
-comm_model=biased | proposed P_D=0.6691, T=29.29 ms, worst=0.6510; sense_sinr P_D=0.6667, T=38.38 ms
-
-========================================================================
-Running robustness sweep: comm_model = flip
-========================================================================
-comm_model=flip | proposed P_D=0.5669, T=23.13 ms, worst=0.4930; sense_sinr P_D=0.5252, T=43.20 ms
-
-CSV saved to: results\robustness_comm_model\robustness\robustness.csv
-Figures saved to: results\robustness_comm_model\robustness\figs
-[done] robustness --axis comm_model in 1549s
-
-===== robustness --axis error_sigma =====
-mode: robustness  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\robustness_error_sigma\robustness
-
-========================================================================
-Running robustness sweep: error_sigma = 1.0
-========================================================================
-error_sigma=1.0 | proposed P_D=0.6452, T=27.15 ms, worst=0.7340; sense_sinr P_D=0.6352, T=33.71 ms
-
-========================================================================
-Running robustness sweep: error_sigma = 2.0
-========================================================================
-error_sigma=2.0 | proposed P_D=0.6365, T=27.87 ms, worst=0.6720; sense_sinr P_D=0.6157, T=37.39 ms
-
-========================================================================
-Running robustness sweep: error_sigma = 3.0
-========================================================================
-error_sigma=3.0 | proposed P_D=0.6105, T=28.64 ms, worst=0.6130; sense_sinr P_D=0.5855, T=40.26 ms
-
-========================================================================
-Running robustness sweep: error_sigma = 4.0
-========================================================================
-error_sigma=4.0 | proposed P_D=0.5789, T=29.45 ms, worst=0.5510; sense_sinr P_D=0.5471, T=42.63 ms
-
-CSV saved to: results\robustness_error_sigma\robustness\robustness.csv
-Figures saved to: results\robustness_error_sigma\robustness\figs
-[done] robustness --axis error_sigma in 1989s
-
-===== robustness --axis residual_direct =====
-mode: robustness  |  MC: 1000  |  seed: 2026
-non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, run.num_mc=1000, run.verbose=False
-output: results\robustness_residual_direct\robustness
-
-========================================================================
-Running robustness sweep: residual_direct = 1e-05
-========================================================================
-residual_direct=1e-05 | proposed P_D=0.6115, T=28.59 ms, worst=0.6130; sense_sinr P_D=0.5882, T=40.19 ms
-
-========================================================================
-Running robustness sweep: residual_direct = 0.0001
-========================================================================
-residual_direct=0.0001 | proposed P_D=0.6105, T=28.64 ms, worst=0.6130; sense_sinr P_D=0.5855, T=40.26 ms
-
-========================================================================
-Running robustness sweep: residual_direct = 0.001
-========================================================================
-residual_direct=0.001 | proposed P_D=0.5978, T=29.01 ms, worst=0.5920; sense_sinr P_D=0.5750, T=40.62 ms
-
-========================================================================
-Running robustness sweep: residual_direct = 0.01
-========================================================================
-residual_direct=0.01 | proposed P_D=0.4963, T=31.40 ms, worst=0.4370; sense_sinr P_D=0.4819, T=43.05 ms
-
-CSV saved to: results\robustness_residual_direct\robustness\robustness.csv
-Figures saved to: results\robustness_residual_direct\robustness\figs
-[done] robustness --axis residual_direct in 2087s
-
-All modes finished in 336.0 min; output in results

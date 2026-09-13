@@ -65,7 +65,9 @@ def c2f_method_name(apply_to_all: bool) -> str:
 # ==========================================================================
 def link_delay_s(cfg: Config, tables: LinkTables, q: int, link: Link) -> float:
     i, j = link
-    return packet_bits_for_target(cfg, q) / max(tables.rate[i, j], EPS)
+    # Reporting direction is j -> i: the soft statistic is sent from the
+    # receiving UAV j back to the transmitting UAV i.
+    return packet_bits_for_target(cfg, q) / max(tables.rate[j, i], EPS)
 
 
 def link_cost_ms(cfg: Config, tables: LinkTables, q: int, link: Link) -> float:
@@ -208,6 +210,7 @@ def select_c2f(
     cfg: Config,
     base: BaseGains,
     tables_coarse: LinkTables,
+    apply_to_all: bool | None = None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray, Dict[str, float]]:
     r"""Coarse-to-fine DD-aware Lagrangian link selection.
 
@@ -264,7 +267,12 @@ def select_c2f(
         fine_eval_c2f += len(shortlist[q])
 
     # 2. Fine tables and greedy.
-    if r.apply_to_all:
+    # ``apply_to_all`` is normally carried by the method name (see
+    # :data:`C2F_METHODS`); the explicit argument lets a single run evaluate
+    # both the C2F and the full-refinement variant under one configuration.
+    if apply_to_all is None:
+        apply_to_all = r.apply_to_all
+    if apply_to_all:
         tables_fine = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
         fine_candidates = {
             q: feasible_links_for_target(cfg, base, tables_fine, q)

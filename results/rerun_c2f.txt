@@ -1,0 +1,17 @@
+running only: ['c2f']
+
+===== c2f  =====
+mode: c2f  |  MC: 1000  |  seed: 2026
+non-default settings: geometry.uav_speed_min=30.0, geometry.target_speed_min=50.0, geometry.target_speed_max=90.0, comm.interference_model=active_set, run.num_mc=1000, run.verbose=False
+output: results\c2f\c2f
+
+========================================================================
+Running C2F ablation (proposed_lagrangian vs proposed_c2f vs proposed_c2f_full)
+========================================================================
+C2F vs full-refine: fine-grid eval 161.5 vs 431.0 (reduction 62.5%);  P_D c2f=0.6929  full=0.6928;  T c2f=27.70 ms  full=27.79 ms
+
+CSV saved to: results\c2f\c2f\c2f.csv
+Figures saved to: results\c2f\c2f\figs
+[done] c2f  in 543s
+
+All modes finished in 9.1 min; output in results
