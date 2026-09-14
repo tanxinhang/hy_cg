@@ -16,6 +16,7 @@ SCALAR_KEYS: List[str] = [
     "P_FA_overall", "P_FA_overall_ci95_low", "P_FA_overall_ci95_high",
     "P_FA_overall_ci95_half_width", "B_mean_bits", "B_std_bits",
     "T_mean_ms", "T_std_ms", "selected_links_mean", "selected_links_std",
+    "selected_observations_mean", "selected_observations_std",
     "active_target_ratio_mean", "feasible_target_ratio_mean", "feasible_links_mean",
     "comm_feasible_edge_ratio_mean",
     "selected_rate_mean_mbps", "selected_rate_min_mbps_mean", "selected_rate_p10_mbps_mean",
@@ -49,6 +50,7 @@ def scalar_summary_row(summary: Dict[str, Dict[str, Any]], method: str, extra: D
         "B_mean_bits": s["B_mean_bits"],
         "T_mean_ms": s["T_mean_ms"],
         "selected_links_mean": s["selected_links_mean"],
+        "selected_observations_mean": s["selected_observations_mean"],
         "active_target_ratio_mean": s["active_target_ratio_mean"],
         "feasible_target_ratio_mean": s["feasible_target_ratio_mean"],
         "feasible_links_mean": s["feasible_links_mean"],
@@ -107,7 +109,10 @@ def print_summary(summary: Dict[str, Dict[str, Any]]) -> None:
               f"+/- {s['P_FA_overall_ci95_half_width']:.4f})")
         print(f"  Overhead B             : {s['B_mean_bits']:.2f} bit (std {s['B_std_bits']:.2f})")
         print(f"  Overhead T             : {s['T_mean_ms']:.4f} ms (std {s['T_std_ms']:.4f})")
-        print(f"  Selected links         : {s['selected_links_mean']:.2f} (std {s['selected_links_std']:.2f})")
+        print(f"  Selected observations  : {s['selected_observations_mean']:.2f} "
+              f"(std {s['selected_observations_std']:.2f})")
+        print(f"  Remote reports         : {s['selected_links_mean']:.2f} "
+              f"(std {s['selected_links_std']:.2f})")
         print(f"  Active target ratio    : {s['active_target_ratio_mean']:.4f}")
         print(f"  Feasible target ratio  : {s['feasible_target_ratio_mean']:.4f}")
         print(f"  Feasible links/trial   : {s['feasible_links_mean']:.2f}")
@@ -176,7 +181,7 @@ def write_main_summary_latex(summary: Dict[str, Dict[str, Any]], path: Path) -> 
         r"    \label{tab:main_summary}",
         r"    \begin{tabular}{l c c c c c}",
         r"        \hline",
-        r"        Method & $P_D$ & $P_{\mathrm{FA}}$ & Delay/ms & Links & $P_D$/ms \\",
+        r"        Method & $P_D$ & $P_{\mathrm{FA}}$ & Delay/ms & Reports & $P_D$/ms \\",
         r"        \hline",
     ]
     for m in methods:

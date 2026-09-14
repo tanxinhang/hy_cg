@@ -28,7 +28,7 @@ from .fusion import (
     target_alpha,
 )
 from .model import BaseGains, EPS, LinkTables, compute_link_tables
-from .reporting import report_dest
+from .reporting import is_local_observation, report_dest, report_rate
 
 METHODS: List[MethodName] = [
     "proposed_lagrangian",
@@ -37,6 +37,7 @@ METHODS: List[MethodName] = [
     "proposed_c2f_adaptive_pd",
     "proposed_c2f_pd",
     "proposed_c2f_full",
+    "proposed_c2f_full_pd",
     "all_neighbor",
     "random",
     "nearest",
@@ -59,6 +60,7 @@ C2F_METHODS: Dict[str, bool] = {
     "proposed_c2f_adaptive_pd": False,
     "proposed_c2f_pd": False,
     "proposed_c2f_full": True,
+    "proposed_c2f_full_pd": True,
 }
 
 # Distinct RNG streams per method, so baselines that randomise do not share the
@@ -70,6 +72,7 @@ METHOD_RNG_OFFSETS: Dict[str, int] = {
     "proposed_c2f_adaptive_pd": 135,
     "proposed_c2f_pd": 139,
     "proposed_c2f_full": 137,
+    "proposed_c2f_full_pd": 141,
     "all_neighbor": 211,
     "random": 307,
     "nearest": 401,
@@ -101,9 +104,9 @@ def link_delay_s(cfg: Config, tables: LinkTables, q: int, link: Link, plan: "obj
     """
     from .fbl import report_latency_s
 
-    i, j = link
-    dest = report_dest(plan, link, q)
-    return report_latency_s(cfg, float(tables.rate[j, dest]))
+    if is_local_observation(plan, link, q):
+        return 0.0
+    return report_latency_s(cfg, report_rate(tables, plan, link, q))
 
 
 def link_cost_ms(cfg: Config, tables: LinkTables, q: int, link: Link, plan: "object | None" = None) -> float:
@@ -123,12 +126,15 @@ def feasible_links_for_target(
         for j in range(cfg.scale.M):
             if i == j:
                 continue
-            if not base.edge_mask[i, j]:
-                continue
             if cfg.dd.use_otfs_bin_validity and not base.valid_dd[i, j, q]:
                 continue
             dest = report_dest(plan, (i, j), q)
-            if dest < 0 or dest == j or not base.edge_mask[j, dest]:
+            if dest < 0:
+                continue
+            if dest == j:
+                links.append((i, j))
+                continue
+            if not base.edge_mask[j, dest]:
                 continue
             if not tables.feasible_comm[dest, j]:
                 continue
@@ -142,8 +148,6 @@ def sensing_only_links_for_target(cfg: Config, base: BaseGains, q: int) -> List[
     for i in range(cfg.scale.M):
         for j in range(cfg.scale.M):
             if i == j:
-                continue
-            if not base.edge_mask[i, j]:
                 continue
             if cfg.dd.use_otfs_bin_validity and not base.valid_dd[i, j, q]:
                 continue

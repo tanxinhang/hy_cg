@@ -5,22 +5,23 @@ This paper presented target-local fusion V1 for prior-assisted multi-UAV
 OTFS-ISAC sensing. The outer planner assigns each target to the UAV nearest its
 predicted position, while the existing communication-calibrated adaptive C2F
 selector performs detector-aligned greedy replay. The formulation therefore
-changes where reports meet without changing the inner marginal-gain objective,
-packet size, blocklength, or resource caps.
+changes where reports meet while the detector-PD objective independently
+chooses its observation set under fixed packet, blocklength, and resource caps.
 
-In 1000 paired trials, V1 achieved $P_D=0.9734$ and worst-target
-$P_D=0.968$ with 11.993 reports, 7.676~kbit, and 12.793~ms of serial
-reporting. At identical resources, its paired gains over exact-marginal greedy
-and Sensing-SINR were 0.0067 and 0.0085, respectively. A controlled fusion-rule
+In 1000 paired trials, V1 achieved $P_D=0.9762$ and worst-target
+$P_D=0.967$ from 12.101 observations, with only 0.751 remote reports,
+0.481~kbit, and 0.801~ms of serial reporting. Its paired gain over
+exact-marginal greedy was 0.0351. Its detection rate was statistically tied
+with Sensing-SINR, while using 83.7\% less payload. A controlled fusion-rule
 ablation showed that target-local planning disperses targets across fusion UAVs
 and exposes shorter, more reliable reporting edges to the inner selector. The
-evidence therefore supports a joint architectural conclusion---target-related
+evidence therefore supports a combined architectural conclusion: target-related
 fusion planning plus adaptive two-stage selection---rather than attributing the
 full improvement to a new greedy criterion.
 
 V1 is a stable nominal version, not a universal endpoint. Large prediction
-errors, strict rate thresholds, and sparse deployments remain its principal
-boundaries. Future work will validate the main ablations with multiple seeds and
-1000-trial paired tests, model obstruction and correlated reports, compare the
-1536- and 2048-use operating points, and turn the observed conflict-slot
-reduction into an interference- and finite-blocklength-aware parallel scheduler.
+errors and sparse deployments remain its principal boundaries. The present
+rate-threshold scan is weak because local evidence dominates remote reporting.
+Future work will add fusion capacity and sensing-acquisition costs, validate the
+analytic DD proxy at waveform level, model obstruction and correlated reports,
+and optimize link-dependent blocklengths instead of a fixed report price.

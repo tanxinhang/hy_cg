@@ -32,6 +32,9 @@ Accordingly, a sensing-reporting candidate is the quadruple
 $(i,j,q;f_q)$, and the communication quantities that matter---reliability
 $\chi_{j f_q}$, rate $R_{j f_q}$ and delay $T_{j f_q}$---are properties of the
 reporting leg $(j,f_q)$ alone, with no dependence on the illuminator $i$.
+Every ordered pair $i\ne j$ is a potential bistatic sensing pair; communication
+range constrains only the remote reporting leg. If $j=f_q$, the fusion UAV
+retains its locally produced statistic without transmitting a packet.
 This separation ensures that the fused statistic is physically well
 defined: with a naive $j\rightarrow i$ reporting rule, three selected links
 $(i_1,j_1,q)$, $(i_2,j_2,q)$, $(i_3,j_3,q)$ would deliver their statistics to
@@ -117,7 +120,9 @@ With communication bandwidth $B_{\mathrm c}=N\Delta f$, the reporting rate is
 	R_{ij}=B_{\mathrm c}\log_2(1+\gamma_{ij}^{\mathrm c}),
 	\label{eq:rate_delay}
 \end{equation}
-and a reporting link is feasible when $R_{ij}\ge R_{\min}$.
+and a remote reporting link is feasible when $R_{ij}\ge R_{\min}$ and
+$\chi_{ij}\ge\chi_{\min}$. For local evidence we define
+$T_{j f_q}=B_{j f_q}=0$ and $\chi_{j f_q}=1$ when $j=f_q$.
 
 \emph{Finite-blocklength reliability.} A soft sensing report is a short control
 packet. The canonical simulation uses the normal approximation
@@ -244,8 +249,9 @@ illuminator's direct path remains in $I_j^{\mathrm s}$, which makes
 
 Each feasible triplet produces a waveform-derived local log-likelihood ratio
 (LLR). After OTFS matched filtering, the delay-Doppler bin for target $q$ on link
-$i\rightarrow q\rightarrow j$ is a single complex sample with a Swerling-I
-fluctuation. The normalised bin energy $x=|z|^2/\sigma_n^2$ is therefore
+$i\rightarrow q\rightarrow j$ is a single complex sample under an independent
+fast-fluctuation, Swerling-II-like model. The normalised bin energy
+$x=|z|^2/\sigma_n^2$ is therefore
 exponential, $x\sim\mathsf{Exp}(1)$ under $\mathcal H_0$ and
 $x\sim\mathsf{Exp}(1+\gamma_{ijq}^{\mathrm s})$ under $\mathcal H_1$. The local
 log-likelihood ratio, centred under $\mathcal H_0$, is
@@ -256,7 +262,8 @@ log-likelihood ratio, centred under $\mathcal H_0$, is
 	\left(x-L\right),
 	\label{eq:local_llr}
 \end{equation}
-where $L$ is the number of OTFS frames incoherently integrated in one CPI. Its
+where $L$ independent frames are incoherently integrated in one CPI, so their
+summed energy is Gamma distributed. Its
 moments are
 \begin{equation}
 	\begin{aligned}
@@ -270,8 +277,8 @@ moments are
 	\label{eq:llr_moments}
 \end{equation}
 The LLR carries no free scale parameter, and its single-link deflection
-$\delta_{ijq}^2/\sigma_{ij,0}^2=L(\gamma_{ijq}^{\mathrm s})^2$ is Swerling's
-classical result.
+$\delta_{ijq}^2/\sigma_{ij,0}^2=L(\gamma_{ijq}^{\mathrm s})^2$ follows directly
+from this independent-look model.
 
 Communication-error calibration acts on the soft statistic through the
 reporting leg $j\rightarrow f_q$:
@@ -349,8 +356,9 @@ drives link selection and the DD search window. The intended tracking loop is
 The simulator instantiates this belief as an upstream Gaussian snapshot rather
 than implementing the posterior update. Its covariance is propagated through
 the bistatic DD Jacobian to form a three-sigma gate. Scheduling uses mean RCS;
-the current-CPI Swerling fluctuation is marginalized once by
-\eqref{eq:local_llr}. Thus, neither target-state nor RCS truth enters scheduling.
+the fast look-to-look fluctuation is marginalized by \eqref{eq:local_llr}.
+Thus, neither target-state truth nor a realized scattering coefficient enters
+scheduling.
 
 
 

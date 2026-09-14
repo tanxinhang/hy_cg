@@ -68,7 +68,7 @@ def plot_main_comparison(summary: Dict[str, Dict[str, Any]], out_dir: Path) -> N
     bar("P_D", "Detection probability $P_D$", "main_pd.png", "P_D_ci95_half_width")
     bar("T_mean_ms", "Mean exchange delay (ms)", "main_delay.png")
     bar("P_D_per_ms", "$P_D$ per ms", "main_pd_per_ms.png")
-    bar("selected_links_mean", "Mean selected links", "main_selected_links.png")
+    bar("selected_links_mean", "Mean remote reports", "main_selected_links.png")
     bar("actual_worst_target_P_D", "Actual worst-target $P_D$", "main_actual_worst_pd.png")
 
     fig, axes = plt.subplots(1, 3, figsize=(12.0, 3.7))
@@ -115,7 +115,7 @@ def plot_lambda_sweep(rows: List[Dict[str, Any]], out_dir: Path) -> None:
     plt.figure()
     plt.plot(lam, links, marker="o")
     plt.xlabel("Lagrangian communication price $\\lambda_c$")
-    plt.ylabel("Mean selected links")
+    plt.ylabel("Mean remote reports")
     plt.grid(True, alpha=0.3)
     _save(None, out_dir, "lambda_links_vs_lambda.png")
 
@@ -136,7 +136,7 @@ def plot_lambda_sweep(rows: List[Dict[str, Any]], out_dir: Path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.5))
     axes[0].plot(lam, links, marker="o")
     axes[0].set_xlabel("Communication price $\\lambda_c$")
-    axes[0].set_ylabel("Mean selected links")
+    axes[0].set_ylabel("Mean remote reports")
     axes[0].grid(True, alpha=0.3)
     axes[1].errorbar(t_ms, p_d, yerr=yerr, marker="o", capsize=3)
     for xv, yv, lv in zip(t_ms, p_d, lam):
@@ -345,7 +345,7 @@ def plot_dd_ablation(rows: List[Dict[str, Any]], out_dir: Path) -> None:
 
     grouped_bar("P_D", "Detection probability $P_D$", "dd_ablation_pd.png")
     grouped_bar("T_mean_ms", "Mean exchange delay (ms)", "dd_ablation_delay.png")
-    grouped_bar("selected_links_mean", "Mean selected links", "dd_ablation_links.png")
+    grouped_bar("selected_links_mean", "Mean remote reports", "dd_ablation_links.png")
     grouped_bar("feasible_links_mean", "Feasible links per trial", "dd_ablation_feasible_links.png")
 
     # Proposed-only compact panel.

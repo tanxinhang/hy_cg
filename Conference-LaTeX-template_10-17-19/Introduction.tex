@@ -32,22 +32,25 @@ We study prior-assisted confirmation or re-detection and introduce target-local
 fusion planning. For every target, the fusion UAV is chosen using the predicted
 target position rather than the unknown truth. The resulting target-specific
 reporting graph is passed to an adaptive two-stage C2F selector whose final
-greedy replay is aligned with the implemented detector. This separation is
-deliberate: the fusion rule changes the information available to the selector,
-whereas the fair marginal-gain objective and resource constraints remain fixed.
+greedy replay is aligned with the implemented detector. This decomposition
+removes circular dependence between fusion planning and link selection. The
+distance rule is a prediction-only heuristic, not a joint optimum. The inner
+detector-predicted utility directly prices remote reports and independently
+determines how many observations to select.
 
 Our main contributions are as follows.
 
 \begin{itemize}
-	\item We formulate joint target-specific fusion planning and triplet-level
+	\item We formulate decomposed target-specific fusion planning and triplet-level
 	soft-report selection for multi-UAV bistatic OTFS-ISAC. The fusion destination
 	depends only on the predicted target belief, preventing truth leakage into the
 	scheduler.
 
-	\item We combine this outer planning layer with communication-error calibration,
+	\item We combine this outer planning layer with local-evidence retention,
+	communication-error calibration,
 	an adaptive coarse frontier, waveform-derived DD refinement, and detector-aligned
-	greedy replay. The inner fair utility and communication price are unchanged,
-	which isolates the architectural role of fusion placement.
+	greedy replay. The sensing and reporting graphs are distinct, and the
+	detector-PD selector no longer inherits a budget from a reference algorithm.
 
 	\item We provide a reproducible V1 evaluation: a 1000-trial paired main
 	comparison, a controlled fusion-rule ablation, reporting-structure diagnostics,

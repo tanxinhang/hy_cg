@@ -19,48 +19,48 @@ $\chi_{j f_q}$ before link selection begins.
 
 For target $q$, the resulting feasible candidate set is
 \begin{equation}
-	\mathcal{E}_q=\left\{(i,j):R_{j f_q}\geq R_{\min},\;
-	(l_{ijq},k_{ijq})~\text{is DD-valid}\right\}.
+	\begin{aligned}
+	\mathcal{E}_q=\{(i,j):{}&(l_{ijq},k_{ijq})~\text{is DD-valid},\\
+	&j=f_q\ \text{or}\ (j,f_q)\in\mathcal E_{\mathrm c}\}.
+	\end{aligned}
 	\label{eq:feasible_candidate_set}
 \end{equation}
-The report generated at UAV $j$ is sent to $f_q$. Under the released serial
-finite-blocklength MAC, every selected report occupies $n/B_{\mathrm c}$
-seconds and carries 640 bits.
+For a remote edge, $R_{j f_q}\geq R_{\min}$ and
+$\chi_{j f_q}\geq\chi_{\min}$ are also required. If $j=f_q$, the statistic
+is already local: $B_e=T_e=0$ and $\chi_e=1$. Otherwise, the released serial
+finite-blocklength MAC charges 640 bits and $n/B_{\mathrm c}$ seconds per report.
 
 \subsection{Fair Detector-Aligned Marginal}
 
-Let $\mathbf D=(D_1,\ldots,D_Q)$ collect the communication-calibrated fused
-deflections. We use the weak-target potential
+Let $\widehat{\mathbf P}_D(\mathcal S)$ denote the detector-predicted target
+probabilities obtained from the same post-channel moments and threshold used
+in evaluation. Define $\bar P_{D,q}=\min(\widehat P_{D,q},P_D^{\rm req})$.
+We use the weak-target potential
 \begin{equation}
 \begin{split}
-	U(\mathbf D)=&-Q\tau_\alpha\log\!\sum_{q\in\mathcal Q}
-	\exp[-P_{D,q}(D_q)/\tau_\alpha]\\
-	&-\frac{\mu_\alpha}{2D_{\min}}
-	\sum_{q\in\mathcal Q}[D_{\min}-D_q]^2_+ .
+	U(\widehat{\mathbf P}_D)=&-Q\tau_\alpha\log\!\sum_{q\in\mathcal Q}
+	\exp[-\bar P_{D,q}/\tau_\alpha]\\
+	&-\frac{\mu_\alpha}{2P_D^{\rm req}}
+	\sum_{q\in\mathcal Q}[P_D^{\rm req}-\widehat P_{D,q}]^2_+ .
 \end{split}
 	\label{eq:fair_sensing_utility}
 \end{equation}
-Its target priority is the gradient
-\begin{equation}
-\begin{aligned}
-	\alpha_q&=Qw_q\frac{\partial P_{D,q}}{\partial D_q}
-	+\mu_\alpha\frac{[D_{\min}-D_q]^+}{D_{\min}},\\
-	w_q&=\frac{e^{-P_{D,q}/\tau_\alpha}}
-	{\sum_r e^{-P_{D,r}/\tau_\alpha}}.
-\end{aligned}
-	\label{eq:target_priority_compact}
-\end{equation}
+Saturation at $P_D^{\rm req}$ prevents the selector from spending observation
+or communication resources on numerically tiny gains after a target has
+reached the declared design point.
 
 For candidate $e=(i,j,q)$ and current selection $\mathcal S$, the implemented
 greedy replay evaluates
 \begin{equation}
 	\Delta\mathcal L_e=
-	U\!\left(\mathbf D(\mathcal S\cup\{e\})\right)
-	-U\!\left(\mathbf D(\mathcal S)\right)
-	-\lambda_c\widetilde c_e,
+	U\!\left(\widehat{\mathbf P}_D(\mathcal S\cup\{e\})\right)
+	-U\!\left(\widehat{\mathbf P}_D(\mathcal S)\right)
+	-\lambda_c c_e,
 	\label{eq:lagrangian_score_compact}
 \end{equation}
-where $\widetilde c_e$ is the reporting latency in milliseconds. The replay
+where $c_e=\mathbf 1\{j\ne f_q\}n/B_{\mathrm c}$ is the per-report
+communication price in milliseconds. Because $n$ is fixed, this is a remote-
+report cardinality price rather than a link-dependent delay optimizer. The replay
 uses the same post-channel moments and threshold correction as the Monte-Carlo
 detector. Starting from $\mathcal S=\varnothing$, it commits the largest
 positive marginal while enforcing $|\mathcal S_q|\le L_{\max}$ and
@@ -80,8 +80,8 @@ versus 509.3 under full refinement, a 76.9\% reduction.
 
 The implemented task objective is
 \begin{equation}
-	F(\mathcal S)=U\!\left(\mathbf D(\mathcal S)\right)
-	-\lambda_c\sum_{e\in\mathcal S}\widetilde c_e .
+	F(\mathcal S)=U\!\left(\widehat{\mathbf P}_D(\mathcal S)\right)
+	-\lambda_c\sum_{e\in\mathcal S}c_e .
 	\label{eq:task_objective}
 \end{equation}
 The cost term can make $F$ non-monotone, while the soft minimum couples targets

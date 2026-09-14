@@ -36,6 +36,7 @@
       "n_looks": 16,
       "num_false_per_target": 30,
       "path_loss_exp": 2.0,
+      "pd_required": 0.95,
       "rcs_aspect_enable": false,
       "rcs_model": "mean",
       "rician_K_db": 15.0,
@@ -108,7 +109,7 @@
       "num_mc": 100,
       "seed": 2026,
       "verbose": false,
-      "workers": 4
+      "workers": 8
     },
     "scale": {
       "M": 10,
@@ -177,6 +178,7 @@
       "n_looks": 16,
       "num_false_per_target": 30,
       "path_loss_exp": 2.0,
+      "pd_required": 0.95,
       "rcs_aspect_enable": false,
       "rcs_model": "mean",
       "rician_K_db": 15.0,
@@ -249,7 +251,7 @@
       "num_mc": 100,
       "seed": 2026,
       "verbose": false,
-      "workers": 4
+      "workers": 8
     },
     "scale": {
       "M": 15,
@@ -318,6 +320,7 @@
       "n_looks": 16,
       "num_false_per_target": 30,
       "path_loss_exp": 2.0,
+      "pd_required": 0.95,
       "rcs_aspect_enable": false,
       "rcs_model": "mean",
       "rician_K_db": 15.0,
@@ -390,7 +393,7 @@
       "num_mc": 100,
       "seed": 2026,
       "verbose": false,
-      "workers": 4
+      "workers": 8
     },
     "scale": {
       "M": 20,

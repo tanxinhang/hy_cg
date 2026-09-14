@@ -15,14 +15,16 @@ from isac_sim.model import build_base_gains, compute_link_tables, generate_geome
 from isac_sim.packetization import packetization_audit
 from isac_sim.reporting import ReportingPlan
 from isac_sim.reporting import assign_fusion_nodes
-from isac_sim.soft_channel import draw_received_soft_stat, received_moments
-from isac_sim.selection import select_c2f_adaptive
+from isac_sim.soft_channel import draw_received_soft_stat, local_moments, received_moments
+from isac_sim.selection import feasible_links_for_target, select_c2f_adaptive
 from isac_sim.simulate import (
     rng_for_detection,
     rng_for_method,
     run_method_on_trial,
     run_one_trial,
     run_simulation,
+    total_overhead_bits,
+    total_overhead_delay_s,
 )
 
 
@@ -122,24 +124,55 @@ class CanonicalConfigurationTests(unittest.TestCase):
         self.assertEqual(result.belief_capture_rate, 0.0)
         self.assertTrue(np.array_equal(result.D_fuse_per_target, np.zeros(1)))
 
-    def test_adaptive_detector_rule_matches_reference_reporting_budget(self) -> None:
+    def test_adaptive_detector_rule_is_reference_budget_independent(self) -> None:
         cfg = apply_preset(Config(), "paper-canonical")
         cfg.scale.M, cfg.scale.Q = 4, 2
         cfg.detect.num_false_per_target = 1
         cfg.refine.shortlist_size = 3
         cfg.selector.max_links_per_target = 2
         cfg.selector.max_total_links = 4
-        result = run_one_trial(
-            cfg, 0, methods=["proposed_c2f", "proposed_c2f_adaptive_pd"]
+        rng = np.random.default_rng(17)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = assign_fusion_nodes(cfg, base, tables, geom)
+        fine = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
+
+        low = run_method_on_trial(
+            cfg, base, tables, "proposed_c2f_adaptive_pd", 0,
+            reference_counts={0: 0, 1: 0}, c2f_tables=fine, plan=plan,
         )
-        ref = result["proposed_c2f"]
-        combined = result["proposed_c2f_adaptive_pd"]
+        high = run_method_on_trial(
+            cfg, base, tables, "proposed_c2f_adaptive_pd", 0,
+            reference_counts={0: 99, 1: 99}, c2f_tables=fine, plan=plan,
+        )
+        self.assertEqual(low.selected_links, high.selected_links)
+        self.assertEqual(low.overhead_bits, high.overhead_bits)
+        self.assertAlmostEqual(low.overhead_delay_s, high.overhead_delay_s)
+
+    def test_local_fusion_evidence_has_no_reporting_cost(self) -> None:
+        cfg = apply_preset(Config(), "paper-canonical")
+        cfg.scale.M, cfg.scale.Q = 3, 1
+        cfg.dd.use_otfs_bin_validity = False
+        rng = np.random.default_rng(19)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = ReportingPlan(mode="explicit", f_q=np.array([1]))
+        link = (0, 1)
+
+        # Sensing availability is independent of the i-j reporting adjacency.
+        base.edge_mask[0, 1] = base.edge_mask[1, 0] = False
+        self.assertGreater(tables.gamma_sense[0, 1, 0], 0.0)
+        self.assertIn(link, feasible_links_for_target(cfg, base, tables, 0, plan))
+        selected = {0: [link]}
+        self.assertEqual(total_overhead_bits(cfg, selected, plan), 0.0)
+        self.assertEqual(total_overhead_delay_s(cfg, tables, selected, plan), 0.0)
+        self.assertEqual(packetization_audit(cfg, selected, plan)["reports"], 0.0)
         self.assertEqual(
-            sum(len(v) for v in ref.selected_links.values()),
-            sum(len(v) for v in combined.selected_links.values()),
+            received_moments(cfg, tables, link, 0, plan),
+            local_moments(cfg, tables, link, 0),
         )
-        self.assertEqual(ref.overhead_bits, combined.overhead_bits)
-        self.assertAlmostEqual(ref.overhead_delay_s, combined.overhead_delay_s)
 
     def test_adaptive_c2f_respects_fine_and_link_caps(self) -> None:
         cfg = apply_preset(Config(), "paper-canonical")

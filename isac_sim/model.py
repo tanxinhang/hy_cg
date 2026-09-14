@@ -631,7 +631,7 @@ def compute_link_tables(
 
     for i in range(M):
         for j in range(M):
-            if i == j or not base.edge_mask[i, j]:
+            if i == j:
                 continue
 
             residual_self = r.residual_self_factor * P[j]

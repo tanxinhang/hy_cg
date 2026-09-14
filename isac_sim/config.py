@@ -50,6 +50,7 @@ MethodName = Literal[
     "proposed_c2f_adaptive_pd",
     "proposed_c2f_pd",
     "proposed_c2f_full",
+    "proposed_c2f_full_pd",
 ]
 
 CommErrorModel = Literal["erasure", "flip", "biased"]
@@ -315,13 +316,17 @@ class Detect:
 
     Pfa_target: float = 0.05
     D_min: float = 3.0
+    # Weak-target requirement used by the canonical fairness penalty.  D_min
+    # remains only for legacy early-stop reproduction.
+    pd_required: float = 0.95
     # --- Soft-statistic model --------------------------------------------
     # "gaussian": legacy ``mu = kappa_mu * log(1 + gamma)`` with a hand-set
     #     ``soft_mu_scale``.  There is no derivation for it -- it only encodes
     #     "higher sensing SINR should give a larger soft mean".
     # "llr":      the soft statistic is the *centred local log-likelihood
     #     ratio* of the delay-Doppler matched-filter / local-energy output.
-    #     For a Swerling-I target in complex Gaussian noise the bin energy is
+    #     For independent fast-fluctuation looks in complex Gaussian noise,
+    #     the integrated bin energy is Gamma distributed, giving
     #     exponential, giving
     #         ell  = -ln(1+gamma) + x * gamma/(1+gamma),  x = |z|^2 / sigma_n^2
     #         delta = E1[ell] - E0[ell] = gamma^2/(1+gamma)
@@ -360,7 +365,7 @@ class Detect:
     #               An optional bistatic aspect factor g(theta_i, theta_j)
     #               is applied on top.
     # "mean":       use the mean RCS in the link budget.  This is the correct
-    #               companion of the local Swerling-I LLR, whose H1 energy
+    #               companion of the local independent-look LLR, whose H1 energy
     #               distribution already marginalizes the RCS fluctuation;
     #               drawing RCS here as well would count it twice.
     rcs_model: str = "iid"
@@ -483,8 +488,8 @@ class Selector:
     # ``first_order`` reproduces the historical alpha_q * DeltaD rule.
     # ``exact_utility`` evaluates the actual fair utility increment and is the
     # paper-canonical rule; its greedy and exhaustive oracle share one objective.
-    # ``detector_pd`` is an experimental matched-budget rule that evaluates the
-    # post-report H0/H1 moments and the implemented CF-corrected threshold.
+    # ``detector_pd`` evaluates the post-report H0/H1 moments and the
+    # implemented CF-corrected threshold under the same communication price.
     score_mode: str = "first_order"
     # Historical early exit at D_min is retained for legacy reproduction.  It
     # is disabled in the canonical release because it can stop while the stated
@@ -666,6 +671,8 @@ def validate_config(cfg: Config) -> None:
             f"Unknown selector.score_mode={cfg.selector.score_mode!r}; "
             "expected 'first_order', 'exact_utility', or 'detector_pd'"
         )
+    if not 0.0 < cfg.detect.pd_required <= 1.0:
+        raise ValueError("detect.pd_required must lie in (0, 1]")
     if cfg.fusion.rule.lower() not in {
         "max_in_rate", "max_min_rate", "nearest_target", "nearest_centroid"
     }:

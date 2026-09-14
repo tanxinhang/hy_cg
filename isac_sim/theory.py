@@ -7,8 +7,8 @@ module provides that structure, in three parts:
 1. **Same-objective oracle.**  The paper-canonical greedy rule evaluates the
    exact marginal of the fair sensing potential
 
-       U(D) = -Q tau log sum_q exp(-P_D,q/tau)
-              - mu/(2 D_min) sum_q [D_min-D_q]_+^2
+       U(P_D) = -Q tau log sum_q exp(-min(P_D,q,P_D,req)/tau)
+                - mu/(2 P_D,req) sum_q [P_D,req-P_D,q]_+^2
 
    minus linear reporting cost.  The historical ``alpha_q * DeltaD`` rule is
    retained as a first-order ablation, not presented as the exact objective.
@@ -40,7 +40,12 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from .config import Config, Link
-from .fusion import deflection_for_links, selection_utility
+from .fusion import (
+    deflection_for_links,
+    predicted_pd_for_links,
+    selection_utility,
+    selection_utility_from_pd,
+)
 from .model import BaseGains, LinkTables
 from .selection import feasible_links_for_target, link_cost_ms
 
@@ -55,19 +60,29 @@ def task_objective(
     plan: "object | None" = None,
     base: BaseGains | None = None,
 ) -> float:
-    """Exact fair sensing utility minus the configured linear reporting cost."""
+    """Exact configured sensing utility minus linear reporting cost."""
     s = cfg.selector
     D = np.zeros(cfg.scale.Q, dtype=float)
+    pd = np.zeros(cfg.scale.Q, dtype=float)
     total_cost = 0.0
     for q in range(cfg.scale.Q):
         links = selected.get(q, [])
         D[q] = deflection_for_links(
             cfg, tables, q, links, weight_mode="deflection", plan=plan, base=base
         )
+        if s.score_mode.lower() == "detector_pd":
+            pd[q] = predicted_pd_for_links(
+                cfg, tables, q, links, weight_mode="deflection", plan=plan, base=base
+            )
         if s.use_delay_price:
             for link in links:
                 total_cost += s.lambda_c * link_cost_ms(cfg, tables, q, link, plan)
-    return selection_utility(cfg, D) - total_cost
+    utility = (
+        selection_utility_from_pd(cfg, D, pd)
+        if s.score_mode.lower() == "detector_pd"
+        else selection_utility(cfg, D)
+    )
+    return utility - total_cost
 
 
 def same_objective_oracle(

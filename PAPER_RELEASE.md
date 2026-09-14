@@ -16,16 +16,18 @@ applies this preset before any experiment-specific override.
   continuous sensing-waveform leakage remains in the reporting SINR.
 - Reliability and latency: finite-blocklength packet success probability and
   block latency `n/B_c`.
-- Local statistic: centred Swerling-I energy LLR.
-- RCS information: the link budget uses `E[sigma_q]`; Swerling-I fluctuation is
-  marginalized once by the local LLR distribution, avoiding double counting.
+- Local statistic: centred independent-look energy LLR under a fast-fluctuation,
+  Swerling-II-like model.
+- RCS information: the link budget uses `E[sigma_q]`; look-to-look fluctuation is
+  marginalized by the local LLR distribution, avoiding double counting.
 - Belief information: scheduling uses `(xhat, P)`. The DD gate is obtained by
   propagating `P` through the bistatic delay/Doppler Jacobian.
 - C2F: fine gain is the local-window energy `eta_loc`; interpolation parameters
   are legacy-only. The proposed selector refines only its shortlist, while all
   methods evaluate their selected reports with the same local DD estimator.
-- Selection objective: exact marginal of the fair sensing potential minus
-  linear reporting cost. The first-order `alpha_q * DeltaD` rule is an ablation.
+- Selection objective: detector-predicted weak-target utility, saturated at
+  `P_D^req`, minus a per-remote-report price. The first-order
+  `alpha_q * DeltaD` rule is an ablation.
 - Threshold calibration: the Gaussian threshold includes a first-order
   Cornish--Fisher correction computed from the same post-report LLR moments.
 
@@ -156,29 +158,21 @@ shorter-block point is a Pareto improvement over the current candidate.
 
 ### Fusion-destination bottleneck audit (candidate, not a release change)
 
-The 16.4032 ms mean is the sum of 15.378 fixed-block reports at
-`2048 / 1.92 MHz = 1.0667 ms` each.  Under the current `max_in_rate` rule, all
-ten targets were assigned to one fusion UAV in every audited trial.  The
-receiver-conflict graph therefore required one slot per report: its mean slot
-count was exactly 15.99 for 15.99 reports in the MC=100 fusion audit.  Merely
-turning on concurrent slots cannot reduce the delay under that assignment.
+Under `max_in_rate`, all ten targets are assigned to one fusion UAV on average.
+After correcting local-evidence accounting, the MC=100 fusion audit gives 6.65
+remote reports and 7.093 ms, with one receiver-conflict slot per report.
 
 A target-local candidate instead chooses the UAV nearest to each target's
 *predicted* position (`nearest_target`; the historical configuration spelling
 `nearest_centroid` remains an alias).  It uses the belief geometry and never
 the current-CPI target truth.  In the MC=1000 main gate, the combined adaptive
-C2F method achieved `P_D=0.9734` with 11.993 reports, 7.6755 kbit, and
-12.7925 ms.  Relative to the same-seed `max_in_rate` candidate
-(`P_D=0.8721`, 15.378 reports, 9.8419 kbit, 16.4032 ms), report count, bits,
-and serial latency all fell by 22.0%, while worst-target `P_D` rose from 0.857
-to 0.968.  Under the target-local rule, its paired improvement over exact-
-marginal greedy was 0.0067 (95% CI 0.0041--0.0093) and over sensing-SINR was
-0.0085 (95% CI 0.0061--0.0109), at identical trial-level resources.
+C2F method achieved `P_D=0.9762` from 12.101 observations with 0.751 remote
+reports, 0.481 kbit, and 0.801 ms. Its paired improvement over exact-marginal
+greedy was 0.0351 (95% CI 0.0310--0.0392). Against Sensing-SINR, the paired
+difference was -0.0021 (95% CI -0.0051--0.0009), so detection was statistically
+tied while target-local C2F used 83.7% less payload at the same observation count.
 
-The conflict-graph audit gives a separate no-interference scheduling lower
-bound of 4.69 ms (MC=100), versus 12.97 ms serial in that screen.  This is not
-an achieved release result: slot-level interference, bandwidth allocation,
-and FBL reliability must be simulated jointly before claiming parallel-MAC
-latency.  Consequently `paper-canonical` and `results_release` remain
-unchanged; the target-local rule is retained as a screened capability pending
-the remaining robustness/ablation gates.
+The corrected MC=100 target-local screen averages 0.74 remote reports and 0.70
+conflict slots because local observations create no MAC traffic. The distance
+assignment remains a prediction-only heuristic rather than a jointly optimal
+fusion and selection rule.

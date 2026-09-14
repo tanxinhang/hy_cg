@@ -9,7 +9,7 @@ import numpy as np
 
 from .config import Config, Link
 from .llr import draw_llr, llr_var1
-from .reporting import report_dest
+from .reporting import report_chi
 
 
 @dataclass(frozen=True)
@@ -59,8 +59,7 @@ def received_moments(
     if not cfg.detect.enable_comm_error_pollution:
         return local
 
-    _, j = link
-    chi = float(np.clip(tables.chi_comm[j, report_dest(plan, link, q)], 0.0, 1.0))
+    chi = float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
     d = cfg.detect
     model = d.comm_error_model
 
@@ -105,7 +104,7 @@ def received_h0_third_central(
     local_mu3 = 2.0 * float(max(cfg.detect.n_looks, 1)) * a ** 3
     if not cfg.detect.enable_comm_error_pollution:
         return local_mu3
-    chi = float(np.clip(tables.chi_comm[j, report_dest(plan, link, q)], 0.0, 1.0))
+    chi = float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
     return chi * local_mu3
 
 
@@ -135,8 +134,7 @@ def draw_received_soft_stat(
     if not cfg.detect.enable_comm_error_pollution:
         return _draw_local(cfg, tables, link, q, rng, h1)
 
-    _, j = link
-    chi = float(np.clip(tables.chi_comm[j, report_dest(plan, link, q)], 0.0, 1.0))
+    chi = float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
     if rng.random() < chi:
         return _draw_local(cfg, tables, link, q, rng, h1)
 

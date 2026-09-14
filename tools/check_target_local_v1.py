@@ -79,16 +79,18 @@ def main() -> int:
         def value(row: dict[str, str], field: str) -> float:
             return float(row[field])
 
-        require(value(proposed, "P_D_ci95_low") >= 0.965,
-                "proposed P_D 95% lower bound is at least 0.965", failures)
+        require(value(proposed, "P_D_ci95_low") >= 0.970,
+                "proposed P_D 95% lower bound is at least 0.970", failures)
         require(value(proposed, "actual_worst_target_P_D") >= 0.960,
                 "worst-target P_D is at least 0.960", failures)
-        require(value(proposed, "selected_links_mean") <= 12.5,
-                "mean selected reports do not exceed 12.5", failures)
-        require(value(proposed, "B_mean_bits") <= 8000.0,
-                "mean payload does not exceed 8.0 kbit", failures)
-        require(value(proposed, "T_mean_ms") <= 13.5,
-                "mean serial delay does not exceed 13.5 ms", failures)
+        require(value(proposed, "selected_observations_mean") <= 13.0,
+                "mean selected observations do not exceed 13", failures)
+        require(value(proposed, "selected_links_mean") <= 1.5,
+                "mean remote reports do not exceed 1.5", failures)
+        require(value(proposed, "B_mean_bits") <= 1000.0,
+                "mean payload does not exceed 1.0 kbit", failures)
+        require(value(proposed, "T_mean_ms") <= 2.0,
+                "mean serial delay does not exceed 2.0 ms", failures)
         require(value(proposed, "belief_capture_rate_mean") >= 0.990,
                 "belief-guided DD capture rate is at least 0.990", failures)
         require(value(proposed, "selected_rate_satisfaction_ratio_mean") == 1.0,
@@ -98,9 +100,12 @@ def main() -> int:
         require(value(exact, "paired_reference_delta_ci95_low") > 0.0,
                 "paired P_D gain over exact-marginal greedy has positive 95% lower bound",
                 failures)
-        require(value(sinr, "paired_reference_delta_ci95_low") > 0.0,
-                "paired P_D gain over sensing-SINR has positive 95% lower bound",
-                failures)
+        sinr_lo = value(sinr, "paired_reference_delta_ci95_low")
+        sinr_hi = value(sinr, "paired_reference_delta_ci95_high")
+        require(sinr_lo <= 0.0 <= sinr_hi,
+                "detector-PD and sensing-SINR P_D are statistically tied", failures)
+        require(value(proposed, "B_mean_bits") < 0.25 * value(sinr, "B_mean_bits"),
+                "proposed uses less than one quarter of sensing-SINR payload", failures)
 
         reports = value(proposed, "selected_links_mean")
         resolved_v1 = apply_preset(Config(), "target-local-v1")

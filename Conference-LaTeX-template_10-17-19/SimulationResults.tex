@@ -4,7 +4,7 @@
 \begin{figure*}[!t]
 	\centering
 	\includegraphics[width=0.98\textwidth]{figs/fig2_v1_main_comparison.pdf}
-	\caption{Confirmatory MC=1000 comparison under identical per-trial resources.
+	\caption{Confirmatory MC=1000 comparison under a common scenario and caps.
 	(a) Mean detection probability with 95\% Wilson intervals; the dashed line
 	marks 0.95. (b) Worst-target detection probability. (c) Paired V1-minus-
 	baseline differences with 95\% confidence intervals.}
@@ -37,8 +37,8 @@
 We evaluate prior-assisted confirmation in a $4000\,\mathrm{m}\times
 4000\,\mathrm{m}$ region with $M=15$ UAVs and $Q=10$ targets. Table~
 \ref{tab:simulation_parameters} lists the released V1 configuration. All main
-methods use the same paired geometries, detector randomness, feasible graph,
-and per-trial number of selected reports. The confirmatory comparison uses 1000
+methods use the same paired geometries, detector randomness, physical model,
+and observation caps. The confirmatory comparison uses 1000
 Monte-Carlo trials. Fusion and operating-envelope sweeps use 100 trials per
 condition with seed 2026 and are therefore diagnostic rather than substitutes
 for the main evidence.
@@ -61,7 +61,7 @@ for the main evidence.
 		Rate threshold / false alarm & $R_{\min}=0.2~\mathrm{Mbit/s}$, $P_{\mathrm{FA}}=0.05$ \\
 		Report / blocklength & 640 bits, $n=2048$ channel uses \\
 		Predicted belief & $\sigma_p=150~\mathrm m$, $\sigma_v=15~\mathrm{m/s}$ \\
-		Selection & $D_{\min}=3$, $\lambda_c=0.005$, $L_{\max}=6$, $L_{\mathrm{tot}}=60$ \\
+		Selection & $P_D^{\rm req}=0.95$, $\lambda_c=0.005$, $L_{\max}=6$, $L_{\mathrm{tot}}=60$ \\
 		Fusion / reporting & nearest predicted target / serial orthogonal MAC \\
 		C2F refinement & $W=1$, adaptive frontier, detector-aligned replay \\
 		Main / sweep trials & 1000 / 100 per condition \\
@@ -72,70 +72,70 @@ for the main evidence.
 \subsection{Confirmatory Main Comparison}
 
 Figure~\ref{fig:v1_main} compares target-local adaptive C2F with two strong
-resource-matched rules. Exact-marginal greedy uses the same fair utility but no
-C2F detector-aligned replay; Sensing-SINR ranks nominal sensing strength. V1
-attains $P_D=0.9734$ (95\% CI: $[0.9701,0.9764]$), versus 0.9667 for
-exact-marginal greedy and 0.9649 for Sensing-SINR. Its worst-target detection
-probability is 0.968, compared with 0.957 and 0.953. The paired gains are
-$+0.0067$ (95\% CI: $[0.0041,0.0093]$) and $+0.0085$
-($[0.0061,0.0109]$), respectively; both interval lower bounds are positive.
-The empirical active-target and system-wide false-alarm probabilities are
-0.0498 and 0.0495, consistent with the designed value 0.05.
+rules under common caps. Exact-marginal greedy uses the deflection-based fair
+utility without detector-aligned C2F replay; Sensing-SINR ranks nominal sensing
+strength and matches V1's per-target observation counts. V1 attains
+$P_D=0.9762$ (95\% CI: $[0.9730,0.9790]$), versus 0.9411 for exact-marginal
+greedy and 0.9783 for Sensing-SINR. Worst-target values are 0.967, 0.928, and
+0.970. The paired V1-minus-baseline intervals are $+0.0351$
+($[0.0310,0.0392]$) and $-0.0021$ ($[-0.0051,0.0009]$), respectively.
+Thus, V1 improves on exact-marginal selection but is statistically tied with
+Sensing-SINR in detection probability.
 
-Resource matching is exact: each method selects 11.993 reports on average,
-corresponding to 7.676~kbit and 12.793~ms of serial reporting. Thus, the main
-detection gain is not purchased with more reports. The adaptive C2F stage
-evaluates 117.7 fine DD neighborhoods instead of 509.3 for exhaustive local
-refinement, reducing fine evaluations by 76.9\%. These results support the V1
-system as a stable nominal point; they do not isolate fusion placement because
-all three main methods already use the target-local graph.
+The communication comparison is not tied. V1 selects 12.101 observations and
+sends 0.751 remote reports on average, corresponding to 0.481~kbit and
+0.801~ms. Sensing-SINR selects the same 12.101 observations but sends 4.595
+reports, 2.941~kbit, and 4.901~ms. V1 therefore reduces payload and serial delay
+by 83.7\% without a significant $P_D$ change. A separate MC=200 control applies
+the same detector-PD greedy rule after refining all candidates. Adaptive C2F
+uses 61.06 rather than 853.65 fine evaluations (92.85\% fewer) and attains
+$P_D=0.980$ versus 0.973 for full refinement. The paired difference is 0.0070
+($[0.0029,0.0111]$), consistent with shortlist regularization under belief
+mismatch; full refinement is therefore a computational control, not an oracle.
 
 \subsection{Why Target-Local Fusion Helps}
 
 Figure~\ref{fig:fusion_ablation} changes only the fusion destination rule. The
-target-agnostic max-in-rate rule gives $P_D=0.866$, worst-target $P_D=0.800$,
-15.99 reports, and 17.056~ms. A max-min-rate alternative improves these values
-to 0.946, 0.930, 14.36, and 15.317~ms. Nearest-target fusion reaches 0.979 and
-0.960 with only 12.16 reports and 12.971~ms. Because the two-stage screening,
-greedy objective, packets, and caps are unchanged, this ablation supports the
-mechanism in \eqref{eq:nearest_target_fusion}: fusion placement changes the
-reliable reporting-edge set seen by the selector.
+target-agnostic max-in-rate rule gives $P_D=0.919$, worst-target $P_D=0.870$,
+6.65 remote reports, and 7.093~ms. A max-min-rate alternative gives 0.969,
+0.940, 6.40, and 6.827~ms. Nearest-target fusion reaches 0.982 and 0.950 with
+only 0.74 remote reports and 0.789~ms. It also reduces selected observations
+from 19.89 and 15.61 to 12.24. The mechanism is stronger than short-link
+selection alone: a fusion UAV can retain every statistic it produces locally,
+with unit reliability and no packet cost.
 
 The reporting structure explains the difference. Max-in-rate and max-min-rate
 assign all ten targets to one fusion UAV on average. Nearest-target assigns
 them across 7.13 UAVs and lowers the mean conflict-graph requirement from
-15.99/14.36 to 4.40 slots. If reports in nonconflicting edges could be sent
-simultaneously without bandwidth sharing, additional interference, or a changed
-finite-blocklength model, 4.40 slots would correspond to a 4.693~ms lower
-bound. V1 does not implement this scheduler, so its reported latency remains
-the measured serial value 12.971~ms.
+6.65/6.40 to 0.70 slots. Under nearest-target fusion, many trials need no
+remote slot at all. V1 still reports measured serial latency; conflict slots
+are retained only as a structural diagnostic.
 
 \subsection{Operating Envelope and Design Choices}
 
 Figure~\ref{fig:operating_envelope} summarizes six controlled scans. First,
-V1 remains near $P_D=0.98$ for position-error standard deviations up to 150~m,
-then decreases to 0.960 at 300~m and 0.918 at 500~m. Belief capture remains
-0.9868 even at 500~m; the degradation is therefore more consistent with
+V1 remains near $P_D=0.99$ for position-error standard deviations up to 50~m,
+then decreases to 0.982 at 150~m, 0.937 at 300~m, and 0.900 at 500~m. Belief
+capture remains 0.991 at 500~m; the degradation is therefore more consistent with
 prediction-induced fusion and link mismatch than with DD-gate misses alone.
-Second, $R_{\min}\le0.5$~Mbit/s is inactive at this nominal geometry. At
-2~Mbit/s, only 94\% of targets retain feasible candidates and $P_D$ falls to
-0.901; the lower report count is candidate starvation, not improved efficiency.
+Second, changing $R_{\min}$ from 0.1 to 2~Mbit/s leaves $P_D=0.982$ and all
+targets feasible because local observations bypass the reporting threshold.
+This insensitivity is specific to the present target-local architecture.
 
 Topology is the next boundary. Increasing the square side from 2500 to 5500~m
-changes $P_D$ from 0.992 to 0.913 and reports from 10.19 to 15.87. Increasing
-the fleet from 10 to 20 UAVs at $Q=10$ changes $P_D$ from 0.941 to 0.987 while
-reducing reports from 15.01 to 10.94. These scans vary density implicitly and
+changes $P_D$ from 0.992 to 0.932 and reports from 0.05 to 2.67. Increasing
+the fleet from 10 to 20 UAVs at $Q=10$ changes $P_D$ from 0.955 to 0.984 while
+reducing reports from 2.13 to 0.22. These scans vary density implicitly and
 must not be combined into an independent density effect.
 
 The communication price exhibits a broad plateau. Setting $\lambda_c=0$
-requires 16.29 reports at $P_D=0.978$, whereas $\lambda_c=0.005$ uses 12.16
-reports at $P_D=0.979$. Values from 0.0025 to 0.01 have overlapping MC=100
+requires 4.96 reports at $P_D=0.983$, whereas $\lambda_c=0.005$ uses 0.74
+reports at $P_D=0.982$. Values from 0.0025 to 0.02 have overlapping MC=100
 uncertainty, so 0.005 is treated as a stable engineering point rather than a
 statistically unique optimum. Finally, 2048 channel uses yields
-$P_D=0.979$ and 12.971~ms. The 1536-use setting is a promising lower-latency
-candidate (0.977, 9.880~ms), while 3072 uses is dominated in this scan (0.975,
-19.136~ms). A paired high-MC comparison is required before promoting the
-1536-use setting to a new release.
+$P_D=0.982$ and 0.789~ms. The 1024-use setting gives $P_D=0.981$ and
+0.363~ms, while 3072 uses gives 0.981 and 1.216~ms. A paired high-MC
+comparison is required before changing the blocklength.
 
 All figures are generated directly from the released CSV/JSON records. The
 resolved V1 configuration, source-data index, and plotting command accompany

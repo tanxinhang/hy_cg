@@ -22,6 +22,7 @@ from .fusion import (
     fused_h0_variance,
     fused_h0_skewness,
     fusion_weight_mode_for_method,
+    pd_from_deflection,
 )
 from .model import (
     BaseGains,
@@ -33,7 +34,15 @@ from .model import (
     generate_geometry,
     threshold_from_pfa,
 )
-from .reporting import ReportingPlan, assign_fusion_nodes, report_dest
+from .reporting import (
+    ReportingPlan,
+    assign_fusion_nodes,
+    is_local_observation,
+    report_chi,
+    report_dest,
+    report_gamma,
+    report_rate,
+)
 from .selection import (
     C2F_METHODS,
     METHOD_RNG_OFFSETS,
@@ -178,10 +187,31 @@ def evaluate_detection(
 # ==========================================================================
 # Overhead and communication metrics
 # ==========================================================================
-def total_overhead_bits(cfg: Config, selected: Dict[int, List[Link]]) -> float:
+def remote_report_count(
+    selected: Dict[int, List[Link]], plan: "ReportingPlan | None" = None
+) -> int:
+    """Number of selected observations that require an inter-UAV packet."""
+    return sum(
+        1
+        for q, links in selected.items()
+        for link in links
+        if not is_local_observation(plan, link, q)
+    )
+
+
+def total_overhead_bits(
+    cfg: Config,
+    selected: Dict[int, List[Link]],
+    plan: "ReportingPlan | None" = None,
+) -> float:
     from .model import packet_bits_for_target
 
-    return float(sum(packet_bits_for_target(cfg, q) * len(links) for q, links in selected.items()))
+    return float(sum(
+        packet_bits_for_target(cfg, q)
+        for q, links in selected.items()
+        for link in links
+        if not is_local_observation(plan, link, q)
+    ))
 
 
 def _report_list(
@@ -194,7 +224,9 @@ def _report_list(
     for q, links in selected.items():
         for (i, j) in links:
             dest = report_dest(plan, (i, j), q)
-            reports.append((j, dest, report_latency_s(cfg, float(tables.rate[j, dest]))))
+            if is_local_observation(plan, (i, j), q):
+                continue
+            reports.append((j, dest, report_latency_s(cfg, report_rate(tables, plan, (i, j), q))))
     return reports
 
 
@@ -271,25 +303,27 @@ def communication_metrics_for_selection(
     for q, links in selected.items():
         for (i, j) in links:
             dest = report_dest(plan, (i, j), q)
+            if is_local_observation(plan, (i, j), q):
+                continue
             leg = (j, dest)
             if leg in seen:
                 continue
             seen.add(leg)
-            rates.append(float(tables.rate[j, dest]))
-            chis.append(float(tables.chi_comm[j, dest]))
-            gammas.append(float(tables.gamma_comm[j, dest]))
+            rates.append(report_rate(tables, plan, (i, j), q))
+            chis.append(report_chi(tables, plan, (i, j), q))
+            gammas.append(report_gamma(tables, plan, (i, j), q))
 
     if not rates:
         return {
-            "selected_rate_mean_mbps": 0.0,
-            "selected_rate_min_mbps": 0.0,
-            "selected_rate_p10_mbps": 0.0,
-            "selected_chi_mean": 0.0,
-            "selected_chi_min": 0.0,
-            "selected_chi_p10": 0.0,
-            "selected_gamma_comm_mean_db": 0.0,
-            "selected_rate_satisfaction_ratio": 0.0,
-            "selected_chi_ge_min_ratio": 0.0,
+            "selected_rate_mean_mbps": math.nan,
+            "selected_rate_min_mbps": math.nan,
+            "selected_rate_p10_mbps": math.nan,
+            "selected_chi_mean": math.nan,
+            "selected_chi_min": math.nan,
+            "selected_chi_p10": math.nan,
+            "selected_gamma_comm_mean_db": math.nan,
+            "selected_rate_satisfaction_ratio": 1.0,
+            "selected_chi_ge_min_ratio": 1.0,
             "comm_feasible_edge_ratio": float(comm_feasible_edge_ratio),
         }
 
@@ -421,15 +455,8 @@ def run_method_on_trial(
         "proposed_c2f_adaptive_pd",
     }:
         if method == "proposed_c2f_adaptive_pd":
-            matched_budget = (
-                int(sum(reference_counts.values()))
-                if reference_counts is not None else cfg.selector.max_total_links
-            )
             select_cfg = apply_overrides(cfg, {
                 "selector.score_mode": "detector_pd",
-                "selector.use_delay_price": False,
-                "selector.lambda_c": 0.0,
-                "selector.max_total_links": matched_budget,
             })
         else:
             select_cfg = cfg
@@ -440,16 +467,9 @@ def run_method_on_trial(
         fine_eval_c2f = float(c2f_stats["fine_eval_c2f"])
         sel_tables = c2f_tables if c2f_tables is not None else tables
     elif method in C2F_METHODS:
-        if method == "proposed_c2f_pd":
-            matched_budget = (
-                int(sum(reference_counts.values()))
-                if reference_counts is not None else cfg.selector.max_total_links
-            )
+        if method in {"proposed_c2f_pd", "proposed_c2f_full_pd"}:
             select_cfg = apply_overrides(cfg, {
                 "selector.score_mode": "detector_pd",
-                "selector.use_delay_price": False,
-                "selector.lambda_c": 0.0,
-                "selector.max_total_links": matched_budget,
             })
         else:
             select_cfg = cfg
@@ -537,7 +557,8 @@ def run_method_on_trial(
         active_tx = np.zeros(cfg.scale.M, dtype=bool)
         for q, links in selected.items():
             for (i, j) in links:
-                active_tx[j] = True
+                if not is_local_observation(plan, (i, j), q):
+                    active_tx[j] = True
         base_rebuild = eval_base if belief_mode else base
         reuse_from = eval_tables if belief_mode else sel_tables
         tables_eval = compute_link_tables(
@@ -573,7 +594,7 @@ def run_method_on_trial(
         total_false=total_false,
         false_alarm_overall=fa_overall,
         total_false_overall=total_false_overall,
-        overhead_bits=total_overhead_bits(cfg, selected),
+        overhead_bits=total_overhead_bits(cfg, selected, plan),
         overhead_delay_s=total_overhead_delay_s(cfg, tables_eval, selected, plan),
         selected_links=selected,
         D_fuse_per_target=D,
@@ -625,13 +646,12 @@ def run_one_trial(
             c2f_tables = compute_link_tables(cfg, base_belief, dd_gain=base_belief.eta_fine)
 
         cached_lagrangian = select_lagrangian(cfg, base_belief, tables_belief, plan)
-        if cfg.refine.enable and any(
-            m in method_roster for m in (
-                "proposed_c2f", "proposed_c2f_pd", "proposed_c2f_adaptive_pd"
+        if cfg.refine.enable:
+            reference_cfg = apply_overrides(
+                cfg, {"selector.score_mode": "detector_pd"}
             )
-        ):
-            reference_selected = select_c2f(
-                cfg, base_belief, tables_belief, apply_to_all=False, plan=plan
+            reference_selected = select_c2f_adaptive(
+                reference_cfg, base_belief, tables_belief, plan=plan
             )[0]
         else:
             reference_selected = cached_lagrangian[0]
@@ -662,13 +682,12 @@ def run_one_trial(
         c2f_tables = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
 
     cached_lagrangian = select_lagrangian(cfg, base, tables, plan)
-    if cfg.refine.enable and any(
-        m in method_roster for m in (
-            "proposed_c2f", "proposed_c2f_pd", "proposed_c2f_adaptive_pd"
+    if cfg.refine.enable:
+        reference_cfg = apply_overrides(
+            cfg, {"selector.score_mode": "detector_pd"}
         )
-    ):
-        reference_selected = select_c2f(
-            cfg, base, tables, apply_to_all=False, plan=plan
+        reference_selected = select_c2f_adaptive(
+            reference_cfg, base, tables, plan=plan
         )[0]
     else:
         reference_selected = cached_lagrangian[0]
@@ -789,7 +808,12 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     fine_eval_full = np.array([r.fine_eval_full for r in results], dtype=float)
     fine_eval_c2f = np.array([r.fine_eval_c2f for r in results], dtype=float)
     belief_capture = np.array([r.belief_capture_rate for r in results], dtype=float)
-    selected_links = np.array([sum(len(v) for v in r.selected_links.values()) for r in results], dtype=float)
+    selected_observations = np.array([
+        sum(len(v) for v in r.selected_links.values()) for r in results
+    ], dtype=float)
+    selected_links = np.array([
+        remote_report_count(r.selected_links, r.reporting_plan) for r in results
+    ], dtype=float)
 
     def col(attr: str) -> np.ndarray:
         return np.array([getattr(r, attr) for r in results], dtype=float)
@@ -805,7 +829,12 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     chi_sat = col("selected_chi_ge_min_ratio")
     feasible_edge_ratio = col("comm_feasible_edge_ratio")
 
-    D_satisfied = D_arr >= cfg.detect.D_min
+    def finite_mean(values: np.ndarray, default: float = 0.0) -> float:
+        finite = values[np.isfinite(values)]
+        return float(np.mean(finite)) if finite.size else default
+
+    predicted_pd_arr = np.asarray(pd_from_deflection(cfg, D_arr), dtype=float)
+    D_satisfied = predicted_pd_arr >= cfg.detect.pd_required
     detected_target_arr = np.vstack([r.detected_per_target for r in results])
     P_D_per_target_actual = np.mean(detected_target_arr, axis=0)
 
@@ -838,6 +867,8 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "T_std_ms": float(np.std(overhead_delay_s) * 1e3),
         "selected_links_mean": float(np.mean(selected_links)),
         "selected_links_std": float(np.std(selected_links)),
+        "selected_observations_mean": float(np.mean(selected_observations)),
+        "selected_observations_std": float(np.std(selected_observations)),
         "active_target_ratio_mean": float(np.mean(active / max(cfg.scale.Q, 1))),
         "feasible_target_ratio_mean": float(np.mean(feasible_targets / max(cfg.scale.Q, 1))),
         "feasible_links_mean": float(np.mean(feasible_links)),
@@ -845,13 +876,13 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "fine_eval_c2f_mean": float(np.mean(fine_eval_c2f)),
         "belief_capture_rate_mean": float(np.mean(belief_capture)),
         "comm_feasible_edge_ratio_mean": float(np.mean(feasible_edge_ratio)),
-        "selected_rate_mean_mbps": float(np.mean(selected_rate_mean)),
-        "selected_rate_min_mbps_mean": float(np.mean(selected_rate_min)),
-        "selected_rate_p10_mbps_mean": float(np.mean(selected_rate_p10)),
-        "selected_chi_mean": float(np.mean(selected_chi_mean)),
-        "selected_chi_min_mean": float(np.mean(selected_chi_min)),
-        "selected_chi_p10_mean": float(np.mean(selected_chi_p10)),
-        "selected_gamma_comm_mean_db": float(np.mean(selected_gamma_db)),
+        "selected_rate_mean_mbps": finite_mean(selected_rate_mean),
+        "selected_rate_min_mbps_mean": finite_mean(selected_rate_min),
+        "selected_rate_p10_mbps_mean": finite_mean(selected_rate_p10),
+        "selected_chi_mean": finite_mean(selected_chi_mean),
+        "selected_chi_min_mean": finite_mean(selected_chi_min),
+        "selected_chi_p10_mean": finite_mean(selected_chi_p10),
+        "selected_gamma_comm_mean_db": finite_mean(selected_gamma_db),
         "selected_rate_satisfaction_ratio_mean": float(np.mean(rate_sat)),
         "selected_chi_ge_min_ratio_mean": float(np.mean(chi_sat)),
         "D_mean": mean_D,

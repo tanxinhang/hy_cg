@@ -20,8 +20,9 @@ target ``q`` on the bistatic link ``i -> q -> j`` is one complex sample
 
     z = a * s + n,     n ~ CN(0, sigma_n^2),
 
-where for a Swerling-I target ``a ~ CN(0, sigma_a^2)`` is drawn once per CPI
-and shared by every pair observing that target.  The post-processing sensing
+where each look has an independent fast-fluctuation coefficient
+``a_l ~ CN(0, sigma_a^2)``. This is a Swerling-II-like independent-look
+abstraction, not a slow-fluctuation Swerling-I model. The post-processing sensing
 SINR is ``gamma = sigma_a^2 |s|^2 / sigma_n^2`` (the simulator already folds
 the ``N*L`` processing gain and the residual interference into ``gamma``).
 
@@ -30,7 +31,7 @@ the energy test on the normalised bin energy
 
     x = |z|^2 / sigma_n^2,
     H0:  x ~ Exp(1)                     (central chi-square, 2 d.o.f.)
-    H1:  x ~ Exp(scale = 1 + gamma)     (Swerling-I fluctuation)
+    H1:  x ~ Exp(scale = 1 + gamma)     (independent fast fluctuation)
 
 For a CPI that incoherently integrates ``L`` independent looks (frames),
 ``x`` becomes Gamma(shape=L) with the same scale convention.  The local

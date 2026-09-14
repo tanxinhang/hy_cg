@@ -93,7 +93,9 @@ def build_main() -> None:
                 error_kw={"elinewidth": 0.8, "capthick": 0.8})
     axes[0].set_xticks(list(x), names)
     axes[0].set_ylabel(r"Mean detection probability, $P_D$")
-    axes[0].set_ylim(0.945, 0.982)
+    y0 = min(lo) - 0.006
+    y1 = max(hi) + 0.006
+    axes[0].set_ylim(max(0.0, y0), min(1.0, y1))
     axes[0].axhline(0.95, color=GREY, linestyle="--", linewidth=0.8)
     for i, y in enumerate(pd):
         axes[0].text(i, y + 0.0021, f"{y:.4f}", ha="center", fontsize=6.8)
@@ -103,15 +105,16 @@ def build_main() -> None:
     axes[1].bar(x, worst, color=colors, width=0.68)
     axes[1].set_xticks(list(x), names)
     axes[1].set_ylabel(r"Worst-target $P_D$")
-    axes[1].set_ylim(0.94, 0.976)
+    axes[1].set_ylim(max(0.0, min(worst) - 0.012), min(1.0, max(worst) + 0.012))
     for i, y in enumerate(worst):
         axes[1].text(i, y + 0.0015, f"{y:.3f}", ha="center", fontsize=6.8)
     panel(axes[1], "b")
 
     refs = ["Exact-marginal", "Sensing-SINR"]
-    gains = [0.0067, 0.0085]
-    lows = [0.004065336448798817, 0.006132364449899838]
-    highs = [0.009334663551201184, 0.010867635550100164]
+    baseline_rows = [data["exact_marginal_greedy"], data["sense_sinr"]]
+    gains = [val(row, "paired_reference_delta_P_D") for row in baseline_rows]
+    lows = [val(row, "paired_reference_delta_ci95_low") for row in baseline_rows]
+    highs = [val(row, "paired_reference_delta_ci95_high") for row in baseline_rows]
     yy = [1, 0]
     axes[2].errorbar(gains, yy,
                      xerr=[[g - l for g, l in zip(gains, lows)],
@@ -120,10 +123,13 @@ def build_main() -> None:
     axes[2].axvline(0, color=GREY, linewidth=0.8)
     axes[2].set_yticks(yy, refs)
     axes[2].set_xlabel(r"Paired V1 gain in $P_D$ (95% CI)")
-    axes[2].set_xlim(0, 0.012)
+    span_lo = min(lows + [0.0])
+    span_hi = max(highs + [0.0])
+    pad = max(0.002, 0.12 * (span_hi - span_lo))
+    axes[2].set_xlim(span_lo - pad, span_hi + pad)
     axes[2].xaxis.set_major_locator(MaxNLocator(4))
     for g, y in zip(gains, yy):
-        axes[2].text(g + 0.00025, y + 0.10, f"+{g:.4f}", fontsize=6.8)
+        axes[2].text(g + 0.00025, y + 0.10, f"{g:+.4f}", fontsize=6.8)
     panel(axes[2], "c")
 
     fig.subplots_adjust(left=0.075, right=0.99, bottom=0.27, top=0.91, wspace=0.47)

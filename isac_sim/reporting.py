@@ -81,6 +81,32 @@ def report_dest(plan: ReportingPlan | None, link: Link, q: int) -> int:
     return int(plan.destination(link, q))
 
 
+def is_local_observation(plan: ReportingPlan | None, link: Link, q: int) -> bool:
+    """Return whether the echo receiver is already the fusion destination."""
+    return int(link[1]) == report_dest(plan, link, q)
+
+
+def report_rate(tables: LinkTables, plan: ReportingPlan | None, link: Link, q: int) -> float:
+    """Reporting rate, with local evidence represented by an infinite-rate leg."""
+    if is_local_observation(plan, link, q):
+        return float("inf")
+    return float(tables.rate[link[1], report_dest(plan, link, q)])
+
+
+def report_chi(tables: LinkTables, plan: ReportingPlan | None, link: Link, q: int) -> float:
+    """Packet-success probability; local evidence arrives with probability one."""
+    if is_local_observation(plan, link, q):
+        return 1.0
+    return float(tables.chi_comm[link[1], report_dest(plan, link, q)])
+
+
+def report_gamma(tables: LinkTables, plan: ReportingPlan | None, link: Link, q: int) -> float:
+    """Reporting SINR, with local evidence represented by an infinite-SINR leg."""
+    if is_local_observation(plan, link, q):
+        return float("inf")
+    return float(tables.gamma_comm[link[1], report_dest(plan, link, q)])
+
+
 def slot_schedule(
     cfg: Config,
     selected: Dict[int, List[Link]],
@@ -101,6 +127,7 @@ def slot_schedule(
     reports: List[tuple] = [
         (q, i, j, report_dest(plan, (i, j), q))
         for q, links in selected.items() for (i, j) in links
+        if not is_local_observation(plan, (i, j), q)
     ]
     slots: List[List[tuple]] = []
     for (q, i, j, dest) in reports:
@@ -161,7 +188,7 @@ def assign_fusion_nodes(
         cand_rx = [
             j for j in range(M)
             if any(
-                base.edge_mask[i, j] and (not cfg.dd.use_otfs_bin_validity or base.valid_dd[i, j, q])
+                not cfg.dd.use_otfs_bin_validity or base.valid_dd[i, j, q]
                 for i in range(M) if i != j
             )
         ]
@@ -172,13 +199,26 @@ def assign_fusion_nodes(
         best_m, best_score = -1, -np.inf
         for m in range(M):
             rates = np.array([
-                tables.rate[j, m] if base.edge_mask[j, m] else 0.0 for j in cand_rx
+                tables.rate[j, m] if j != m and base.edge_mask[j, m] else 0.0
+                for j in cand_rx
             ])
-            reachable = np.array([base.edge_mask[j, m] for j in cand_rx], dtype=bool)
+            reachable = np.array([
+                (j == m) or base.edge_mask[j, m] for j in cand_rx
+            ], dtype=bool)
             if not np.any(reachable):
                 continue
+            # A receiver's own sensing observation is local evidence, not a
+            # zero-rate reporting leg.  It therefore establishes receiver
+            # eligibility but must not depress max-min reporting rate or add
+            # fictitious capacity to the max-in-rate score.
+            remote_reachable = np.array([
+                j != m and base.edge_mask[j, m] for j in cand_rx
+            ], dtype=bool)
             if rule == "max_min_rate":
-                score = float(np.min(rates[reachable]))
+                score = (
+                    float(np.min(rates[remote_reachable]))
+                    if np.any(remote_reachable) else 0.0
+                )
             elif rule in {"nearest_target", "nearest_centroid"}:
                 # In belief mode ``geom`` is the predicted geometry, not the
                 # current-CPI target truth.  This locality rule thus avoids
@@ -186,7 +226,7 @@ def assign_fusion_nodes(
                 # traffic across the fleet.
                 score = -float(np.linalg.norm(geom.p_uav[m] - geom.p_tgt[q]))
             else:  # validated "max_in_rate"
-                score = float(np.sum(rates[reachable]))
+                score = float(np.sum(rates[remote_reachable]))
             if score > best_score:
                 best_score, best_m = score, m
         f_q[q] = best_m
@@ -209,19 +249,23 @@ class ReportingView:
 
     # -- elementary accessors -------------------------------------------
     def rate(self, link: Link, q: int) -> float:
-        return float(self.tables.rate[link[1], self.plan.destination(link, q)])
+        return report_rate(self.tables, self.plan, link, q)
 
     def chi(self, link: Link, q: int) -> float:
-        return float(self.tables.chi_comm[link[1], self.plan.destination(link, q)])
+        return report_chi(self.tables, self.plan, link, q)
 
     def gamma(self, link: Link, q: int) -> float:
-        return float(self.tables.gamma_comm[link[1], self.plan.destination(link, q)])
+        return report_gamma(self.tables, self.plan, link, q)
 
     def feasible(self, link: Link, q: int) -> bool:
         """Range + rate + (optional) reliability feasibility of the report."""
         j = link[1]
         m = self.plan.destination(link, q)
-        if m < 0 or m == j or not self.base.edge_mask[j, m]:
+        if m < 0:
+            return False
+        if m == j:
+            return True
+        if not self.base.edge_mask[j, m]:
             return False
         # NOTE: ``feasible_comm[a, b]`` records the feasibility of the b -> a
         # leg, so the j -> m leg is stored at ``feasible_comm[m, j]``.
@@ -230,6 +274,8 @@ class ReportingView:
     def latency_s(self, link: Link, q: int) -> float:
         from .fbl import report_latency_s
 
+        if is_local_observation(self.plan, link, q):
+            return 0.0
         return report_latency_s(self.cfg, self.rate(link, q))
 
     def transmitter(self, link: Link, q: int) -> int:

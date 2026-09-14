@@ -285,19 +285,27 @@ def selection_utility_from_pd(
         return float(np.sum(D))
 
     pd = np.asarray(predicted_pd, dtype=float)
+    pd_required = max(float(cfg.detect.pd_required), EPS)
+    # Detection utility is intentionally saturated at the declared operating
+    # requirement. This prevents zero-communication local observations from
+    # being accumulated merely for numerically tiny gains after every target
+    # already meets the design point.
+    pd_effective = np.minimum(pd, pd_required)
     if s.use_softmin_alpha:
         tau = max(float(s.softmin_tau), EPS)
-        z = -pd / tau
+        z = -pd_effective / tau
         zmax = float(np.max(z)) if z.size else 0.0
         sensing = -float(cfg.scale.Q) * tau * (
             zmax + np.log(max(float(np.sum(np.exp(z - zmax))), EPS))
         )
     else:
-        sensing = float(np.sum(pd))
+        sensing = float(np.sum(pd_effective))
 
-    D_min = max(float(cfg.detect.D_min), EPS)
-    deficit = np.maximum(D_min - D, 0.0)
-    penalty = float(s.mu_deficit) * float(np.sum(deficit * deficit)) / (2.0 * D_min)
+    deficit = np.maximum(pd_required - pd, 0.0)
+    penalty = (
+        float(s.mu_deficit) * float(np.sum(deficit * deficit))
+        / (2.0 * pd_required)
+    )
     return sensing - penalty
 
 
@@ -307,7 +315,7 @@ def selection_utility(cfg: Config, D_fuse: np.ndarray) -> float:
     With soft-min target prioritisation enabled,
 
     ``U(D) = -Q*tau*log sum_q exp(-P_D,q/tau)
-             - mu/(2*D_min) * sum_q [D_min-D_q]_+^2``.
+             - mu/(2*P_D_req) * sum_q [P_D_req-P_D,q]_+^2``.
 
     The first term emphasizes weak targets and the second penalizes detection
     deficits.  Disabling soft-min replaces its first term by ``sum_q P_D,q``;
@@ -333,6 +341,7 @@ def target_alpha(cfg: Config, D_fuse: np.ndarray) -> np.ndarray:
 
     pd = pd_from_deflection(cfg, D)
     dpd = d_pd_d_D(cfg, D)
+    below_requirement = pd < float(cfg.detect.pd_required)
 
     if s.use_softmin_alpha:
         tau = max(s.softmin_tau, EPS)
@@ -340,10 +349,11 @@ def target_alpha(cfg: Config, D_fuse: np.ndarray) -> np.ndarray:
         logits = logits - np.max(logits)  # stable softmax; max logit becomes 0
         w = np.exp(logits)
         w = w / max(float(np.sum(w)), EPS)
-        marginal = w * dpd * cfg.scale.Q
+        marginal = w * dpd * cfg.scale.Q * below_requirement
     else:
-        marginal = dpd
+        marginal = dpd * below_requirement
 
-    deficit = np.maximum(cfg.detect.D_min - D, 0.0) / max(cfg.detect.D_min, EPS)
-    alpha = marginal + s.mu_deficit * deficit
+    pd_required = max(float(cfg.detect.pd_required), EPS)
+    deficit = np.maximum(pd_required - pd, 0.0) / pd_required
+    alpha = marginal + s.mu_deficit * deficit * dpd
     return np.clip(alpha, s.alpha_floor, s.alpha_cap)

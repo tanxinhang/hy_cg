@@ -24,7 +24,7 @@ import numpy as np
 
 from .config import Config, Link
 from .fbl import blocklength_latency_s, packet_bits
-from .reporting import ReportingPlan, report_dest, slot_schedule
+from .reporting import ReportingPlan, is_local_observation, report_dest, slot_schedule
 
 
 def packetization_audit(
@@ -38,6 +38,8 @@ def packetization_audit(
     destination_counts: Counter[int] = Counter()
     for q, links in selected.items():
         for link in links:
+            if is_local_observation(plan, link, q):
+                continue
             _, j = link
             sender_counts[int(j)] += 1
             sender_target_counts[(int(j), int(q))] += 1
