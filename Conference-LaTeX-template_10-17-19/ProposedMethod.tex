@@ -83,6 +83,49 @@ candidates satisfy $D_q(\mathcal S_q)\geq D_{\min}$. C2F reduces fine DD-grid
 evaluations from $\mathcal O(QL_{\mathrm{all}}(2W+1)^2)$ to
 $\mathcal O(QL_{\mathrm{short}}(2W+1)^2)$.
 
+\subsection{Optimality Guarantee of the Greedy Rule}
+\label{subsec:greedy_guarantee}
+
+The greedy rule \eqref{eq:lagrangian_score_compact} is precisely the
+first-order greedy step on the scalar objective
+\begin{equation}
+	F(\mathcal S)
+	=
+	\sum_{q\in\mathcal Q}
+	P_{D,q}\!\left(D_q(\mathcal S_q)\right)
+	-
+	\lambda_c
+	\sum_{(i,j)\in\mathcal S}
+	\tilde c_{ijq},
+	\label{eq:task_objective}
+\end{equation}
+since $\alpha_q=\partial P_{D,q}/\partial D_q$ is the local slope of the
+detection utility in \eqref{eq:target_priority_compact}. The structure of
+$F$ justifies the greedy rule. When the local statistics are independent, the
+deflection \eqref{eq:correlation_aware_deflection} is additive,
+$D_q=\sum_{(i,j)}\delta_{ijq}^2/\bar\sigma_{ij,0}^2$, so
+$P_{D,q}(D_q)$ is a monotone concave function of a modular function and is
+therefore submodular. With the correlation model enabled,
+$D_q=\boldsymbol\delta_q^T\mathbf\Sigma_q^{-1}\boldsymbol\delta_q$ is the
+conditional information gain of an exponential-family model and is likewise
+submodular in the link set. Since the reporting cost is linear in
+$\mathcal S$, $F$ is a submodular function minus a linear cost, and the
+cost-agnostic greedy selection attains the standard curvature guarantee
+\begin{equation}
+	F(\mathcal S_{\mathrm{greedy}})
+	\;\ge\;
+	\frac{1-e^{-c}}{c}
+	F(\mathcal S^\star),
+	\label{eq:greedy_guarantee}
+\end{equation}
+where $c\in[0,1]$ is the total curvature of the utility and
+$\mathcal S^\star$ is the optimal set under the link budgets. The factor
+interpolates between $1-1/e$ at $c=1$ and exact optimality at $c=0$ (the
+modular case). Section~\ref{sec:simulation_results} verifies the
+diminishing-returns property numerically and reports the empirical curvature
+and the implied guarantee, together with the small-scale greedy-vs-oracle gap
+on the \emph{same} objective \eqref{eq:task_objective}.
+
 
 
 

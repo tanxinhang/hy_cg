@@ -214,9 +214,18 @@ def eta_refine(
     eta_c: float,
     eta_loc: float,
 ) -> float:
-    """Apply eq. (fine_dd_gain): ``min{1, max[eta_min, eta_c + kappa_dd *
-    (eta_loc - eta_c)]}``."""
+    """Fine-grain DD gain.
+
+    * ``cfg.refine.mode = "interp"`` (legacy): eq. (fine_dd_gain)
+      ``min{1, max[eta_min, eta_c + kappa_dd * (eta_loc - eta_c)]}``.
+    * ``cfg.refine.mode = "window"``: the fine estimator resolves the
+      fractional delay-Doppler offset and therefore recovers the local-window
+      energy exactly, so ``eta^f = eta^loc``.  No free parameter; the
+      ``kappa_dd`` / ``eta_min`` heuristics disappear.
+    """
     r = cfg.refine
+    if getattr(r, "mode", "interp").lower() == "window":
+        return float(min(1.0, max(0.0, eta_loc)))
     f = eta_c + r.kappa_dd * (eta_loc - eta_c)
     return float(min(1.0, max(r.eta_min, f)))
 
@@ -271,5 +280,7 @@ def eta_fine_array(cfg: Config, eta_c: np.ndarray, eta_loc: np.ndarray) -> np.nd
     """
     if not (cfg.refine.enable or cfg.refine.apply_to_all):
         return eta_c.copy()
+    if getattr(cfg.refine, "mode", "interp").lower() == "window":
+        return np.clip(eta_loc, 0.0, 1.0)
     f = eta_c + cfg.refine.kappa_dd * (eta_loc - eta_c)
     return np.clip(f, cfg.refine.eta_min, 1.0)

@@ -31,6 +31,7 @@ ROBUSTNESS_VALUES: Dict[str, List[Any]] = {
     "comm_model": ["erasure", "biased", "flip"],
     "error_sigma": [1.0, 2.0, 3.0, 4.0],
     "residual_direct": [1e-5, 1e-4, 1e-3, 1e-2],
+    "direct_cancellation": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
 }
 
 ABLATION_VARIANTS: Dict[str, Dict[str, Any]] = {
@@ -230,8 +231,10 @@ def robustness(cfg: Config, axis: str = "comm_model", values: List[Any] | None =
     """Sweep one robustness axis.
 
     Supported axes: ``comm_model`` (erasure/biased/flip), ``error_sigma``
-    (``detect.soft_error_sigma_scale``) and ``residual_direct``
-    (``radio.residual_direct_factor``).
+    (``detect.soft_error_sigma_scale``), ``residual_direct``
+    (``radio.residual_direct_factor``, legacy model only) and
+    ``direct_cancellation`` (``interference.direct_cancellation_db``; implies
+    the coupled interference model).
     """
     if values is None:
         values = ROBUSTNESS_VALUES[axis]
@@ -239,6 +242,22 @@ def robustness(cfg: Config, axis: str = "comm_model", values: List[Any] | None =
         "comm_model": "detect.comm_error_model",
         "error_sigma": "detect.soft_error_sigma_scale",
         "residual_direct": "radio.residual_direct_factor",
+        "direct_cancellation": "interference.direct_cancellation_db",
+    }
+    # Axes that only make sense inside a particular model switch on that model
+    # themselves, so the sweep is a one-parameter family.
+    extra_by_axis: Dict[str, Dict[str, Any]] = {
+        "direct_cancellation": {
+            "interference.coupling": "shared_spectrum",
+            "radio.eps_mode": "noise_relative",
+        },
+        # ``residual_direct_factor`` only exists in the decoupled model, so this
+        # axis must pin it; otherwise the sweep would be a no-op now that the
+        # coupled model is the default.
+        "residual_direct": {
+            "interference.coupling": "legacy",
+            "radio.eps_mode": "legacy",
+        },
     }
     if axis not in field_by_axis:
         raise ValueError(f"Unknown robustness axis {axis!r}. "
@@ -246,7 +265,7 @@ def robustness(cfg: Config, axis: str = "comm_model", values: List[Any] | None =
 
     rows: List[Dict[str, Any]] = []
     for value in values:
-        variant = apply_overrides(cfg, {field_by_axis[axis]: value})
+        variant = apply_overrides(cfg, {**extra_by_axis.get(axis, {}), field_by_axis[axis]: value})
         _banner(f"Running robustness sweep: {axis} = {value}")
         summary = run_simulation(variant, methods=SWEEP_METHODS)
         for method in SWEEP_METHODS:
@@ -599,6 +618,414 @@ def runtime(
 # --------------------------------------------------------------------------
 # Registry
 # --------------------------------------------------------------------------
+def belief_mismatch(cfg: Config, grid: List[Dict[str, float]] | None = None) -> List[Dict[str, Any]]:
+    """Truth-vs-belief sweep: P_D degradation under tracker belief mismatch.
+
+    With ``prior.belief_mode`` the scheduler only sees a noisy *belief* of the
+    target state while detection runs on the *truth*.  Sweeps the belief error
+    amplitude and reports, for the proposed selector and the all-neighbor
+    reference, the detection probability and the fraction of selected links
+    whose belief-guided search window actually captured the true bin.
+    """
+    grid = grid if grid is not None else [
+        {"belief_sigma_pos_m": 0.0, "belief_sigma_vel_mps": 0.0},
+        {"belief_sigma_pos_m": 50.0, "belief_sigma_vel_mps": 5.0},
+        {"belief_sigma_pos_m": 150.0, "belief_sigma_vel_mps": 15.0},
+        {"belief_sigma_pos_m": 300.0, "belief_sigma_vel_mps": 25.0},
+    ]
+    methods = ["proposed_lagrangian", "all_neighbor"]
+    rows: List[Dict[str, Any]] = []
+    for entry in grid:
+        sp = float(entry["belief_sigma_pos_m"])
+        sv = float(entry["belief_sigma_vel_mps"])
+        variant = apply_overrides(cfg, {
+            "prior.belief_mode": True,
+            "prior.belief_sigma_pos_m": sp,
+            "prior.belief_sigma_vel_mps": sv,
+        })
+        _banner(f"belief mismatch: sigma_pos={sp:g} m, sigma_vel={sv:g} m/s")
+        summary = run_simulation(variant, methods=methods)
+        for method in methods:
+            s = summary.get(method)
+            if not s:
+                continue
+            rows.append({
+                "experiment": "belief_mismatch",
+                "method": method,
+                "belief_sigma_pos_m": sp,
+                "belief_sigma_vel_mps": sv,
+                "P_D": s["P_D"],
+                "P_D_ci95_low": s["P_D_ci95"][0],
+                "P_D_ci95_high": s["P_D_ci95"][1],
+                "D_mean": s["D_mean"],
+                "belief_capture_rate_mean": s["belief_capture_rate_mean"],
+                "selected_links_mean": s["selected_links_mean"],
+                "T_mean_ms": s["T_mean_ms"],
+            })
+        p = summary["proposed_lagrangian"]
+        print(f"  proposed P_D={p['P_D']:.4f}  capture={p['belief_capture_rate_mean']:.3f}  "
+              f"D={p['D_mean']:.2f}")
+    return rows
+
+
+FBL_N_BLOCK_VALUES: List[int] = [256, 512, 1024, 2048, 4096]
+
+
+def fbl_sweep(cfg: Config, n_block_values: List[int] | None = None) -> List[Dict[str, Any]]:
+    """Finite-blocklength sweep: reliability vs latency of the reporting links.
+
+    Varies the report blocklength ``n`` at fixed payload ``k``.  As ``n`` grows
+    the per-packet error probability ``eps = Q((C - k/n)/sqrt(V/n))`` falls (so
+    ``chi = 1 - eps`` rises and the fusion sees less pollution) but the report
+    latency ``n / B`` grows.  Reports the selected-link mean ``chi`` and the
+    proposed method's ``P_D`` and latency, exposing the reliability-latency
+    trade-off the legacy heuristic model could not express.
+    """
+    values = n_block_values if n_block_values is not None else FBL_N_BLOCK_VALUES
+    rows: List[Dict[str, Any]] = []
+    for n_raw in values:
+        n = int(n_raw)
+        variant = apply_overrides(cfg, {
+            "comm.reliability_model": "fbl",
+            "comm.n_block": n,
+            "comm.latency_model": "blocklength",
+        })
+        _banner(f"FBL sweep: n_block={n}")
+        summary = run_simulation(variant, methods=["proposed_lagrangian"])
+        s = summary["proposed_lagrangian"]
+        rows.append({
+            "experiment": "fbl_sweep",
+            "method": "proposed_lagrangian",
+            "n_block": int(n),
+            "k_bits": float(cfg.comm.K_candidates) * cfg.comm.b_d,
+            "P_D": s["P_D"],
+            "P_D_ci95_low": s["P_D_ci95"][0],
+            "P_D_ci95_high": s["P_D_ci95"][1],
+            "selected_chi_mean": s["selected_chi_mean"],
+            "selected_chi_min_mean": s["selected_chi_min_mean"],
+            "T_mean_ms": s["T_mean_ms"],
+            "D_mean": s["D_mean"],
+        })
+        print(f"  n={n:5d}  chi_mean={s['selected_chi_mean']:.4f}  "
+              f"P_D={s['P_D']:.4f}  T={s['T_mean_ms']:.3f} ms")
+    return rows
+
+
+def correlation_ablation(cfg: Config) -> List[Dict[str, Any]]:
+    """Correlation-aware vs independence-assuming fusion.
+
+    Compares the proposed selector with the observation-correlation model on
+    and off, and records the mean redundancy index (how much of the naive
+    deflection was double-counted) plus the resulting ``P_D`` / ``D``.
+    """
+    rows: List[Dict[str, Any]] = []
+    for enable in (False, True):
+        variant = apply_overrides(cfg, {"corr.enable": bool(enable)})
+        _banner(f"correlation ablation: corr.enable={enable}")
+        summary = run_simulation(variant, methods=["proposed_lagrangian"])
+        s = summary["proposed_lagrangian"]
+        rows.append({
+            "experiment": "correlation_ablation",
+            "method": "proposed_lagrangian",
+            "corr_enable": bool(enable),
+            "P_D": s["P_D"],
+            "P_D_ci95_low": s["P_D_ci95"][0],
+            "P_D_ci95_high": s["P_D_ci95"][1],
+            "D_mean": s["D_mean"],
+            "selected_links_mean": s["selected_links_mean"],
+            "T_mean_ms": s["T_mean_ms"],
+        })
+        print(f"  corr={enable}: P_D={s['P_D']:.4f}  D_mean={s['D_mean']:.3f}  "
+              f"links={s['selected_links_mean']:.1f}")
+    return rows
+
+
+# --------------------------------------------------------------------------
+# Communication / sensing interference coupling
+# --------------------------------------------------------------------------
+INTERFERENCE_CANCEL_DB: List[float] = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 80.0]
+
+
+def _interference_diagnostics(cfg: Config, n_trials: int = 20) -> Dict[str, float]:
+    """Measure the interference bookkeeping on shared geometry.
+
+    All quantities are medians over the DD-valid links of ``n_trials`` trials,
+    averaged over trials.
+
+    * ``near_far_db``     -- direct-path field over target echo at the sensing
+      receiver.  This is the *classical* near-far ratio of bistatic sensing and
+      it is exactly the direct-path suppression the receiver must supply for
+      the echo to survive.
+    * ``sense_inr_db``    -- interference-to-noise ratio at the sensing
+      receiver, i.e. ``kappa_dc * field / n0``.
+    * ``comm_inr_db``     -- interference-to-noise ratio at the communication
+      receiver receiving ``i -> j``, over the same transmitter set.
+    * ``sense_sinr_now``  -- SINR the sensing receiver actually gets.
+    * ``sense_sinr_no_cancel_db`` -- SINR it would get with *no* direct-path
+      cancellation at all (``kappa_dc = 1``).  This is the number that decides
+      whether an ISAC design can exist.
+    """
+    from .model import (build_base_gains, compute_link_tables, denominator_guard,
+                        generate_geometry, noise_power)
+
+    M = cfg.scale.M
+    R = cfg.radio
+    c = cfg.comm
+    n0 = noise_power(cfg)
+    guard = denominator_guard(cfg, n0)
+    kappa = 10.0 ** (-cfg.interference.direct_cancellation_db / 10.0)
+    G_proc = cfg.waveform.N * cfg.waveform.L
+
+    keys = ("near_far_db", "sense_inr_db", "comm_inr_db", "sense_sinr_db",
+            "raw_sinr_db", "comm_sinr_db", "sense_sinr_no_cancel_db",
+            "guard_over_n0_db", "sense_inr_table_db")
+    acc: Dict[str, List[float]] = {k: [] for k in keys}
+
+    for t in range(max(1, int(n_trials))):
+        rng = np.random.default_rng([cfg.run.seed, t])
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tb = compute_link_tables(cfg, base)
+
+        P = np.full(M, R.P_default)
+        P_sense, P_comm = R.rho * P, (1.0 - R.rho) * P
+        # Every UAV radiates the joint ISAC waveform -> one field serves both.
+        field = (P_sense + P_comm) @ base.direct_gain
+        pay = P_comm + c.comm_leakage_from_sensing * P_sense
+        pay_field = pay @ base.direct_gain
+
+        valid = base.valid_dd & base.edge_mask[..., None]
+        i, j, q = np.argwhere(valid).T
+        if len(i) == 0:
+            continue
+        echo = P_sense[i] * base.target_gain[i, j, q] * G_proc
+        field_j = field[j]
+        comm_i = pay_field[j] - pay[i] * base.direct_gain[i, j]
+
+        acc["near_far_db"].append(float(10 * np.log10(np.median(field_j / echo))))
+        acc["sense_inr_db"].append(float(10 * np.log10(kappa * np.median(field_j) / n0)))
+        acc["comm_inr_db"].append(float(10 * np.log10(np.median(comm_i) / n0)))
+        acc["sense_sinr_no_cancel_db"].append(
+            float(10 * np.log10(np.median(echo / (n0 + field_j)))))
+        acc["guard_over_n0_db"].append(float(10 * np.log10(guard / n0)))
+        # What the table actually used, i.e. the left-hand side of the model's
+        # own arithmetic, as a cross-check on the formula above.
+        rinr_used = tb.rinr[i, j]
+        rinr_used = rinr_used[np.isfinite(rinr_used) & (rinr_used > 0)]
+        if len(rinr_used):
+            acc["sense_inr_table_db"].append(float(10 * np.log10(np.median(rinr_used))))
+        for key, values in (("sense_sinr_db", tb.gamma_sense[i, j, q]),
+                            ("raw_sinr_db", tb.raw_gamma_sense[i, j, q]),
+                            ("comm_sinr_db", tb.gamma_comm[i, j])):
+            vals = np.asarray(values)
+            vals = vals[np.isfinite(vals) & (vals > 0)]
+            if len(vals):
+                acc[key].append(float(10 * np.log10(np.median(vals))))
+
+    out = {k: (float(np.mean(v)) if v else float("nan")) for k, v in acc.items()}
+    out["inr_ratio_db"] = out["comm_inr_db"] - out["sense_inr_db"]
+    return out
+
+
+def interference_consistency(
+    cfg: Config,
+    cancel_db_values: List[float] | None = None,
+) -> List[Dict[str, Any]]:
+    """Audit whether communication and sensing see the same interference.
+
+    Part 1 compares four bookkeeping variants at one operating point: the legacy
+    decoupled residual floors, the legacy floors with the SINR guard moved below
+    the noise floor, the coupled shared-spectrum field, and the coupled field
+    with the corrected guard.  For each, the measured communication and sensing
+    interference-to-noise ratios are recorded next to ``P_D``.
+
+    Part 2 sweeps the direct-path cancellation ``kappa_dc`` of the coupled model.
+    Since the near-far ratio is 30-40 dB, this sweep locates the suppression the
+    sensing receiver must achieve for the ISAC task to survive at all -- the
+    resource-sharing cost that the decoupled model made disappear.
+    """
+    rows: List[Dict[str, Any]] = []
+    values = list(cancel_db_values) if cancel_db_values else list(INTERFERENCE_CANCEL_DB)
+
+    def _row_extra(variant: Config, group: str, tag: str, diag: Dict[str, float]) -> Dict[str, Any]:
+        """Bookkeeping columns, including the operating point.
+
+        The interference model, the coupling and the guard mode are recorded on
+        every row: two runs of this experiment under different operating points
+        must never be silently comparable.
+        """
+        return {
+            "experiment": "interference_consistency",
+            "group": group,
+            "variant": tag,
+            "interference_model": variant.comm.interference_model,
+            "coupling": variant.interference.coupling,
+            "eps_mode": variant.radio.eps_mode,
+            "sense_gate_by_active_tx": variant.interference.sense_gate_by_active_tx,
+            "direct_cancellation_db": variant.interference.direct_cancellation_db,
+            **diag,
+        }
+
+    # ---- Part 1: bookkeeping variants -----------------------------------
+    # Every variant sets BOTH switches explicitly.  Inheriting them from the
+    # caller's config would make the labels lie whenever the run is launched
+    # with, say, ``--set radio.eps_mode=noise_relative``: the row labelled
+    # "legacy" would then not be legacy at all.
+    variants = [
+        ("legacy", {"interference.coupling": "legacy",
+                    "radio.eps_mode": "legacy"}),
+        ("legacy+guard", {"interference.coupling": "legacy",
+                          "radio.eps_mode": "noise_relative"}),
+        ("coupled", {"interference.coupling": "shared_spectrum",
+                     "radio.eps_mode": "legacy"}),
+        ("coupled+guard", {"interference.coupling": "shared_spectrum",
+                           "radio.eps_mode": "noise_relative"}),
+    ]
+    _banner("interference bookkeeping variants")
+    for tag, overrides in variants:
+        variant = apply_overrides(cfg, overrides)
+        diag = _interference_diagnostics(variant)
+        summary = run_simulation(variant, methods=["proposed_lagrangian", "all_neighbor"])
+        for method in ("proposed_lagrangian", "all_neighbor"):
+            rows.append(scalar_summary_row(
+                summary, method, _row_extra(variant, "bookkeeping", tag, diag)))
+        sp = summary["proposed_lagrangian"]
+        print(f"  {tag:14s} near-far={diag['near_far_db']:6.1f} dB | "
+              f"I_comm/N0={diag['comm_inr_db']:6.1f} dB  I_sense/N0={diag['sense_inr_db']:6.1f} dB | "
+              f"gamma^s={diag['sense_sinr_db']:6.1f} dB | P_D={sp['P_D']:.4f}")
+
+    # ---- Part 2: direct-path cancellation sweep -------------------------
+    base_cfg = apply_overrides(cfg, {
+        "interference.coupling": "shared_spectrum",
+        "radio.eps_mode": "noise_relative",
+    })
+    _banner("direct-path cancellation sweep (coupled model)")
+    for db in values:
+        variant = apply_overrides(base_cfg, {"interference.direct_cancellation_db": float(db)})
+        diag = _interference_diagnostics(variant)
+        summary = run_simulation(variant, methods=["proposed_lagrangian", "all_neighbor"])
+        for method in ("proposed_lagrangian", "all_neighbor"):
+            rows.append(scalar_summary_row(
+                summary, method,
+                _row_extra(variant, "cancellation_sweep", f"kappa_dc_{db:g}dB", diag)))
+        sp = summary["proposed_lagrangian"]
+        print(f"  cancel={db:5.1f} dB  I_sense/N0={diag['sense_inr_db']:6.1f} dB  "
+              f"gamma^s={diag['sense_sinr_db']:7.1f} dB  P_D={sp['P_D']:.4f}  "
+              f"D={sp['D_mean']:8.2f}  T={sp['T_mean_ms']:7.2f} ms")
+    return rows
+
+
+def submodularity(
+    cfg: Config,
+    small_M: int = 4,
+    small_Q: int = 3,
+    n_samples: int = 800,
+) -> List[Dict[str, Any]]:
+    """Diminishing-returns audit and greedy approximation guarantee.
+
+    Verifies empirically that the ``sum_q P_D(D_q)`` objective is monotone and
+    submodular, estimates its total curvature and reports the implied
+    ``(1/c)(1 - e^{-c})`` greedy guarantee.
+    """
+    from .model import build_base_gains, compute_link_tables, generate_geometry
+    from .theory import greedy_guarantee, submodularity_audit
+
+    small_cfg = apply_overrides(cfg, {
+        "scale.M": int(small_M),
+        "scale.Q": int(small_Q),
+        "selector.max_links_per_target": 3,
+        "selector.max_total_links": 8,
+        "selector.candidate_topk_per_target": 30,
+    })
+    _banner(f"submodularity audit (M={small_M}, Q={small_Q}, n_samples={n_samples})")
+    rows: List[Dict[str, Any]] = []
+    agg = {
+        "monotone_violation_rate": 0.0,
+        "submodularity_violation_rate": 0.0,
+        "min_marginal_ratio": 1.0,
+        "curvature": 0.0,
+    }
+    n_trials = max(1, min(cfg.run.num_mc, 10))
+    for t in range(n_trials):
+        rng = np.random.default_rng([cfg.run.seed, t])
+        geom = generate_geometry(small_cfg, rng)
+        base = build_base_gains(small_cfg, geom, rng)
+        tables = compute_link_tables(small_cfg, base)
+        audit = submodularity_audit(small_cfg, base, tables, n_samples=n_samples, seed=t)
+        for k in agg:
+            agg[k] += float(audit.get(k, 0.0)) / n_trials
+    c = float(np.clip(agg["curvature"], 0.0, 1.0))
+
+    rows.append({
+        "experiment": "submodularity",
+        "method": "proposed_lagrangian",
+        "M": int(small_M),
+        "Q": int(small_Q),
+        "n_samples": int(n_samples),
+        "monotone_violation_rate": agg["monotone_violation_rate"],
+        "submodularity_violation_rate": agg["submodularity_violation_rate"],
+        "min_marginal_ratio": agg["min_marginal_ratio"],
+        "curvature": c,
+        "greedy_guarantee": float(greedy_guarantee(c)),
+    })
+    print(f"  monotone violations={agg['monotone_violation_rate']:.4f}  "
+          f"submodularity violations={agg['submodularity_violation_rate']:.4f}")
+    print(f"  curvature={c:.4f}  greedy guarantee={greedy_guarantee(c):.4f}")
+    return rows
+
+
+def same_objective_gap(
+    cfg: Config,
+    small_M: int = 3,
+    small_Q: int = 3,
+    max_per_target: int = 3,
+    max_total: int = 6,
+) -> List[Dict[str, Any]]:
+    """Greedy-vs-oracle gap on the *same* objective the greedy optimises.
+
+    Unlike ``oracle-gap`` (which maximised ``sum_q D_q``), the oracle here
+    maximises ``sum_q P_D(D_q) - lambda_c * cost`` -- the exact scalar function
+    whose first-order greedy step is the proposed rule.
+    """
+    from .model import build_base_gains, compute_link_tables, generate_geometry
+    from .selection import select_lagrangian
+    from .theory import same_objective_oracle, task_objective
+
+    small_cfg = apply_overrides(cfg, {
+        "scale.M": int(small_M),
+        "scale.Q": int(small_Q),
+        "selector.max_links_per_target": int(max_per_target),
+        "selector.max_total_links": int(max_total),
+        "selector.candidate_topk_per_target": 30,
+    })
+    _banner(f"same-objective gap (M={small_M}, Q={small_Q})")
+    rows: List[Dict[str, Any]] = []
+    gaps: List[float] = []
+    for t in range(cfg.run.num_mc):
+        rng = np.random.default_rng([cfg.run.seed, t])
+        geom = generate_geometry(small_cfg, rng)
+        base = build_base_gains(small_cfg, geom, rng)
+        tables = compute_link_tables(small_cfg, base)
+        selected_greedy, _ = select_lagrangian(small_cfg, base, tables)
+        selected_oracle, obj_oracle = same_objective_oracle(small_cfg, base, tables)
+        obj_greedy = task_objective(small_cfg, tables, selected_greedy, None, base)
+        gap = float((obj_oracle - obj_greedy) / max(obj_oracle, 1e-9))
+        gaps.append(gap)
+        rows.append({
+            "experiment": "same_objective_gap",
+            "trial": t,
+            "greedy_obj": obj_greedy,
+            "oracle_obj": obj_oracle,
+            "gap": gap,
+            "greedy_links": int(sum(len(v) for v in selected_greedy.values())),
+            "oracle_links": int(sum(len(v) for v in selected_oracle.values())),
+        })
+    gaps_arr = np.asarray(gaps, dtype=float)
+    print(f"same-objective gap: mean={gaps_arr.mean():.4f}, median={np.median(gaps_arr):.4f}, "
+          f"max={gaps_arr.max():.4f}")
+    return rows
+
+
 EXPERIMENTS: Dict[str, Callable[..., List[Dict[str, Any]]]] = {
     "lambda-sweep": lambda_sweep,
     "ablation": ablation,
@@ -611,10 +1038,17 @@ EXPERIMENTS: Dict[str, Callable[..., List[Dict[str, Any]]]] = {
     "waveform-check": waveform_check,
     "oracle-gap": oracle_gap,
     "runtime": runtime,
+    "belief-mismatch": belief_mismatch,
+    "fbl-sweep": fbl_sweep,
+    "correlation-ablation": correlation_ablation,
+    "submodularity": submodularity,
+    "same-objective-gap": same_objective_gap,
+    "interference-consistency": interference_consistency,
 }
 
 EXPERIMENT_NAMES: List[str] = sorted(EXPERIMENTS)
 
 # Experiments whose sweep grid can be overridden from the command line with
 # ``--values``.  The ablation-style modes have fixed variant lists instead.
-VALUE_MODES: set = {"lambda-sweep", "comm-sweep", "prior-sweep"}
+VALUE_MODES: set = {"lambda-sweep", "comm-sweep", "prior-sweep", "fbl-sweep",
+                    "interference-consistency"}

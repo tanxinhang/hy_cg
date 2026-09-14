@@ -6,6 +6,10 @@ All selectors share one signature,
 
 where ``selected[q]`` is the ordered list of links feeding target ``q`` and
 ``D`` is the resulting per-target fused deflection.
+
+The ``plan`` argument carries the reporting architecture (which fusion UAV
+``f_q`` each target reports to); ``plan=None`` keeps the legacy ``j -> i``
+direction so every frozen result stays bit-exact.
 """
 
 from __future__ import annotations
@@ -16,7 +20,8 @@ import numpy as np
 
 from .config import Config, Link, MethodName
 from .fusion import deflection_for_links, fusion_weight_mode_for_method, target_alpha
-from .model import BaseGains, EPS, LinkTables, packet_bits_for_target
+from .model import BaseGains, EPS, LinkTables, compute_link_tables
+from .reporting import report_dest
 
 METHODS: List[MethodName] = [
     "proposed_lagrangian",
@@ -63,19 +68,32 @@ def c2f_method_name(apply_to_all: bool) -> str:
 # ==========================================================================
 # Link bookkeeping
 # ==========================================================================
-def link_delay_s(cfg: Config, tables: LinkTables, q: int, link: Link) -> float:
+def link_delay_s(cfg: Config, tables: LinkTables, q: int, link: Link, plan: "object | None" = None) -> float:
+    """Latency of one report for target ``q`` on ``link``.
+
+    The statistic is produced at the receiving UAV ``j`` and reported to the
+    destination (``i`` in the legacy architecture, ``f_q`` in the explicit
+    one); the latency honours ``cfg.comm.latency_model``.
+    """
+    from .fbl import report_latency_s
+
     i, j = link
-    # Reporting direction is j -> i: the soft statistic is sent from the
-    # receiving UAV j back to the transmitting UAV i.
-    return packet_bits_for_target(cfg, q) / max(tables.rate[j, i], EPS)
+    dest = report_dest(plan, link, q)
+    return report_latency_s(cfg, float(tables.rate[j, dest]))
 
 
-def link_cost_ms(cfg: Config, tables: LinkTables, q: int, link: Link) -> float:
-    return 1e3 * link_delay_s(cfg, tables, q, link)
+def link_cost_ms(cfg: Config, tables: LinkTables, q: int, link: Link, plan: "object | None" = None) -> float:
+    return 1e3 * link_delay_s(cfg, tables, q, link, plan)
 
 
-def feasible_links_for_target(cfg: Config, base: BaseGains, tables: LinkTables, q: int) -> List[Link]:
-    """Links that satisfy range, DD-validity and communication constraints."""
+def feasible_links_for_target(
+    cfg: Config, base: BaseGains, tables: LinkTables, q: int, plan: "object | None" = None
+) -> List[Link]:
+    """Links that satisfy range, DD-validity and communication constraints.
+
+    The communication constraint is judged on the *reporting* leg ``j -> dest``
+    (``dest`` = ``i`` legacy, ``f_q`` explicit), never on the sensing pair.
+    """
     links: List[Link] = []
     for i in range(cfg.scale.M):
         for j in range(cfg.scale.M):
@@ -85,9 +103,10 @@ def feasible_links_for_target(cfg: Config, base: BaseGains, tables: LinkTables, 
                 continue
             if cfg.dd.use_otfs_bin_validity and not base.valid_dd[i, j, q]:
                 continue
-            if not tables.feasible_comm[i, j]:
+            dest = report_dest(plan, (i, j), q)
+            if dest < 0 or dest == j or not base.edge_mask[j, dest]:
                 continue
-            if tables.beta[i, j, q] <= 0:
+            if not tables.feasible_comm[dest, j]:
                 continue
             links.append((i, j))
     return links
@@ -108,14 +127,37 @@ def sensing_only_links_for_target(cfg: Config, base: BaseGains, q: int) -> List[
     return links
 
 
-def topk_links_by_beta(cfg: Config, tables: LinkTables, links: List[Link], q: int) -> List[Link]:
-    """Prune candidate links by the beta utility to bound selection complexity."""
+def topk_links_by_marginal(
+    cfg: Config,
+    tables: LinkTables,
+    base: BaseGains,
+    links: List[Link],
+    q: int,
+    plan: "object | None",
+    alpha0_q: float,
+) -> List[Link]:
+    """Prune candidate links by the *first-order marginal score* of the greedy rule.
+
+    The candidate list is ranked by the same scalar the greedy loop maximises,
+
+        alpha_q^(0) * D_single - lambda_c * cost_ms,
+
+    evaluated at the empty selection set.  This replaces the former hand-set
+    ``beta`` ranking heuristic with the derived marginal-gain score, so the
+    pruning stage and the greedy commit rule now optimise the *same* quantity
+    (and, under the local-LLR model, ``D_single`` reduces to ``L*gamma^2`` with
+    the fusion weight ``w propto 1 + gamma``).
+    """
     topk = cfg.selector.candidate_topk_per_target
     if topk <= 0 or len(links) <= topk:
         return links
-    scores = np.array([tables.beta[i, j, q] for i, j in links], dtype=float)
-    order = np.argsort(scores)[::-1][:topk]
-    return [links[int(idx)] for idx in order]
+    scored: List[tuple[float, Link]] = []
+    for link in links:
+        D_single = deflection_for_links(cfg, tables, q, [link], weight_mode="deflection", plan=plan, base=base)
+        cost_ms = link_cost_ms(cfg, tables, q, link, plan)
+        scored.append((alpha0_q * D_single - cfg.selector.lambda_c * cost_ms, link))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [link for _, link in scored[:topk]]
 
 
 # ==========================================================================
@@ -125,6 +167,8 @@ def _greedy_lagrangian(
     cfg: Config,
     tables: LinkTables,
     candidates: Dict[int, List[Link]],
+    plan: "object | None" = None,
+    base: BaseGains | None = None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray]:
     """Inner greedy loop of the proposed selector.
 
@@ -156,12 +200,14 @@ def _greedy_lagrangian(
             for link in candidates[q]:
                 if link in selected_sets[q]:
                     continue
-                new_D = deflection_for_links(cfg, tables, q, selected[q] + [link], weight_mode="deflection")
+                new_D = deflection_for_links(
+                    cfg, tables, q, selected[q] + [link], weight_mode="deflection", plan=plan, base=base
+                )
                 marginal_D = new_D - D_fuse[q]
                 if marginal_D <= s.min_marginal_D:
                     continue
 
-                cost_ms = link_cost_ms(cfg, tables, q, link)
+                cost_ms = link_cost_ms(cfg, tables, q, link, plan)
                 delay_price = s.lambda_c * cost_ms if s.use_delay_price else 0.0
                 score = alpha[q] * marginal_D - delay_price
 
@@ -189,6 +235,7 @@ def select_lagrangian(
     cfg: Config,
     base: BaseGains,
     tables: LinkTables,
+    plan: "object | None" = None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray]:
     r"""Greedy marginal-value selection.
 
@@ -199,11 +246,12 @@ def select_lagrangian(
     and the best strictly positive score is committed at each iteration, up to
     the per-target and global link budgets.
     """
-    candidates = {
-        q: topk_links_by_beta(cfg, tables, feasible_links_for_target(cfg, base, tables, q), q)
-        for q in range(cfg.scale.Q)
-    }
-    return _greedy_lagrangian(cfg, tables, candidates)
+    candidates = {}
+    alpha0 = target_alpha(cfg, np.zeros(cfg.scale.Q))
+    for q in range(cfg.scale.Q):
+        feas = feasible_links_for_target(cfg, base, tables, q, plan)
+        candidates[q] = topk_links_by_marginal(cfg, tables, base, feas, q, plan, float(alpha0[q]))
+    return _greedy_lagrangian(cfg, tables, candidates, plan, base)
 
 
 def select_c2f(
@@ -211,79 +259,51 @@ def select_c2f(
     base: BaseGains,
     tables_coarse: LinkTables,
     apply_to_all: bool | None = None,
+    plan: "object | None" = None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray, Dict[str, float]]:
     r"""Coarse-to-fine DD-aware Lagrangian link selection.
 
-    Implements the paper's C2F strategy (Section "Proposed C2F DD-Aware
-    Lagrangian Link Selection"):
-
-    1. **Coarse stage.**  For every target ``q`` each feasible candidate is
-       scored by ``alpha_q^(0) * DeltaD^c - lambda_c * c`` using the coarse
-       DD gain.  ``alpha_q^(0)`` is the target-priority coefficient evaluated
-       at the empty selection set.  Only the top
-       :attr:`Refine.shortlist_size` candidates per target advance.
-
-    2. **Fine stage.**  The sensing-SINR table is rebuilt with the refined
-       DD gain (``eta_fine``) for the shortlisted links.  The greedy loop
-       then uses the *fine* deflection and the shared commit rule
-       (:func:`_greedy_lagrangian`).
-
-    When ``cfg.refine.apply_to_all`` is set the shortlist is bypassed and
-    every feasible link uses the refined gain.  This is the *full local
-    refinement* comparison used to quantify the fine-grid evaluation saving
-    reported in the paper.
-
-    The returned ``stats`` dict carries the C2F cost accounting:
-
-    * ``fine_eval_full`` -- number of ``(2W+1)^2`` window evaluations that a
-      full local refinement would need (one per feasible candidate).
-    * ``fine_eval_c2f`` -- number of window evaluations the C2F shortlist
-      actually needs (one per shortlisted candidate).
+    1. **Coarse stage.**  Every feasible candidate is scored by
+       ``alpha_q^(0) * DeltaD^c - lambda_c * c`` using the coarse DD gain;
+       only the top :attr:`Refine.shortlist_size` advance.
+    2. **Fine stage.**  The sensing-SINR table is rebuilt with the refined DD
+       gain (``eta_fine``) for the shortlisted links, and the greedy loop uses
+       the fine deflection.
     """
-    from .model import compute_link_tables
-
     r = cfg.refine
     Q = cfg.scale.Q
 
-    # 1. Coarse shortlist.
     alpha0 = target_alpha(cfg, np.zeros(Q))
     shortlist: Dict[int, List[Link]] = {}
     fine_eval_full = 0
     fine_eval_c2f = 0
     for q in range(Q):
-        feas = feasible_links_for_target(cfg, base, tables_coarse, q)
+        feas = feasible_links_for_target(cfg, base, tables_coarse, q, plan)
         fine_eval_full += len(feas)
         if not feas:
             shortlist[q] = []
             continue
         scored: List[Tuple[float, Link]] = []
         for link in feas:
-            D_single = deflection_for_links(cfg, tables_coarse, q, [link], weight_mode="deflection")
-            cost_ms = link_cost_ms(cfg, tables_coarse, q, link)
+            D_single = deflection_for_links(cfg, tables_coarse, q, [link], weight_mode="deflection", plan=plan, base=base)
+            cost_ms = link_cost_ms(cfg, tables_coarse, q, link, plan)
             score = alpha0[q] * D_single - cfg.selector.lambda_c * cost_ms
             scored.append((score, link))
         scored.sort(key=lambda x: x[0], reverse=True)
         shortlist[q] = [link for _, link in scored[: r.shortlist_size] if _ > 0.0]
         fine_eval_c2f += len(shortlist[q])
 
-    # 2. Fine tables and greedy.
-    # ``apply_to_all`` is normally carried by the method name (see
-    # :data:`C2F_METHODS`); the explicit argument lets a single run evaluate
-    # both the C2F and the full-refinement variant under one configuration.
     if apply_to_all is None:
         apply_to_all = r.apply_to_all
     if apply_to_all:
         tables_fine = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
         fine_candidates = {
-            q: feasible_links_for_target(cfg, base, tables_fine, q)
+            q: feasible_links_for_target(cfg, base, tables_fine, q, plan)
             for q in range(Q)
         }
-        # Full local refinement evaluates every feasible candidate, not just
-        # the shortlist, so its window-evaluation count equals the full count.
         fine_eval_c2f = fine_eval_full
     else:
         # C2F: rebuild tables with eta_fine for the shortlisted (i, j, q).
-        # Entries outside any shortlist keep the coarse gain.
         dd_gain = base.dd_frac_loss.copy()
         for q in range(Q):
             for link in shortlist[q]:
@@ -292,7 +312,7 @@ def select_c2f(
         tables_fine = compute_link_tables(cfg, base, dd_gain=dd_gain)
         fine_candidates = shortlist
 
-    selected, D = _greedy_lagrangian(cfg, tables_fine, fine_candidates)
+    selected, D = _greedy_lagrangian(cfg, tables_fine, fine_candidates, plan, base)
     stats = {"fine_eval_full": float(fine_eval_full), "fine_eval_c2f": float(fine_eval_c2f)}
     return selected, D, stats
 
@@ -300,18 +320,16 @@ def select_c2f(
 # ==========================================================================
 # Baselines
 # ==========================================================================
-def select_all_neighbor(cfg: Config, base: BaseGains, tables: LinkTables) -> Tuple[Dict[int, List[Link]], np.ndarray]:
-    """Upper-resource baseline that uses every feasible link.
-
-    This method intentionally ignores the per-target and global link budgets.
-    It is an upper-resource reference, not a resource-fair competitor.
-    """
+def select_all_neighbor(
+    cfg: Config, base: BaseGains, tables: LinkTables, plan: "object | None" = None
+) -> Tuple[Dict[int, List[Link]], np.ndarray]:
+    """Upper-resource baseline that uses every feasible link."""
     selected: Dict[int, List[Link]] = {}
     D = np.zeros(cfg.scale.Q)
     for q in range(cfg.scale.Q):
-        links = feasible_links_for_target(cfg, base, tables, q)
+        links = feasible_links_for_target(cfg, base, tables, q, plan)
         selected[q] = links
-        D[q] = deflection_for_links(cfg, tables, q, links, weight_mode="deflection")
+        D[q] = deflection_for_links(cfg, tables, q, links, weight_mode="deflection", plan=plan, base=base)
     return selected, D
 
 
@@ -322,12 +340,9 @@ def select_topk_baseline(
     reference_counts: Dict[int, int],
     method: str,
     rng: np.random.Generator,
+    plan: "object | None" = None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray]:
-    """Rank links by a method-specific criterion and keep the top ``K`` per target.
-
-    ``K`` is taken from the proposed method's per-target link count so that
-    every baseline is compared at the same resource level.
-    """
+    """Rank links by a method-specific criterion and keep the top ``K`` per target."""
     selected: Dict[int, List[Link]] = {}
     D = np.zeros(cfg.scale.Q)
 
@@ -335,7 +350,7 @@ def select_topk_baseline(
         if method == "raw_sense_sinr":
             links = sensing_only_links_for_target(cfg, base, q)
         else:
-            links = feasible_links_for_target(cfg, base, tables, q)
+            links = feasible_links_for_target(cfg, base, tables, q, plan)
 
         if not links:
             selected[q] = []
@@ -365,14 +380,13 @@ def select_topk_baseline(
             scores = np.array([tables.gamma_sense[i, j, q] for i, j in links])
             order = np.argsort(scores)[::-1]
         elif method == "single_best":
-            scores = np.array([tables.beta[i, j, q] for i, j in links])
+            scores = np.array(
+                [deflection_for_links(cfg, tables, q, [link], weight_mode="deflection", plan=plan, base=base) for link in links]
+            )
             order = np.argsort(scores)[::-1]
         elif method == "topk_deflection":
-            # Rank by the marginal single-link deflection and keep the top K.
-            # This is the "Top-K Deflection" baseline the paper compares
-            # against in the abstract (lower delay at the same K).
             scores = np.array(
-                [deflection_for_links(cfg, tables, q, [link], weight_mode="deflection") for link in links]
+                [deflection_for_links(cfg, tables, q, [link], weight_mode="deflection", plan=plan, base=base) for link in links]
             )
             order = np.argsort(scores)[::-1]
         else:
@@ -381,6 +395,6 @@ def select_topk_baseline(
         chosen = [links[int(idx)] for idx in order[:K]]
         selected[q] = chosen
         weight_mode = fusion_weight_mode_for_method(method)
-        D[q] = deflection_for_links(cfg, tables, q, chosen, weight_mode=weight_mode)
+        D[q] = deflection_for_links(cfg, tables, q, chosen, weight_mode=weight_mode, plan=plan, base=base)
 
     return selected, D

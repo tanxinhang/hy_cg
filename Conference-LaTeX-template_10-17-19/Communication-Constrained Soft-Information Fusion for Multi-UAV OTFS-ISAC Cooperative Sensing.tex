@@ -49,12 +49,15 @@
 		is first used to screen candidate links, and local DD-grid refinement is then
 		applied only to shortlisted candidates, thereby reducing unnecessary fine-grid
 		evaluations. Simulation results in a 15-UAV, 10-target aerial sensing
-		scenario show that the proposed method retains about 94.8\% of the
+		scenario show that the proposed method retains about 97.2\% of the
 		all-neighbor detection probability while reducing signaling overhead and
-		exchange delay by approximately 92.1\% and 94.8\%, respectively. Under the
+		exchange delay by approximately 96.7\% and 99.0\%, respectively. Under the
 		same per-target selected-link budget, it outperforms Sensing-SINR-based
 		selection and achieves comparable detection to Top-K Deflection with about
-		29\% lower exchange delay.
+		6.5\% lower exchange delay. Because the communication and sensing receivers
+		share one interference field, the sensing task requires direct-path
+		suppression of the order of the near-far ratio (40~dB here); below that the
+		detection probability collapses irrespective of how the links are selected.
 	\end{abstract}
 
 	\begin{IEEEkeywords}

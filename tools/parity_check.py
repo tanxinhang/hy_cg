@@ -6,6 +6,11 @@ The refactor moved every function into :mod:`isac_sim` but was not allowed to
 change the model.  This script proves that: it runs both implementations on the
 same Monte-Carlo size and seed, then compares every numeric CSV field.
 
+Because the *default* model has since been corrected (shared-spectrum
+interference coupling and a scale-relative SINR guard), the check pins the
+``legacy`` preset explicitly.  v10 parity is therefore a property of that preset,
+not of the current default -- which is exactly the right statement to make.
+
 Usage
 -----
     python tools/parity_check.py                  # run both, all modes, MC=8
@@ -27,7 +32,17 @@ from typing import List, Sequence, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 V10 = ROOT / "lagrangian_dotfs_isac_simplified_v10_paper_plots.py"
+# ``golden_v10_mc20.csv`` was frozen before the reporting-direction correction
+# (the soft statistic is produced at the receiving UAV and reported j -> i), so
+# it is expected to diverge and is kept for reference only.  The authoritative
+# regression is ``.workbuddy/baseline/main/main.csv`` (mc=12, seed=2026), which
+# the legacy preset must still reproduce bit-exactly.
 GOLDEN = ROOT / "golden_v10_mc20.csv"
+LEGACY_BASELINE = ROOT / ".workbuddy" / "baseline" / "main" / "main.csv"
+
+# The v10 prototype predates the model correction, so parity is checked under the
+# ``legacy`` preset rather than under the current defaults.
+LEGACY_PRESET = ["--set", "interference.coupling=legacy", "--set", "radio.eps_mode=legacy"]
 
 # (tag, v10 argv, new-mode argv, v10 csv path, new csv path relative to --out)
 MODE_CASES: Sequence[Tuple[str, List[str], List[str], str, str]] = (
@@ -134,13 +149,33 @@ def main() -> int:
     parser.add_argument("--mc", type=int, default=8, help="Monte-Carlo trials per run (default: 8)")
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--golden-only", action="store_true",
-                        help="only compare the main run against the frozen golden CSV")
+                        help="only compare the main run against the frozen golden CSV "
+                             "(stale: predates the reporting-direction correction)")
+    parser.add_argument("--baseline", action="store_true",
+                        help="compare the legacy preset against the frozen post-correction "
+                             "baseline at mc=12/seed=2026 (the authoritative regression)")
     args = parser.parse_args()
+
+    if args.baseline:
+        if not LEGACY_BASELINE.exists():
+            raise SystemExit(f"baseline not found: {LEGACY_BASELINE}")
+        with tempfile.TemporaryDirectory(prefix="isac_baseline_") as tmp:
+            out = Path(tmp) / "legacy"
+            _run([sys.executable, str(ROOT / "run_isac_sim.py"),
+                  "--mc", "12", "--seed", "2026", "--quiet", "--no-plots",
+                  "--out", str(out), *LEGACY_PRESET], ROOT)
+            compared, worst, where = _compare(LEGACY_BASELINE, out / "main" / "main.csv")
+        status = "OK" if worst == 0.0 else "MISMATCH"
+        print(f"{'legacy baseline':<16} fields={compared:<5} max|diff|={worst:<8g} {status}")
+        if where:
+            print(f"    worst field: {where}")
+        return 0 if worst == 0.0 else 1
 
     with tempfile.TemporaryDirectory(prefix="isac_parity_") as tmp:
         tmp_path = Path(tmp)
         out = tmp_path / "new"
-        new_argv = ["--mc", str(args.mc), "--seed", str(args.seed), "--quiet", "--no-plots", "--out", str(out)]
+        new_argv = ["--mc", str(args.mc), "--seed", str(args.seed), "--quiet", "--no-plots",
+                    "--out", str(out), *LEGACY_PRESET]
 
         failures = 0
         if args.golden_only:

@@ -40,9 +40,15 @@ DESCRIPTIONS: Dict[str, str] = {
     "waveform-check": "compare analytic eta^c / eta^loc against the OTFS PSF",
     "oracle-gap": "exact small-scale optimality gap of the greedy selector",
     "runtime": "per-selection wall-clock benchmark (greedy vs oracle vs baselines)",
+    "belief-mismatch": "P_D degradation under tracker belief vs truth mismatch",
+    "fbl-sweep": "finite-blocklength reliability-latency trade-off of the reporting links",
+    "correlation-ablation": "correlation-aware vs independence-assuming fusion",
+    "submodularity": "diminishing-returns audit, curvature and greedy guarantee",
+    "same-objective-gap": "greedy-vs-oracle gap on the identical task objective",
+    "interference-consistency": "communication/sensing interference coupling and direct-path cancellation sweep",
 }
 
-ROBUSTNESS_AXES = ["comm_model", "error_sigma", "residual_direct"]
+ROBUSTNESS_AXES = ["comm_model", "error_sigma", "residual_direct", "direct_cancellation"]
 
 
 # --------------------------------------------------------------------------

@@ -41,6 +41,7 @@ def oracle_exhaustive(
     cfg: Config,
     base: BaseGains,
     tables: LinkTables,
+    plan: "object | None" = None,
 ) -> Tuple[Dict[int, List[Link]], float]:
     """Exhaustively maximise ``sum_q D_q`` under the link budgets.
 
@@ -55,7 +56,7 @@ def oracle_exhaustive(
     K_tot = cfg.selector.max_total_links
 
     q_candidates: List[List[Link]] = [
-        feasible_links_for_target(cfg, base, tables, q) for q in range(Q)
+        feasible_links_for_target(cfg, base, tables, q, plan) for q in range(Q)
     ]
 
     # Guard against accidental exponential blow-ups.
@@ -77,7 +78,7 @@ def oracle_exhaustive(
         nonlocal best_obj, best_selected
         if q == Q:
             obj = sum(
-                deflection_for_links(cfg, tables, qq, selected[qq], weight_mode="deflection")
+                deflection_for_links(cfg, tables, qq, selected[qq], weight_mode="deflection", plan=plan, base=base)
                 for qq in range(Q)
             )
             if obj > best_obj:
@@ -111,11 +112,13 @@ def greedy_objective(
     cfg: Config,
     tables: LinkTables,
     selected: Dict[int, List[Link]],
+    plan: "object | None" = None,
+    base: BaseGains | None = None,
 ) -> float:
     """The same ``sum_q D_q`` objective evaluated on a greedy selection."""
     return float(
         sum(
-            deflection_for_links(cfg, tables, q, selected.get(q, []), weight_mode="deflection")
+            deflection_for_links(cfg, tables, q, selected.get(q, []), weight_mode="deflection", plan=plan, base=base)
             for q in range(cfg.scale.Q)
         )
     )

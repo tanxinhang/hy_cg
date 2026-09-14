@@ -14,6 +14,9 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from .config import Config
+from .fbl import chi_from_gamma as _chi_from_gamma
+from .llr import soft_mean as _soft_mean
+from .llr import soft_var0 as _soft_var0
 
 EPS = 1e-12
 
@@ -33,6 +36,30 @@ def noise_power(cfg: Config) -> float:
     psd_w_hz = 10.0 ** ((cfg.radio.noise_psd_dbm_hz - 30.0) / 10.0)
     nf_linear = 10.0 ** (cfg.radio.noise_figure_db / 10.0)
     return psd_w_hz * bandwidth(cfg) * nf_linear
+
+
+def denominator_guard(cfg: Config, n0: float) -> float:
+    """Additive guard for SINR denominators.
+
+    The guard exists only to avoid a division by zero; it must therefore be
+    negligible against the noise floor.  ``model.EPS = 1e-12`` is not -- for the
+    default radio it is 26x ``n0``, which suppresses every sensing SINR by
+    14.33 dB and hides the sensing interference term entirely.  Under
+    ``radio.eps_mode="noise_relative"`` the guard is placed ``eps_rel_db`` below
+    the noise power, which is scale-free and harmless at any transmit power.
+
+    An unknown ``eps_mode`` is an error rather than a silent fallback: a typo
+    would otherwise quietly reproduce the legacy behaviour and invalidate a
+    whole sweep without any visible symptom.
+    """
+    mode = cfg.radio.eps_mode
+    if mode == "noise_relative":
+        return n0 * 10.0 ** (cfg.radio.eps_rel_db / 10.0)
+    if mode == "legacy":
+        return EPS
+    raise ValueError(
+        f"Unknown radio.eps_mode={mode!r}; expected 'legacy' or 'noise_relative'"
+    )
 
 
 def path_gain(d: np.ndarray, cfg: Config) -> np.ndarray:
@@ -138,6 +165,11 @@ class BaseGains:
     dd_collision_count: np.ndarray
     target_gain: np.ndarray
     geom_factor: np.ndarray
+    # Per-(i,j,q) RCS realisation.  Stored so a second geometry (e.g. the
+    # scheduler's *belief*) can reuse the exact same physical channel -- the
+    # UAV-UAV fading and the target RCS are physical quantities and must not be
+    # re-drawn just because the tracker's belief differs from the truth.
+    rcs_fluct: np.ndarray
     # C2F DD-refinement arrays (paper eq. coarse/fine_dd_gain).  When
     # ``cfg.refine`` is disabled both fields equal ``dd_frac_loss`` so the
     # existing sensing-SINR computation stays bit-exact.
@@ -159,9 +191,12 @@ class LinkTables:
     raw_gamma_sense: np.ndarray
     gamma_sense: np.ndarray
     rinr: np.ndarray
-    beta: np.ndarray
     mu_soft: np.ndarray
     sigma0: np.ndarray
+    # Per-(i,j,q) H0 variance of the soft statistic.  In the legacy Gaussian
+    # model this equals ``sigma0[i,j]^2`` broadcast over ``q``; in the LLR model
+    # it is *derived* from the sensing SINR (``L*gamma^2/(1+gamma)^2``).
+    var0_q: np.ndarray
 
 
 # ==========================================================================
@@ -213,20 +248,35 @@ def generate_geometry(cfg: Config, rng: np.random.Generator) -> Geometry:
 # ==========================================================================
 # Geometry-dependent gains and OTFS delay-Doppler bins
 # ==========================================================================
-def build_base_gains(cfg: Config, geom: Geometry, rng: np.random.Generator) -> BaseGains:
+def build_base_gains(
+    cfg: Config, geom: Geometry, rng: np.random.Generator, channel: BaseGains | None = None
+) -> BaseGains:
+    """Build the base gains for a geometry.
+
+    ``channel``, when given, supplies the *physical* realisation to reuse: the
+    UAV-UAV fading (``direct_gain`` / ``d_uu`` / ``edge_mask``) and the target
+    RCS fluctuation.  This lets the scheduler's *belief* geometry share the same
+    physical channel as the *truth* geometry -- the channel is not redrawn just
+    because the tracker's estimate differs from reality.
+    """
     M, Q = cfg.scale.M, cfg.scale.Q
     d = cfg.detect
     w = cfg.waveform
     lam = wavelength(cfg)
 
-    diff_uu = geom.p_uav[:, None, :] - geom.p_uav[None, :, :]
-    d_uu = np.linalg.norm(diff_uu, axis=-1)
-    edge_mask = (d_uu <= cfg.geometry.comm_range) & (~np.eye(M, dtype=bool))
+    if channel is not None:
+        d_uu = channel.d_uu
+        edge_mask = channel.edge_mask
+        direct_gain = channel.direct_gain
+    else:
+        diff_uu = geom.p_uav[:, None, :] - geom.p_uav[None, :, :]
+        d_uu = np.linalg.norm(diff_uu, axis=-1)
+        edge_mask = (d_uu <= cfg.geometry.comm_range) & (~np.eye(M, dtype=bool))
 
-    direct_gain = path_gain(d_uu, cfg)
-    direct_gain *= 10.0 ** (rng.normal(0.0, d.shadow_std_db, size=(M, M)) / 10.0)
-    direct_gain *= rician_power_gain((M, M), d.rician_K_db, rng)
-    np.fill_diagonal(direct_gain, 0.0)
+        direct_gain = path_gain(d_uu, cfg)
+        direct_gain *= 10.0 ** (rng.normal(0.0, d.shadow_std_db, size=(M, M)) / 10.0)
+        direct_gain *= rician_power_gain((M, M), d.rician_K_db, rng)
+        np.fill_diagonal(direct_gain, 0.0)
 
     diff_uav_tgt = geom.p_uav[:, None, :] - geom.p_tgt[None, :, :]
     d_uav_tgt = np.linalg.norm(diff_uav_tgt, axis=-1)
@@ -243,6 +293,15 @@ def build_base_gains(cfg: Config, geom: Geometry, rng: np.random.Generator) -> B
     k_float_grid = np.zeros((M, M, Q), dtype=float)
     target_gain = np.zeros((M, M, Q))
     geom_factor = np.zeros((M, M, Q))
+    rcs_fluct = np.zeros((M, M, Q))
+
+    # Swerling-I target: one exponential RCS realisation per (target, CPI),
+    # shared by every bistatic pair observing that target.  Only drawn when
+    # ``detect.rcs_model == "swerling1"`` so the default (iid) path keeps its
+    # exact RNG stream.
+    rcs_shared: np.ndarray | None = None
+    if channel is None and d.rcs_model == "swerling1":
+        rcs_shared = rng.exponential(scale=d.target_rcs, size=Q)
 
     for i in range(M):
         for j in range(M):
@@ -284,13 +343,22 @@ def build_base_gains(cfg: Config, geom: Geometry, rng: np.random.Generator) -> B
                 l_float_grid[i, j, q] = float(l_float)
                 k_float_grid[i, j, q] = float(k_float)
 
-                rcs_fluct = rng.exponential(scale=d.target_rcs)
-                target_gain[i, j, q] = lam ** 2 * rcs_fluct / ((4.0 * np.pi) ** 3 * d_iq ** 2 * d_jq ** 2)
-
                 a = (p_i - p_q) / d_iq
                 b = (p_j - p_q) / d_jq
                 sin_angle = float(np.linalg.norm(np.cross(a, b)))
                 geom_factor[i, j, q] = 0.1 + 0.9 * min(max(sin_angle, 0.0), 1.0)
+
+                if channel is not None:
+                    rcs_fluct[i, j, q] = float(channel.rcs_fluct[i, j, q])
+                elif rcs_shared is not None:
+                    rcs_fluct[i, j, q] = float(rcs_shared[q])
+                    if d.rcs_aspect_enable:
+                        # Bistatic aspect factor: forward/back-scatter sees the
+                        # full RCS, near-specular sees less.
+                        rcs_fluct[i, j, q] *= 0.2 + 0.8 * min(max(sin_angle, 0.0), 1.0)
+                else:
+                    rcs_fluct[i, j, q] = rng.exponential(scale=d.target_rcs)
+                target_gain[i, j, q] = lam ** 2 * rcs_fluct[i, j, q] / ((4.0 * np.pi) ** 3 * d_iq ** 2 * d_jq ** 2)
 
     dd_collision_count = np.ones((M, M, Q), dtype=float)
     if cfg.dd.enable_dd_collision_penalty:
@@ -339,6 +407,7 @@ def build_base_gains(cfg: Config, geom: Geometry, rng: np.random.Generator) -> B
         dd_collision_count=dd_collision_count,
         target_gain=target_gain,
         geom_factor=geom_factor,
+        rcs_fluct=rcs_fluct,
         eta_loc=eta_loc,
         eta_fine=eta_fine,
         delay_frac=delay_frac_full,
@@ -399,6 +468,13 @@ def compute_link_tables(
         reuse_from is not None
         and dd_gain is None
         and r.isac_power_model != "reliable_comm_assisted"
+        # Under the coupled model the sensing interference is normally
+        # schedule-independent (illumination is continuous), so the fast path
+        # stays valid; gating it by the active set breaks that property.
+        and not (
+            cfg.interference.coupling == "shared_spectrum"
+            and cfg.interference.sense_gate_by_active_tx
+        )
     )
 
     P = np.full(M, r.P_default, dtype=float)
@@ -406,8 +482,47 @@ def compute_link_tables(
     P_comm = (1.0 - r.rho) * P
 
     n0 = noise_power(cfg)
+    eps_den = denominator_guard(cfg, n0)
     B = bandwidth(cfg)
     gamma_req = max(2.0 ** (c.R_min / B) - 1.0, EPS)
+
+    # ---- One interference field, shared by both receivers -----------------
+    # Under ``interference.coupling="shared_spectrum"`` the communication and
+    # the sensing receiver at node j are built from the same concurrent
+    # transmitters, the same direct-path gains and the same radiated powers.
+    # The three field vectors below do not depend on the illuminator i, only on
+    # the receiving node j, so they are computed once per table build.
+    # ``direct_gain`` has a zero diagonal, hence ``P @ G`` sums over k != j.
+    shared = cfg.interference.coupling == "shared_spectrum"
+    if not shared and cfg.interference.coupling != "legacy":
+        raise ValueError(
+            f"Unknown interference.coupling={cfg.interference.coupling!r}; "
+            f"expected 'legacy' or 'shared_spectrum'"
+        )
+    if shared:
+        ic = cfg.interference
+        # One illumination premise: the joint ISAC waveform is radiated
+        # *continuously* (otherwise the illuminator of a selected triplet would
+        # not radiate, and there would be no echo to sense), while only the
+        # report payload is scheduled.  Hence
+        #     radiated power of k   P^tx_k   = P^s_k + 1{k in A} P^c_k
+        # and the sensing-waveform leakage into a communication receiver is
+        # *not* gated by A.  This is the only premise consistent with
+        # ``active_tx_mask`` marking just the reporting ends.
+        #   ``sense_gate_by_active_tx`` optionally forces the sensing receiver to
+        #   follow the scheduled set as well; it is an ablation, not the default.
+        sense_gate = active_tx_mask if (ic.sense_gate_by_active_tx and active_tx_mask is not None) else None
+        P_rad_sense = P_sense + (P_comm if sense_gate is None else P_comm * sense_gate)
+        P_rad_pay = P_comm if active_tx_mask is None else P_comm * active_tx_mask
+        P_leak = P_sense                                  # always radiated
+        I_sense_field = P_rad_sense @ base.direct_gain      # (M,) direct-path field at j
+        I_pay_field = P_rad_pay @ base.direct_gain          # (M,) report-payload field at j
+        I_leak_field = P_leak @ base.direct_gain            # (M,) sensing-waveform leakage at j
+        kappa_dc = 10.0 ** (-ic.direct_cancellation_db / 10.0)
+    else:
+        I_sense_field = I_pay_field = I_leak_field = None
+        P_leak = None
+        kappa_dc = 0.0
 
     gamma_comm = np.zeros((M, M))
     rate = np.zeros((M, M))
@@ -420,22 +535,40 @@ def compute_link_tables(
                 continue
 
             signal = P_comm[i] * base.direct_gain[i, j]
-            interf = 0.0
-            for k in range(M):
-                if k == i or k == j:
-                    continue
-                # "active_set" model: a UAV only interferes if it is actually
-                # transmitting (i.e. it is the sending end of a selected
-                # reporting link).  Silent UAVs contribute nothing.
-                if active_tx_mask is not None and not active_tx_mask[k]:
-                    continue
-                interf += (P_comm[k] + c.comm_leakage_from_sensing * P_sense[k]) * base.direct_gain[k, j]
+            if shared:
+                # Same field as the sensing receiver at j, minus i's own
+                # contribution -- i is the wanted source on this link, not an
+                # interferer.  The subtracted terms must match the powers that
+                # were summed into the fields, otherwise a silent transmitter
+                # would subtract a contribution it never made and the
+                # interference could turn negative.
+                interf = (
+                    I_pay_field[j]
+                    - P_rad_pay[i] * base.direct_gain[i, j]
+                    + c.comm_leakage_from_sensing
+                    * (I_leak_field[j] - P_leak[i] * base.direct_gain[i, j])
+                )
+            else:
+                interf = 0.0
+                for k in range(M):
+                    if k == i or k == j:
+                        continue
+                    # "active_set" model: a UAV only interferes if it is actually
+                    # transmitting (i.e. it is the sending end of a selected
+                    # reporting link).  Silent UAVs contribute nothing.
+                    if active_tx_mask is not None and not active_tx_mask[k]:
+                        continue
+                    interf += (P_comm[k] + c.comm_leakage_from_sensing * P_sense[k]) * base.direct_gain[k, j]
 
             direct_leakage = c.comm_direct_leakage_factor * P_sense[i] * base.direct_gain[i, j]
-            gamma = signal / (n0 + interf + direct_leakage + EPS)
+            gamma = signal / (n0 + interf + direct_leakage + eps_den)
             gamma_comm[i, j] = gamma
             rate[i, j] = B * np.log2(1.0 + gamma)
-            chi_comm[i, j] = gamma / (gamma + gamma_req + EPS)
+            # Reliability under the configured model: the legacy heuristic
+            # ``gamma/(gamma+gamma_req)`` or the finite-blocklength success
+            # probability ``1 - Q(...)``.  Dispatched through fbl.py so the two
+            # stay bit-compatible when ``reliability_model="heuristic"``.
+            chi_comm[i, j] = _chi_from_gamma(cfg, gamma, gamma_req)
 
     # chi_comm = gamma / (gamma + gamma_req) lies in [0, 1) by construction.
     # Clip once here (vectorised, O(M^2)) so the fusion hot path -- which is
@@ -468,16 +601,16 @@ def compute_link_tables(
             raw_gamma_sense=reuse_from.raw_gamma_sense,
             gamma_sense=reuse_from.gamma_sense,
             rinr=reuse_from.rinr,
-            beta=reuse_from.beta,
             mu_soft=reuse_from.mu_soft,
             sigma0=reuse_from.sigma0,
+            var0_q=reuse_from.var0_q,
         )
 
     raw_gamma_sense = np.zeros((M, M, Q))
     gamma_sense = np.zeros((M, M, Q))
     rinr = np.zeros((M, M))
-    beta = np.zeros((M, M, Q))
     mu_soft = np.zeros((M, M, Q))
+    var0_q = np.zeros((M, M, Q))
     sigma0 = np.full((M, M), d.soft_sigma0)
 
     G_proc = cfg.waveform.N * cfg.waveform.L if d.sensing_processing_gain is None else d.sensing_processing_gain
@@ -488,18 +621,27 @@ def compute_link_tables(
                 continue
 
             residual_self = r.residual_self_factor * P[j]
-            residual_direct = 0.0
-            residual_multi = 0.0
-            # Direct-link cancellation error and multi-UAV sensing leakage share
-            # the same interferer set, so both are accumulated in one loop.
-            for k in range(M):
-                if k == i or k == j:
-                    continue
-                residual_direct += r.residual_direct_factor * P[k] * base.direct_gain[k, j]
-                residual_multi += r.residual_multi_uav_factor * P_sense[k] * base.direct_gain[k, j]
+            if shared:
+                # Same interferer set, same gains and same radiated powers as the
+                # communication receiver at j -- only the receiver's suppression
+                # differs.  Note that the illuminator i is NOT excluded: its
+                # direct path is precisely the near-far term that a bistatic
+                # sensing receiver has to cancel.
+                residual_direct = kappa_dc * float(I_sense_field[j])
+                residual_multi = 0.0
+            else:
+                residual_direct = 0.0
+                residual_multi = 0.0
+                # Direct-link cancellation error and multi-UAV sensing leakage share
+                # the same interferer set, so both are accumulated in one loop.
+                for k in range(M):
+                    if k == i or k == j:
+                        continue
+                    residual_direct += r.residual_direct_factor * P[k] * base.direct_gain[k, j]
+                    residual_multi += r.residual_multi_uav_factor * P_sense[k] * base.direct_gain[k, j]
 
             residual_total = residual_self + residual_direct + residual_multi
-            rinr[i, j] = residual_total / (n0 + EPS)
+            rinr[i, j] = residual_total / (n0 + eps_den)
             sigma0[i, j] = d.soft_sigma0 * math.sqrt(1.0 + r.rinr_sigma_factor * rinr[i, j])
 
             if r.isac_power_model == "sensing_only":
@@ -517,28 +659,22 @@ def compute_link_tables(
 
                 # Keep the raw sensing-SINR baseline consistent with the selected ISAC power model.
                 raw_signal = effective_sensing_power * base.target_gain[i, j, q] * G_proc
-                raw_gamma_sense[i, j, q] = raw_signal / (n0 + EPS)
+                raw_gamma_sense[i, j, q] = raw_signal / (n0 + eps_den)
 
                 collision_penalty = 1.0 / (max(base.dd_collision_count[i, j, q], 1.0) ** cfg.dd.dd_collision_alpha)
                 dd_loss = dd_used[i, j, q] if cfg.dd.enable_dd_fractional_penalty else 1.0
 
                 signal = effective_sensing_power * base.target_gain[i, j, q] * G_proc * collision_penalty * dd_loss
-                gamma = signal / (n0 + residual_total + EPS)
+                gamma = signal / (n0 + residual_total + eps_den)
                 gamma_sense[i, j, q] = gamma
-                mu_soft[i, j, q] = d.soft_mu_scale * np.log1p(gamma)
-
-                if feasible_comm[i, j]:
-                    # Reporting direction is j -> i: reliability and delay are
-                    # those of the j -> i communication leg.
-                    chi_eff = float(chi_comm[j, i])  # already clipped to [0, 1]
-                    delay_ms = 1e3 * packet_bits_for_target(cfg, q) / max(rate[j, i], EPS)
-                    beta[i, j, q] = (
-                        cfg.selector.beta_scale
-                        * np.log1p(gamma)
-                        * base.geom_factor[i, j, q]
-                        * (chi_eff ** cfg.selector.beta_chi_power)
-                        / ((1.0 + rinr[i, j]) * ((delay_ms + EPS) ** cfg.selector.beta_delay_exponent))
-                    )
+                # Soft statistic under the configured model: the legacy
+                # ``kappa_mu * log(1+gamma)`` Gaussian mean, or the centred
+                # local LLR mean ``L*gamma^2/(1+gamma)``.  Dispatched through
+                # llr.py so the two stay bit-compatible in "gaussian" mode.
+                mu_soft[i, j, q] = _soft_mean(cfg, gamma)
+                # H0 variance: legacy broadcasts the pair-level sigma0^2, the
+                # LLR model derives it from the SINR.
+                var0_q[i, j, q] = _soft_var0(cfg, gamma, float(sigma0[i, j]) ** 2)
 
     return LinkTables(
         gamma_comm=gamma_comm,
@@ -548,7 +684,7 @@ def compute_link_tables(
         raw_gamma_sense=raw_gamma_sense,
         gamma_sense=gamma_sense,
         rinr=rinr,
-        beta=beta,
         mu_soft=mu_soft,
         sigma0=sigma0,
+        var0_q=var0_q,
     )

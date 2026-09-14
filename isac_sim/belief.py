@@ -1,0 +1,144 @@
+"""Truth vs belief: the predict -> schedule -> sense -> update loop.
+
+The reviewers' third recurring objection is that the scheduler *already knows*
+the target position, velocity and RCS when it computes delay, Doppler, bin and
+sensing gain -- yet detection has not happened yet.  The old ``prior-sweep``
+only *perturbed the world*: it wrote the perturbed state back into the geometry
+so the scheduler and the detector shared the same (wrong) state.  That answers
+"how does P_D degrade if the tracker is wrong", not the reviewers' actual
+question.
+
+This module splits the two states:
+
+* **truth** ``x_{q,t} = (p_{q,t}, v_{q,t})`` drives echo generation, the true
+  delay-Doppler, the true sensing gain and the detector.
+* **belief** ``b_{q,t} = N(xhat_{q,t}, P_{q,t})`` drives link selection, the DD
+  search window and the resource budget.
+
+The scheduler may only *see* the belief; the physical world runs on the truth.
+A selected link only delivers target evidence when the belief-guided search
+window actually captures the true delay-Doppler bin -- which is exactly the
+cost of a mismatched prior, and exactly the effect a reviewer expects to see
+when ``xhat != x``.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Dict, List
+
+import numpy as np
+
+from .config import Config, Link
+from .model import BaseGains, Geometry
+from .prior import perturbed_geometry
+
+
+@dataclass
+class BeliefState:
+    """Gaussian belief over the target states.
+
+    ``xhat`` is ``(Q, 6)`` (position + velocity per target) and ``P`` is
+    ``(Q, 6, 6)``.  The constant-velocity transition ``F`` and process noise
+    ``Q_cv`` are provided so a downstream tracker update can close the loop.
+    """
+
+    xhat: np.ndarray
+    P: np.ndarray
+
+    @classmethod
+    def from_truth(cls, cfg: Config, geom: Geometry, rng: np.random.Generator) -> "BeliefState":
+        """Build a belief as the truth corrupted by ``cfg.prior.belief_*`` noise.
+
+        This is the minimal *tracker-free* model: the belief is a single noisy
+        snapshot of the truth, with an isotropic covariance of the configured
+        amplitude.  It is enough to expose the belief-mismatch cost without
+        committing to a specific filter.
+        """
+        Q = cfg.scale.Q
+        xhat = np.zeros((Q, 6))
+        xhat[:, 0:3] = geom.p_tgt
+        xhat[:, 3:6] = geom.v_tgt
+
+        s_pos = max(cfg.prior.belief_sigma_pos_m, 0.0)
+        s_vel = max(cfg.prior.belief_sigma_vel_mps, 0.0)
+        P = np.zeros((Q, 6, 6))
+        P[:, 0, 0] = P[:, 1, 1] = P[:, 2, 2] = s_pos ** 2
+        P[:, 3, 3] = P[:, 4, 4] = P[:, 5, 5] = s_vel ** 2
+
+        if s_pos > 0:
+            xhat[:, 0:3] += rng.normal(0.0, s_pos, size=(Q, 3))
+            xhat[:, 2] = geom.p_tgt[:, 2]  # keep nominal altitude
+        if s_vel > 0:
+            xhat[:, 3:6] += rng.normal(0.0, s_vel, size=(Q, 3))
+            xhat[:, 5] = 0.0
+        return cls(xhat=xhat, P=P)
+
+    def as_geometry(self, geom: Geometry) -> Geometry:
+        """A :class:`Geometry` whose targets are the belief means."""
+        return Geometry(
+            p_uav=geom.p_uav.copy(),
+            v_uav=geom.v_uav.copy(),
+            p_tgt=self.xhat[:, 0:3].copy(),
+            v_tgt=self.xhat[:, 3:6].copy(),
+        )
+
+
+def belief_geometry(cfg: Config, geom_truth: Geometry, rng: np.random.Generator) -> Geometry:
+    """The scheduler's view of the scene: target state = belief mean."""
+    belief = BeliefState.from_truth(cfg, geom_truth, rng)
+    return belief.as_geometry(geom_truth)
+
+
+def truth_captured_links(
+    cfg: Config,
+    base_truth: BaseGains,
+    base_belief: BaseGains,
+    selected: Dict[int, List[Link]],
+) -> Dict[int, List[Link]]:
+    """Restrict ``selected`` to links whose belief-guided search captures the truth.
+
+    A selected sensing link only yields target evidence when (a) the true DD bin
+    is valid and (b) the belief predicted exactly the bin the true echo occupies.
+    Links that miss the bin are dropped from the detection fusion -- they carry
+    no target information, which is the whole point of a mismatched prior.
+    """
+    out: Dict[int, List[Link]] = {}
+    for q, links in selected.items():
+        kept: List[Link] = []
+        for (i, j) in links:
+            if cfg.dd.use_otfs_bin_validity and not base_truth.valid_dd[i, j, q]:
+                continue
+            if base_belief.delay_bin[i, j, q] != base_truth.delay_bin[i, j, q]:
+                continue
+            if base_belief.doppler_bin[i, j, q] != base_truth.doppler_bin[i, j, q]:
+                continue
+            kept.append((i, j))
+        out[q] = kept
+    return out
+
+
+def belief_capture_rate(
+    cfg: Config,
+    base_truth: BaseGains,
+    base_belief: BaseGains,
+    selected: Dict[int, List[Link]],
+) -> float:
+    """Fraction of selected links whose belief window captures the true bin."""
+    total = 0
+    hit = 0
+    for q, links in selected.items():
+        for (i, j) in links:
+            total += 1
+            if base_truth.valid_dd[i, j, q] and \
+               base_belief.delay_bin[i, j, q] == base_truth.delay_bin[i, j, q] and \
+               base_belief.doppler_bin[i, j, q] == base_truth.doppler_bin[i, j, q]:
+                hit += 1
+    return hit / max(total, 1)
+
+
+def predicted_geometry_from_belief(cfg: Config, geom_truth: Geometry, rng: np.random.Generator) -> Geometry:
+    """Constant-velocity one-step prediction from the current belief (utility)."""
+    from .prior import predicted_geometry
+
+    return predicted_geometry(cfg, geom_truth, rng)

@@ -17,8 +17,8 @@ from .config import Config, Link, MethodName
 from .fusion import (
     compute_weights,
     deflection_for_links,
+    fused_h0_variance,
     fusion_weight_mode_for_method,
-    h0_variance_for_link,
 )
 from .model import (
     BaseGains,
@@ -30,12 +30,12 @@ from .model import (
     generate_geometry,
     threshold_from_pfa,
 )
+from .reporting import ReportingPlan, assign_fusion_nodes, report_dest
 from .selection import (
     C2F_METHODS,
     METHOD_RNG_OFFSETS,
     METHODS,
     feasible_links_for_target,
-    link_delay_s,
     select_all_neighbor,
     select_c2f,
     select_lagrangian,
@@ -51,10 +51,8 @@ class MethodResult:
     detected: int
     total_targets: int
     detected_per_target: np.ndarray
-    # Main P_FA uses only active detectors, i.e. targets with selected links.
     false_alarm: int
     total_false: int
-    # System-level P_FA keeps inactive targets in the potential denominator.
     false_alarm_overall: int
     total_false_overall: int
     overhead_bits: float
@@ -64,7 +62,6 @@ class MethodResult:
     active_targets: int
     feasible_targets: int
     feasible_links: int
-    # Communication-side statistics of the selected soft-information links.
     selected_rate_mean_mbps: float
     selected_rate_min_mbps: float
     selected_rate_p10_mbps: float
@@ -75,30 +72,57 @@ class MethodResult:
     selected_rate_satisfaction_ratio: float
     selected_chi_ge_min_ratio: float
     comm_feasible_edge_ratio: float
-    # C2F cost accounting (window-evaluation counts; 0 for non-C2F methods).
     fine_eval_full: float = 0.0
     fine_eval_c2f: float = 0.0
+    # Belief mode only: fraction of selected links whose belief-guided DD
+    # window actually captured the true target bin (1.0 outside belief mode).
+    belief_capture_rate: float = 1.0
 
 
 # ==========================================================================
 # Soft-statistic sampling
 # ==========================================================================
-def draw_h1_soft_stat(cfg: Config, tables: LinkTables, link: Link, q: int, rng: np.random.Generator) -> float:
+def _is_llr(cfg: Config) -> bool:
+    return cfg.detect.soft_stat_model.lower() == "llr"
+
+
+def draw_h1_soft_stat(
+    cfg: Config, tables: LinkTables, link: Link, q: int, rng: np.random.Generator,
+    plan: "ReportingPlan | None" = None,
+) -> float:
     """Draw one soft statistic under H1, including communication errors."""
+    from .llr import draw_llr
+
     i, j = link
     d = cfg.detect
-    mu = float(tables.mu_soft[i, j, q])
     gamma = float(tables.gamma_sense[i, j, q])
-    sigma1 = max(d.soft_sigma_floor, float(tables.sigma0[i, j]) / math.sqrt(1.0 + gamma + EPS))
+
+    if _is_llr(cfg):
+        if not d.enable_comm_error_pollution:
+            return draw_llr(gamma, d.n_looks, rng, h1=True)
+        chi = float(tables.chi_comm[j, report_dest(plan, link, q)])
+        if rng.random() < chi:
+            return draw_llr(gamma, d.n_looks, rng, h1=True)
+        if d.comm_error_model == "erasure":
+            return draw_llr(gamma, d.n_looks, rng, h1=False)
+        if d.comm_error_model == "flip":
+            return -d.soft_error_flip_scale * draw_llr(gamma, d.n_looks, rng, h1=True)
+        if d.comm_error_model == "biased":
+            return d.soft_error_bias_scale * draw_llr(gamma, d.n_looks, rng, h1=True)
+        raise ValueError(d.comm_error_model)
+
+    mu = float(tables.mu_soft[i, j, q])
+    sigma0 = float(tables.sigma0[i, j])
+    sigma1 = max(d.soft_sigma_floor, sigma0 / math.sqrt(1.0 + gamma + EPS))
 
     if not d.enable_comm_error_pollution:
         return float(rng.normal(mu, sigma1))
 
-    chi = float(tables.chi_comm[j, i])  # reporting j -> i (already clipped)
+    chi = float(tables.chi_comm[j, report_dest(plan, link, q)])
     if rng.random() < chi:
         return float(rng.normal(mu, sigma1))
 
-    sigma_err = d.soft_error_sigma_scale * float(tables.sigma0[i, j])
+    sigma_err = d.soft_error_sigma_scale * sigma0
     if d.comm_error_model == "erasure":
         return float(rng.normal(0.0, sigma_err))
     if d.comm_error_model == "flip":
@@ -108,16 +132,28 @@ def draw_h1_soft_stat(cfg: Config, tables: LinkTables, link: Link, q: int, rng: 
     raise ValueError(d.comm_error_model)
 
 
-def draw_h0_soft_stat(cfg: Config, tables: LinkTables, link: Link, rng: np.random.Generator) -> float:
+def draw_h0_soft_stat(
+    cfg: Config, tables: LinkTables, link: Link, q: int, rng: np.random.Generator,
+    plan: "ReportingPlan | None" = None,
+) -> float:
     """Draw one soft statistic under H0."""
+    from .llr import draw_llr
+
     i, j = link
     d = cfg.detect
+    gamma = float(tables.gamma_sense[i, j, q])
+
+    if _is_llr(cfg):
+        # Under H0 a failed packet carries no target information either way, so
+        # the substituted statistic is always an H0-valued LLR draw.
+        return draw_llr(gamma, d.n_looks, rng, h1=False)
+
     sigma0 = float(tables.sigma0[i, j])
 
     if not d.enable_comm_error_pollution:
         return float(rng.normal(0.0, sigma0))
 
-    chi = float(tables.chi_comm[j, i])  # reporting j -> i (already clipped)
+    chi = float(tables.chi_comm[j, report_dest(plan, link, q)])
     if rng.random() < chi:
         return float(rng.normal(0.0, sigma0))
 
@@ -125,11 +161,8 @@ def draw_h0_soft_stat(cfg: Config, tables: LinkTables, link: Link, rng: np.rando
     if d.comm_error_model == "erasure":
         return float(rng.normal(0.0, sigma_err))
     if d.comm_error_model == "flip":
-        # Under H0 there is no target-dependent sign to flip; a failed packet
-        # only inflates the noise.
         return float(rng.normal(0.0, sigma_err))
     if d.comm_error_model == "biased":
-        # Optional H0-side bias keeps biased-error robustness tests symmetric.
         return float(rng.normal(d.h0_error_bias_scale * sigma0, sigma_err))
     raise ValueError(d.comm_error_model)
 
@@ -143,18 +176,10 @@ def evaluate_detection(
     selected: Dict[int, List[Link]],
     rng: np.random.Generator,
     method: str,
+    plan: "ReportingPlan | None" = None,
+    base: BaseGains | None = None,
 ) -> Tuple[int, int, int, int, int, int, np.ndarray]:
-    """Evaluate detection and false alarms with two P_FA denominators.
-
-    *Main* P_FA is the active-detector rate: only targets with at least one
-    selected link contribute false-alarm trials.  This is the right denominator
-    for checking whether the Gaussian threshold is calibrated.
-
-    *System-level* P_FA keeps all target hypotheses in the potential
-    denominator: inactive targets produce no fused statistic and therefore
-    contribute zero false alarms, while the denominator stays
-    ``Q * num_false_per_target``.
-    """
+    """Evaluate detection and false alarms with two P_FA denominators."""
     d = cfg.detect
     detected = 0
     detected_per_target = np.zeros(cfg.scale.Q, dtype=int)
@@ -169,17 +194,16 @@ def evaluate_detection(
     for q in range(cfg.scale.Q):
         links = selected.get(q, [])
         if not links:
-            # No soft information means no active detector for this target.
             continue
 
         total_false_active += d.num_false_per_target
-        weights = compute_weights(cfg, tables, q, links, mode=weight_mode)
-        var0 = sum((w ** 2) * h0_variance_for_link(cfg, tables, link) for link, w in weights.items())
+        weights = compute_weights(cfg, tables, q, links, mode=weight_mode, plan=plan, base=base)
+        var0 = fused_h0_variance(cfg, tables, q, links, weights, plan=plan, base=base)
         thr = base_thr * math.sqrt(max(var0, EPS))
 
         F = 0.0
         for link, w in weights.items():
-            F += w * draw_h1_soft_stat(cfg, tables, link, q, rng)
+            F += w * draw_h1_soft_stat(cfg, tables, link, q, rng, plan)
         if F > thr:
             detected += 1
             detected_per_target[q] = 1
@@ -187,12 +211,10 @@ def evaluate_detection(
         for _ in range(d.num_false_per_target):
             F0 = 0.0
             for link, w in weights.items():
-                F0 += w * draw_h0_soft_stat(cfg, tables, link, rng)
+                F0 += w * draw_h0_soft_stat(cfg, tables, link, q, rng, plan)
             if F0 > thr:
                 false_alarm_active += 1
 
-    # System-level numerator: inactive targets produce zero false alarms, so the
-    # only observed false alarms are those from active detectors.
     false_alarm_overall = false_alarm_active
     return (
         detected,
@@ -214,20 +236,67 @@ def total_overhead_bits(cfg: Config, selected: Dict[int, List[Link]]) -> float:
     return float(sum(packet_bits_for_target(cfg, q) * len(links) for q, links in selected.items()))
 
 
-def total_overhead_delay_s(cfg: Config, tables: LinkTables, selected: Dict[int, List[Link]]) -> float:
-    total = 0.0
+def _report_list(
+    cfg: Config, tables: LinkTables, selected: Dict[int, List[Link]], plan: "ReportingPlan | None"
+) -> List[Tuple[int, int, float]]:
+    """Flatten the selected links into ``(source, dest, latency_s)`` reports."""
+    from .fbl import report_latency_s
+
+    reports: List[Tuple[int, int, float]] = []
     for q, links in selected.items():
-        for link in links:
-            total += link_delay_s(cfg, tables, q, link)
-    return float(total)
+        for (i, j) in links:
+            dest = report_dest(plan, (i, j), q)
+            reports.append((j, dest, report_latency_s(cfg, float(tables.rate[j, dest]))))
+    return reports
+
+
+def total_overhead_delay_s(
+    cfg: Config, tables: LinkTables, selected: Dict[int, List[Link]], plan: "ReportingPlan | None" = None
+) -> float:
+    """Aggregate reporting latency under the configured MAC.
+
+    * ``serial``:    reports are time-multiplexed, ``T = sum_l T_l``.
+    * ``parallel``:  all reports are concurrent, ``T = max_l T_l``.
+    * ``slot``:      conflict-graph colouring (shared transmitter or receiver
+                     conflicts); slots run sequentially, so
+                     ``T = sum_r max_{l in S_r} T_l``.  The ``tables`` passed in
+                     must already be the *slot-local* tables built by
+                     :func:`build_slot_tables`, so the rate used here matches
+                     the slot-local interference -- the two are one system.
+    """
+    from .fbl import report_latency_s
+    from .reporting import slot_schedule
+
+    reports = _report_list(cfg, tables, selected, plan)
+    if not reports:
+        return 0.0
+
+    mac = cfg.comm.mac_model.lower()
+    if mac == "serial":
+        return float(sum(lat for _, _, lat in reports))
+    if mac == "parallel":
+        return float(max(lat for _, _, lat in reports))
+    if mac == "slot":
+        slots = slot_schedule(cfg, selected, plan)
+        total = 0.0
+        for slot in slots:
+            slot_lat = max(
+                report_latency_s(cfg, float(tables.rate[j, dest]))
+                for (_, _, j, dest) in slot
+            )
+            total += slot_lat
+        return float(total)
+    raise ValueError(f"Unknown comm.mac_model={cfg.comm.mac_model!r}")
 
 
 def active_target_count(selected: Dict[int, List[Link]]) -> int:
     return sum(1 for links in selected.values() if len(links) > 0)
 
 
-def feasible_stats(cfg: Config, base: BaseGains, tables: LinkTables) -> Tuple[int, int]:
-    counts = [len(feasible_links_for_target(cfg, base, tables, q)) for q in range(cfg.scale.Q)]
+def feasible_stats(
+    cfg: Config, base: BaseGains, tables: LinkTables, plan: "ReportingPlan | None" = None
+) -> Tuple[int, int]:
+    counts = [len(feasible_links_for_target(cfg, base, tables, q, plan)) for q in range(cfg.scale.Q)]
     return sum(1 for c in counts if c > 0), int(np.sum(counts))
 
 
@@ -236,26 +305,33 @@ def communication_metrics_for_selection(
     base: BaseGains,
     tables: LinkTables,
     selected: Dict[int, List[Link]],
+    plan: "ReportingPlan | None" = None,
 ) -> Dict[str, float]:
-    """Communication-side statistics of the selected soft-information links.
-
-    These are not throughput objectives.  They document the communication role
-    in the sensing-centric ISAC model: selected links must carry soft sensing
-    information, so their rate, reliability and delay matter.
-    """
-    selected_unique: List[Link] = []
-    seen: set = set()
-    for links in selected.values():
-        for link in links:
-            if link not in seen:
-                seen.add(link)
-                selected_unique.append(link)
-
+    """Communication-side statistics of the selected soft-information links."""
     edge_count = int(np.sum(base.edge_mask))
     feasible_edge_count = int(np.sum(tables.feasible_comm & base.edge_mask))
     comm_feasible_edge_ratio = feasible_edge_count / max(edge_count, 1)
 
-    if not selected_unique:
+    # Per (reporting) leg statistics, resolved through the reporting plan.
+    # Deduplicated on the reporting leg ``(source, dest)`` so a link selected
+    # for several targets is counted once (the legacy code deduplicated on the
+    # sensing pair ``(i, j)``, which for ``dest = i`` is the same set).
+    rates: List[float] = []
+    chis: List[float] = []
+    gammas: List[float] = []
+    seen: set = set()
+    for q, links in selected.items():
+        for (i, j) in links:
+            dest = report_dest(plan, (i, j), q)
+            leg = (j, dest)
+            if leg in seen:
+                continue
+            seen.add(leg)
+            rates.append(float(tables.rate[j, dest]))
+            chis.append(float(tables.chi_comm[j, dest]))
+            gammas.append(float(tables.gamma_comm[j, dest]))
+
+    if not rates:
         return {
             "selected_rate_mean_mbps": 0.0,
             "selected_rate_min_mbps": 0.0,
@@ -269,21 +345,21 @@ def communication_metrics_for_selection(
             "comm_feasible_edge_ratio": float(comm_feasible_edge_ratio),
         }
 
-    rates = np.array([tables.rate[j, i] for i, j in selected_unique], dtype=float)
-    chis = np.array([tables.chi_comm[j, i] for i, j in selected_unique], dtype=float)
-    gammas = np.array([tables.gamma_comm[j, i] for i, j in selected_unique], dtype=float)
-    gamma_db = 10.0 * np.log10(np.maximum(gammas, EPS))
+    rates_arr = np.array(rates, dtype=float)
+    chis_arr = np.array(chis, dtype=float)
+    gammas_arr = np.array(gammas, dtype=float)
+    gamma_db = 10.0 * np.log10(np.maximum(gammas_arr, EPS))
 
     return {
-        "selected_rate_mean_mbps": float(np.mean(rates) / 1e6),
-        "selected_rate_min_mbps": float(np.min(rates) / 1e6),
-        "selected_rate_p10_mbps": float(np.percentile(rates, 10) / 1e6),
-        "selected_chi_mean": float(np.mean(chis)),
-        "selected_chi_min": float(np.min(chis)),
-        "selected_chi_p10": float(np.percentile(chis, 10)),
+        "selected_rate_mean_mbps": float(np.mean(rates_arr) / 1e6),
+        "selected_rate_min_mbps": float(np.min(rates_arr) / 1e6),
+        "selected_rate_p10_mbps": float(np.percentile(rates_arr, 10) / 1e6),
+        "selected_chi_mean": float(np.mean(chis_arr)),
+        "selected_chi_min": float(np.min(chis_arr)),
+        "selected_chi_p10": float(np.percentile(chis_arr, 10)),
         "selected_gamma_comm_mean_db": float(np.mean(gamma_db)),
-        "selected_rate_satisfaction_ratio": float(np.mean(rates >= cfg.comm.R_min)),
-        "selected_chi_ge_min_ratio": float(np.mean(chis >= cfg.comm.chi_min)),
+        "selected_rate_satisfaction_ratio": float(np.mean(rates_arr >= cfg.comm.R_min)),
+        "selected_chi_ge_min_ratio": float(np.mean(chis_arr >= cfg.comm.chi_min)),
         "comm_feasible_edge_ratio": float(comm_feasible_edge_ratio),
     }
 
@@ -296,6 +372,64 @@ def rng_for_method(cfg: Config, trial_index: int, method: str) -> np.random.Gene
     return np.random.default_rng([cfg.run.seed, 12345, trial_index, offset])
 
 
+def _build_plan(cfg: Config, base: BaseGains, tables: LinkTables, geom) -> "ReportingPlan | None":
+    """Reporting plan for this trial (``None`` in the legacy architecture)."""
+    if cfg.fusion.mode.lower() != "explicit":
+        return None
+    return assign_fusion_nodes(cfg, base, tables, geom)
+
+
+def build_slot_tables(
+    cfg: Config,
+    base: BaseGains,
+    tables: LinkTables,
+    selected: Dict[int, List[Link]],
+    plan: "ReportingPlan | None" = None,
+) -> LinkTables:
+    """Rebuild the communication block with *slot-local* interference.
+
+    Under ``comm.mac_model="slot"`` the selected reporting legs are grouped by a
+    conflict-graph colouring (:func:`isac_sim.reporting.slot_schedule`).  Only
+    reports inside the same slot are concurrent, so the communication SINR of a
+    leg is recomputed counting only its co-slot transmitters as interferers.
+    This makes the interference model and the latency model describe the same
+    MAC: the SINR is slot-local and the latency is the sum of slot durations.
+
+    The sensing block is untouched (sensing interference does not depend on the
+    reporting MAC), so it is reused verbatim from ``tables``.
+    """
+    from .reporting import slot_schedule
+
+    M, Q = cfg.scale.M, cfg.scale.Q
+    slots = slot_schedule(cfg, selected, plan)
+
+    rate = np.zeros((M, M))
+    chi = np.zeros((M, M))
+    gamma = np.zeros((M, M))
+    for slot in slots:
+        active_tx = np.zeros(M, dtype=bool)
+        for (_, _, j, _) in slot:
+            active_tx[j] = True
+        t = compute_link_tables(cfg, base, active_tx_mask=active_tx, reuse_from=tables)
+        for (_, _, j, dest) in slot:
+            rate[j, dest] = t.rate[j, dest]
+            chi[j, dest] = t.chi_comm[j, dest]
+            gamma[j, dest] = t.gamma_comm[j, dest]
+
+    return LinkTables(
+        gamma_comm=gamma,
+        rate=rate,
+        chi_comm=chi,
+        feasible_comm=tables.feasible_comm,
+        raw_gamma_sense=tables.raw_gamma_sense,
+        gamma_sense=tables.gamma_sense,
+        rinr=tables.rinr,
+        mu_soft=tables.mu_soft,
+        sigma0=tables.sigma0,
+        var0_q=tables.var0_q,
+    )
+
+
 def run_method_on_trial(
     cfg: Config,
     base: BaseGains,
@@ -305,71 +439,108 @@ def run_method_on_trial(
     reference_counts: Optional[Dict[int, int]] = None,
     cached_lagrangian: Optional[Tuple[Dict[int, List[Link]], np.ndarray]] = None,
     c2f_tables: Optional[LinkTables] = None,
+    plan: "ReportingPlan | None" = None,
+    eval_base: BaseGains | None = None,
+    eval_tables: LinkTables | None = None,
 ) -> MethodResult:
+    """Run one method on one trial.
+
+    ``base`` / ``tables`` are the *scheduler's* view (used for selection).  In
+    belief mode these are the belief tables; ``eval_base`` / ``eval_tables`` are
+    then the truth tables used for detection.  In the default (non-belief) mode
+    the two coincide and ``eval_*`` are ``None``.
+    """
+    from .belief import truth_captured_links
+
+    belief_mode = eval_base is not None and eval_tables is not None
     rng = rng_for_method(cfg, trial_index, method)
 
     if method == "proposed_lagrangian":
-        selected, D = cached_lagrangian if cached_lagrangian is not None else select_lagrangian(cfg, base, tables)
+        selected, D = cached_lagrangian if cached_lagrangian is not None else select_lagrangian(cfg, base, tables, plan)
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
         sel_tables = tables
     elif method in C2F_METHODS:
-        # C2F selectors must score the coarse stage with the *coarse* table
-        # (``tables``) and only rebuild the fine table for the links they
-        # actually refine.  Passing a globally refined table here would make
-        # the shortlist itself fine-grained and silently collapse C2F into the
-        # full-refinement variant.
         selected, D, c2f_stats = select_c2f(
-            cfg, base, tables, apply_to_all=C2F_METHODS[method]
+            cfg, base, tables, apply_to_all=C2F_METHODS[method], plan=plan
         )
         fine_eval_full = float(c2f_stats["fine_eval_full"])
         fine_eval_c2f = float(c2f_stats["fine_eval_c2f"])
-        # The selector committed to these links under the refined DD gain, so
-        # evaluation uses a refined table too (rebuilt on the active set below).
         sel_tables = c2f_tables if c2f_tables is not None else tables
     elif method == "all_neighbor":
-        selected, D = select_all_neighbor(cfg, base, tables)
+        selected, D = select_all_neighbor(cfg, base, tables, plan)
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
         sel_tables = tables
     else:
         if reference_counts is None:
-            ref_selected, _ = select_lagrangian(cfg, base, tables)
+            ref_selected, _ = select_lagrangian(cfg, base, tables, plan)
             reference_counts = {q: len(ref_selected.get(q, [])) for q in range(cfg.scale.Q)}
-        selected, D = select_topk_baseline(cfg, base, tables, reference_counts, method, rng)
+        selected, D = select_topk_baseline(cfg, base, tables, reference_counts, method, rng, plan)
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
         sel_tables = tables
 
-    # "active_set" interference model: rebuild the tables counting only the
-    # UAVs that actually transmit.  For a selected sensing pair (i, j) the
-    # reporting direction is j -> i, so the *transmitting* end is j.  Fewer
-    # selected links therefore means a smaller interfering set, a higher rate
-    # and a lower delay -- the physically correct concurrent-interference
-    # behaviour that the "full_concurrent" model cannot express.
+    # Belief mode: only links whose belief-guided search window captures the
+    # true delay-Doppler bin carry target evidence to the detector.
+    selected_eval = truth_captured_links(cfg, eval_base, base, selected) if belief_mode else selected
+
     tables_eval = tables
+    det_base = base
+    if belief_mode:
+        det_base = eval_base
+        tables_eval = eval_tables
+        D = np.array([
+            deflection_for_links(
+                cfg, eval_tables, q, selected_eval.get(q, []),
+                weight_mode=fusion_weight_mode_for_method(method), plan=plan, base=eval_base,
+            )
+            for q in range(cfg.scale.Q)
+        ])
+
     if cfg.comm.interference_model == "active_set":
         active_tx = np.zeros(cfg.scale.M, dtype=bool)
         for q, links in selected.items():
             for (i, j) in links:
                 active_tx[j] = True
+        base_rebuild = eval_base if belief_mode else base
+        reuse_from = eval_tables if belief_mode else sel_tables
         tables_eval = compute_link_tables(
-            cfg, base, active_tx_mask=active_tx, reuse_from=sel_tables
+            cfg, base_rebuild, active_tx_mask=active_tx, reuse_from=reuse_from
         )
-        # Recompute the fused deflection under the real (reduced) interference
-        # so the reported D matches the evaluation table.
         D = np.array([
             deflection_for_links(
-                cfg, tables_eval, q, selected.get(q, []),
-                weight_mode=fusion_weight_mode_for_method(method),
+                cfg, tables_eval, q, selected_eval.get(q, []),
+                weight_mode=fusion_weight_mode_for_method(method), plan=plan, base=base_rebuild,
+            )
+            for q in range(cfg.scale.Q)
+        ])
+    elif cfg.comm.mac_model == "slot":
+        # Slot MAC: interference and latency are unified.  The reporting legs
+        # are grouped by conflict-graph colouring, the SINR is recomputed with
+        # only co-slot transmitters as interferers, and the aggregate delay is
+        # the sum of slot durations (handled by ``total_overhead_delay_s``).
+        base_rebuild = eval_base if belief_mode else base
+        reuse_from = eval_tables if belief_mode else sel_tables
+        tables_eval = build_slot_tables(cfg, base_rebuild, reuse_from, selected, plan)
+        D = np.array([
+            deflection_for_links(
+                cfg, tables_eval, q, selected_eval.get(q, []),
+                weight_mode=fusion_weight_mode_for_method(method), plan=plan, base=base_rebuild,
             )
             for q in range(cfg.scale.Q)
         ])
 
-    detection = evaluate_detection(cfg, tables_eval, selected, rng, method)
+    detection = evaluate_detection(cfg, tables_eval, selected_eval, rng, method, plan, det_base)
     detected, total_targets, fa, total_false, fa_overall, total_false_overall, detected_per_target = detection
-    feasible_targets, feasible_links = feasible_stats(cfg, base, tables)
-    comm_metrics = communication_metrics_for_selection(cfg, base, tables_eval, selected)
+    feasible_targets, feasible_links = feasible_stats(cfg, base, tables, plan)
+    comm_metrics = communication_metrics_for_selection(cfg, base, tables_eval, selected, plan)
+
+    capture_rate = 1.0
+    if belief_mode:
+        from .belief import belief_capture_rate
+
+        capture_rate = belief_capture_rate(cfg, eval_base, base, selected)
 
     return MethodResult(
         name=method,
@@ -381,7 +552,7 @@ def run_method_on_trial(
         false_alarm_overall=fa_overall,
         total_false_overall=total_false_overall,
         overhead_bits=total_overhead_bits(cfg, selected),
-        overhead_delay_s=total_overhead_delay_s(cfg, tables_eval, selected),
+        overhead_delay_s=total_overhead_delay_s(cfg, tables_eval, selected, plan),
         selected_links=selected,
         D_fuse_per_target=D,
         active_targets=active_target_count(selected),
@@ -389,6 +560,7 @@ def run_method_on_trial(
         feasible_links=feasible_links,
         fine_eval_full=fine_eval_full,
         fine_eval_c2f=fine_eval_c2f,
+        belief_capture_rate=capture_rate,
         **comm_metrics,
     )
 
@@ -398,22 +570,52 @@ def run_one_trial(
     trial_index: int,
     methods: Optional[List[str]] = None,
 ) -> Dict[str, MethodResult]:
-    """Run every (or a chosen subset of) method on one shared geometry.
-
-    ``methods`` lets an experiment register its own roster -- e.g. the C2F
-    mode adds ``proposed_c2f`` without disturbing the main comparison.
-    """
-    # Multi-integer seeding avoids correlations between consecutive seeds.
+    """Run every (or a chosen subset of) method on one shared geometry."""
     rng = np.random.default_rng([cfg.run.seed, trial_index])
     geom = generate_geometry(cfg, rng)
+
+    # ---- Truth vs belief ------------------------------------------------
+    if cfg.prior.belief_mode:
+        from .belief import belief_geometry
+
+        base_truth = build_base_gains(cfg, geom, rng)
+        tables_truth = compute_link_tables(cfg, base_truth)
+
+        geom_belief = belief_geometry(cfg, geom, rng)
+        # Reuse the *physical* channel (UAV-UAV fading + target RCS) from the
+        # truth; only the target state differs between belief and truth.
+        base_belief = build_base_gains(cfg, geom_belief, rng, channel=base_truth)
+        tables_belief = compute_link_tables(cfg, base_belief)
+
+        plan = _build_plan(cfg, base_belief, tables_belief, geom_belief)
+
+        cached_lagrangian = select_lagrangian(cfg, base_belief, tables_belief, plan)
+        reference_counts = {q: len(cached_lagrangian[0].get(q, [])) for q in range(cfg.scale.Q)}
+
+        needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
+        c2f_tables = None
+        if needs_fine and any(m in C2F_METHODS for m in (methods or METHODS)):
+            c2f_tables = compute_link_tables(cfg, base_belief, dd_gain=base_belief.eta_fine)
+
+        method_roster = methods if methods is not None else METHODS
+        return {
+            method: run_method_on_trial(
+                cfg, base_belief, tables_belief, method, trial_index,
+                reference_counts, cached_lagrangian, c2f_tables, plan,
+                eval_base=base_truth, eval_tables=tables_truth,
+            )
+            for method in method_roster
+        }
+
+    # ---- Default (shared state) -----------------------------------------
     base = build_base_gains(cfg, geom, rng)
     tables = compute_link_tables(cfg, base)
 
-    cached_lagrangian = select_lagrangian(cfg, base, tables)
+    plan = _build_plan(cfg, base, tables, geom)
+
+    cached_lagrangian = select_lagrangian(cfg, base, tables, plan)
     reference_counts = {q: len(cached_lagrangian[0].get(q, [])) for q in range(cfg.scale.Q)}
 
-    # Build fine-grained tables only when a C2F method is requested and the
-    # refined DD gain actually differs from the coarse gain.
     needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
     c2f_tables = None
     if needs_fine and any(m in C2F_METHODS for m in (methods or METHODS)):
@@ -422,14 +624,7 @@ def run_one_trial(
     method_roster = methods if methods is not None else METHODS
     return {
         method: run_method_on_trial(
-            cfg,
-            base,
-            tables,
-            method,
-            trial_index,
-            reference_counts,
-            cached_lagrangian,
-            c2f_tables,
+            cfg, base, tables, method, trial_index, reference_counts, cached_lagrangian, c2f_tables, plan
         )
         for method in method_roster
     }
@@ -439,11 +634,7 @@ def run_simulation(
     cfg: Config,
     methods: Optional[List[str]] = None,
 ) -> Dict[str, Dict[str, Any]]:
-    """Run the full Monte-Carlo experiment once under the given configuration.
-
-    ``methods`` restricts the per-trial roster to a chosen subset; useful when
-    a single experiment (e.g. C2F ablation) only needs a few rows.
-    """
+    """Run the full Monte-Carlo experiment once under the given configuration."""
     method_roster = methods if methods is not None else METHODS
     all_results: Dict[str, List[MethodResult]] = {m: [] for m in method_roster}
     print_interval = max(1, cfg.run.num_mc // 10)
@@ -490,6 +681,7 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     feasible_links = np.array([r.feasible_links for r in results], dtype=float)
     fine_eval_full = np.array([r.fine_eval_full for r in results], dtype=float)
     fine_eval_c2f = np.array([r.fine_eval_c2f for r in results], dtype=float)
+    belief_capture = np.array([r.belief_capture_rate for r in results], dtype=float)
     selected_links = np.array([sum(len(v) for v in r.selected_links.values()) for r in results], dtype=float)
 
     def col(attr: str) -> np.ndarray:
@@ -538,6 +730,7 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "feasible_links_mean": float(np.mean(feasible_links)),
         "fine_eval_full_mean": float(np.mean(fine_eval_full)),
         "fine_eval_c2f_mean": float(np.mean(fine_eval_c2f)),
+        "belief_capture_rate_mean": float(np.mean(belief_capture)),
         "comm_feasible_edge_ratio_mean": float(np.mean(feasible_edge_ratio)),
         "selected_rate_mean_mbps": float(np.mean(selected_rate_mean)),
         "selected_rate_min_mbps_mean": float(np.mean(selected_rate_min)),

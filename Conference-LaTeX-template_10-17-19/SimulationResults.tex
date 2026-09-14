@@ -43,6 +43,9 @@ parameters.
 		Link-selection parameters
 		& $D_{\min}=3$, $\lambda_c=0.005$, $L_{\max}=6$,
 		$L_{\mathrm{tot}}=60$ \\
+		ISAC interference coupling
+		& shared-spectrum field, $\kappa_{\mathrm{dc}}=40~\mathrm{dB}$,
+		guard $N_0\!\cdot\!10^{-3}$ ($-30~\mathrm{dB}$ rel.\ $N_0$) \\
 		C2F DD parameters
 		& $W=1$, $\kappa_{\mathrm{dd}}=0.45$, $\eta_{\min}=0.25$,
 		$L_{\mathrm{short}}=25$ \\
@@ -62,11 +65,11 @@ parameters.
 \subsection{Performance and Tradeoff Analysis}
 
 For the main comparison in Fig.~\ref{fig:main_comparison}, the proposed method
-achieves $P_D=0.6648$, which retains about $94.8\%$ of the all-neighbor
+achieves $P_D=0.9481$, which retains about $97.2\%$ of the all-neighbor
 detection probability. At the same time, it reduces signaling overhead and
-exchange delay by approximately $92.1\%$ and $94.8\%$, respectively. In
-absolute terms, the exchange delay decreases from about $5.1\times10^2$ ms
-under all-neighbor fusion to about $27$ ms with the proposed method. This
+exchange delay by approximately $96.7\%$ and $99.0\%$, respectively. In
+absolute terms, the exchange delay decreases from about $6.9\times10^2$ ms
+under all-neighbor fusion to about $6.9$ ms with the proposed method. This
 confirms that all-neighbor fusion is a useful upper-resource reference, but its
 reporting cost is too high for low-latency cooperative sensing.
 
@@ -76,13 +79,16 @@ sensing responses, without explicitly checking whether their soft statistics
 can be reported reliably and quickly. By combining communication-error-
 calibrated marginal deflection with delay-aware Lagrangian pricing, the
 proposed method keeps most useful cooperative observations and discards links
-whose reporting cost is not justified by their effective fusion contribution.
+whose reporting cost is not justified by their effective fusion contribution;
+it attains $0.9481$ against $0.8705$ for Sensing-SINR and $0.8148$ for
+Shortest-Bistatic, a margin of $7.8$ percentage points over the strongest
+competing rule.
 
 Under the same per-target selected-link budget, the proposed method achieves
-higher detection probability than Sensing-SINR and Top-K Sensing-SINR. Compared
-with Top-K Deflection, it provides similar detection performance while reducing
-exchange delay by about $29\%$. This behavior is consistent with the
-delay-aware Lagrangian term, which discourages unreliable or slow
+higher detection probability than every baseline except the all-neighbor upper
+reference, and it marginally exceeds Top-K Deflection ($0.9481$ vs.\ $0.9470$)
+while reducing exchange delay by about $6.5\%$. This behavior is consistent with
+the delay-aware Lagrangian term, which discourages unreliable or slow
 soft-information links even when their sensing or deflection scores are high.
 
 \begin{figure}[!t]
@@ -100,22 +106,34 @@ soft-information links even when their sensing or deflection scores are high.
 \end{figure}
 
 Varying $\lambda_c$ in Fig.~\ref{fig:lambda_tradeoff} changes the selected-link
-pattern directly. A larger $\lambda_c$ reduces the number of selected links,
-signaling overhead, and exchange delay, with only a moderate loss in detection
-probability. Hence, $\lambda_c$ serves as a practical control knob for the
-detection--delay tradeoff. Changing $R_{\min}$ in
-Fig.~\ref{fig:comm_sweep} affects the problem in a different way: a larger rate
-requirement shrinks the feasible reporting graph and weakens the cooperative
-sensing gain. In the low-to-moderate constraint region, the proposed method
-still maintains a better sensing--communication tradeoff than Sensing-SINR by
-prioritizing reliable and low-delay links.
+pattern directly. Over more than two decades of $\lambda_c$ (from
+$5\times10^{-4}$ to $0.2$) the number of selected links falls from $16.5$ to
+$12.6$, the exchange delay from $8.5$ to $4.3$ ms and the overhead from $10.6$
+to $8.1$ kbit, while $P_D$ changes by less than half a percentage point
+($0.9523$ to $0.9477$). Hence $\lambda_c$ is a practical control knob for the
+detection--delay tradeoff that buys latency and overhead almost for free.
+Changing $R_{\min}$ in Fig.~\ref{fig:comm_sweep} affects the problem in a
+different way: a larger rate requirement shrinks the feasible reporting graph
+and weakens the cooperative sensing gain. $P_D$ falls from $0.9678$ at
+$R_{\min}=0.1$ to $0.4797$ at $R_{\min}=2$ (in Mbit/s). In the low-to-moderate
+constraint region the proposed method still maintains a better
+sensing--communication tradeoff than Sensing-SINR by prioritizing reliable and
+low-delay links: at $R_{\min}=0.1$ it attains $0.9678$ against $0.8927$, and it
+only converges to the baseline once the feasible graph is so sparse that almost
+no selection freedom remains.
 
 Taken together, these two sensitivity tests separate the roles of algorithmic
 pricing and communication feasibility. The Lagrangian price adjusts the penalty
 on reporting delay, whereas the rate constraint changes which inter-UAV links
 can be used for soft-information exchange. When the feasible reporting graph
 becomes too sparse, all cooperative schemes degrade, indicating that
-communication feasibility remains a fundamental bottleneck.
+communication feasibility remains a fundamental bottleneck. We note that under
+the corrected interference model the fraction of feasible reporting edges at the
+nominal $R_{\min}=0.2$ rises from $0.33$ to $0.50$, because the
+scale-relative SINR guard restores the communication SINR on weakly interfered
+links. The nominal operating point is therefore only moderately constrained; the
+constraint becomes binding for $R_{\min}\gtrsim1$, where $P_D$ falls to $0.78$
+and the selection freedom effectively disappears.
 
 \subsection{Ablation and Robustness Analysis}
 
@@ -130,11 +148,11 @@ communication feasibility remains a fundamental bottleneck.
 		Variant & $P_D$ & Bits & Delay & Worst \\
 		& & (kbit) & (ms) & $P_D$ \\
 		\midrule
-		Full & 0.6540 & 16.26 & 26.82 & 0.631 \\
-		w/o target priority & 0.6198 & 16.63 & 29.59 & 0.601 \\
-		w/o delay price & 0.6564 & 16.48 & 29.21 & 0.635 \\
-		w/o comm.-error calib. & 0.5856 & 13.77 & 28.48 & 0.572 \\
-		w/o C2F refine & 0.6223 & 16.41 & 27.42 & 0.604 \\
+		Full & 0.9469 & 9.17 & 6.56 & 0.938 \\
+		w/o target priority & 0.8504 & 15.88 & 9.40 & 0.826 \\
+		w/o delay price & 0.9482 & 9.43 & 7.18 & 0.938 \\
+		w/o comm.-error calib. & 0.8445 & 6.57 & 8.15 & 0.830 \\
+		w/o softmin-$\alpha$ & 0.9540 & 10.00 & 7.18 & 0.947 \\
 		\bottomrule
 	\end{tabular}
 \end{table}
@@ -142,39 +160,191 @@ communication feasibility remains a fundamental bottleneck.
 For the component study in Table~\ref{tab:ablation_compact}, all variants are
 evaluated under a fixed selected-link budget. The ``Full'' row is therefore
 used for within-table comparison and is not intended to duplicate the
-main-comparison value in Fig.~\ref{fig:main_comparison}. Among the tested
-variants, removing communication-error calibration causes the largest
-degradation, reducing $P_D$ from $0.6540$ to $0.5856$. This highlights the
-importance of calibrating unreliable exchanged soft information before fusion.
-Without C2F refinement, $P_D$ decreases to $0.6223$, which indicates that local
-DD refinement helps recover fractional delay-Doppler energy leakage. Removing
-target priority degrades both average and worst-target detection performance.
-Without delay-aware pricing, $P_D$ and worst-target $P_D$ slightly increase,
-but the exchange delay also becomes larger; this matches the role of the
-delay-price term in trading a small amount of detection gain for lower
-reporting latency.
+main-comparison value in Fig.~\ref{fig:main_comparison}. Removing
+communication-error calibration causes the largest degradation, reducing $P_D$
+from $0.9469$ to $0.8445$, which highlights the importance of calibrating
+unreliable exchanged soft information before fusion. Removing target priority
+is comparably damaging ($0.8504$) and additionally inflates the overhead from
+$9.17$ to $15.88$ kbit and the delay from $6.56$ to $9.40$ ms, confirming that
+the priority term is what keeps the selector from over-investing in targets
+that are already resolved. Without delay-aware pricing $P_D$ is marginally
+higher ($0.9482$), but the exchange delay grows by about $9\%$; this matches the
+role of the delay-price term in trading a small amount of detection gain for
+lower reporting latency. Notably, removing the softmin weighting raises $P_D$
+from $0.9469$ to $0.9540$ but costs more overhead and delay ($10.00$ kbit and
+$7.18$ ms), indicating that the softmin-$\alpha$ fairness term currently lacks
+experimental support; it is retained only as a configurable mechanism and its
+justifying functional is left to future work.
 
 In a separate DD-domain ablation under the main-comparison configuration, C2F
-refinement improves $P_D$ from $0.6262$ to $0.6648$. It matches full local
-refinement while reducing fine DD-grid evaluations by about $41.1\%$. This
-experiment isolates the effect of DD-domain refinement and shows that local
-DD-grid recovery is useful, whereas applying it to every feasible triplet is
-unnecessary.
+refinement improves $P_D$ from $0.9481$ to $0.9572$. It matches full local
+refinement ($0.9537$, the difference being within Monte-Carlo error) while
+reducing fine DD-grid evaluations by about $44.6\%$. This experiment isolates
+the effect of DD-domain refinement and shows that local DD-grid recovery is
+useful, whereas applying it to every feasible triplet is unnecessary.
 
 \begin{figure*}[!t]
 	\centering
 	\includegraphics[width=0.80\textwidth]{figs/fig6_robustness.pdf}
-	\caption{Robustness under communication errors and residual interference.}
+	\caption{Robustness along four axes: communication error model, soft-error
+	scale, residual direct-interference floor (decoupled model) and direct-path
+	cancellation (coupled model).}
 	\label{fig:robustness}
 \end{figure*}
 
-Robustness is further evaluated under communication errors and residual
-interference in Fig.~\ref{fig:robustness}. As the soft-error scale or residual
-factor increases, all methods degrade. The proposed method still maintains a
-favorable detection--delay tradeoff because communication reliability and
-residual-interference-aware calibration penalize unreliable links before
-fusion. These results support the robustness of the proposed soft-information
-fusion strategy under imperfect reporting conditions.
+Robustness is evaluated along four axes in Fig.~\ref{fig:robustness}. Under
+communication errors the proposed method attains $P_D=0.9481$ for erasure,
+$0.9756$ for the biased model and $0.9050$ for bit flipping, so even the
+worst case retains $92.8\%$ of the error-free value. Sweeping the soft-error
+scale from $1$ to $4$ degrades $P_D$ only from $0.9488$ to $0.9446$, at the
+cost of growing the exchange delay from $4.9$ to $8.3$ ms. The two
+interference axes are qualitatively different: the residual-floor axis is
+evaluated inside the decoupled model, where it controls the sensing
+interference directly and drives $P_D$ from $0.6550$ down to $0.4970$ over two
+decades, whereas the direct-path cancellation axis is the ISAC-specific axis
+analysed in Section~\ref{subsec:interference_coupling}. In every case the
+proposed method maintains a favorable detection--delay tradeoff because
+communication reliability and interference-aware calibration penalize
+unreliable links before fusion. These results support the robustness of the
+proposed soft-information fusion strategy under imperfect reporting
+conditions.
+
+\subsection{Model Refinements and Theoretical Guarantees}
+\label{subsec:refinements}
+
+This subsection validates the stricter model components introduced in
+Section~\ref{sec:system_model} and the structural guarantee of the greedy rule.
+
+\emph{Strictly derived soft statistic (local LLR).} Replacing the Gaussian
+abstraction \eqref{eq:gaussian_soft_stat} by the waveform-derived local LLR
+\eqref{eq:local_llr}--\eqref{eq:llr_kld} removes the hand-set scale
+$\kappa_\mu$. Under the LLR model the proposed method attains $P_D=0.9048$
+with all-neighbor $P_D=0.9513$, i.e.\ a $95.1\%$ retention of the upper
+reference, and it still outperforms the Sensing-SINR ($0.8360$) and Top-K
+Deflection ($0.9034$) baselines while lowering the exchange delay from $19.2$ to
+$9.9$ ms. The absolute level is $4.3$ points below the Gaussian abstraction,
+which is the price of deleting the $\kappa_\mu=8$ scale; the ordering of the
+methods is preserved, confirming that the scheduling behaviour is not an
+artefact of that scale, while the per-link information gain is exactly the KLD
+\eqref{eq:llr_kld}.
+
+\emph{Finite-blocklength reliability.} With the FBL model
+\eqref{eq:fbl_reliability}, the mean report reliability grows from
+$\chi\approx0.404$ at blocklength $n=256$ to $\chi\approx0.918$ at $n=512$ and
+$\chi\approx1.0$ from $n=1024$ onwards, while the block latency
+$n/B_{\mathrm c}$ grows from $0.67$ ms to $22.3$ ms. Correspondingly, $P_D$ rises
+from $0.140$ to $0.512$, $0.865$, $0.960$ and $0.987$ at $n=4096$. The FBL sweep
+thus exposes the reliability--latency trade-off that the heuristic map
+\eqref{eq:heuristic_reliability} cannot express: reliability, payload and
+latency are one coupled system, and the useful operating range is
+$n\in[1024,4096]$, where reliability has saturated but latency is still
+affordable.
+
+\emph{Correlation-aware fusion.} Enabling the observation-covariance fusion
+\eqref{eq:correlation_aware_deflection} is essentially neutral under the
+corrected model: $P_D$ moves from $0.9481$ to $0.9448$, the mean deflection from
+$25.10$ to $24.49$, and the selected-link count from $14.9$ to $15.7$. This is
+consistent with the corrected selector already working close to the minimum
+link count, so little redundant observation is left for the covariance model to
+prune; the main value of the model is that it makes the assumption explicit
+rather than silently double-counting correlated pairs.
+
+\emph{Truth vs.\ belief.} Under the belief-mismatch sweep
+\eqref{eq:belief_loop}, detection degrades monotonically as the tracker belief
+error grows: $P_D=0.9481$ at a perfect tracker falls to $0.3784$ at belief error
+$\sigma_p=50~\mathrm m$, to $0.0762$ at $150~\mathrm m$ and to $0.0249$ at
+$300~\mathrm m$, with the belief-window capture rate dropping from $1.00$ to
+$0.37$, $0.07$ and $0.02$. This quantifies the
+predict--schedule--sense--update cost that the earlier ``perturbed-world''
+experiments could not capture, and it also identifies the tracking accuracy as
+the binding constraint once the reporting budget is resolved.
+
+\emph{Submodularity and the greedy guarantee.} The diminishing-returns audit on
+$800$ sampled set pairs reports zero monotonicity violations and zero
+submodularity violations, i.e.\ the objective \eqref{eq:task_objective} is
+empirically monotone submodular. Its total curvature is $c=0.896$, giving the
+guarantee \eqref{eq:greedy_guarantee}
+$\frac{1-e^{-c}}{c}=0.660$. On the small-scale instances where an exact search
+is tractable, the greedy rule achieves a mean $2.0\%$ gap (median $0.2\%$, max
+$25.1\%$) from the same-objective optimum, confirming that the greedy selector
+is near-optimal on the very objective it optimises.
+
+\FloatBarrier
+
+\subsection{Interference Coupling and the Sensing-Suppression Budget}
+\label{subsec:interference_coupling}
+
+Since a UAV radiates one joint waveform into a shared band, the communication
+and the sensing receiver at the same node face the same concurrent transmitters
+over the same channel gains \eqref{eq:shared_interference_field}. At the
+main-comparison operating point the near-far ratio \eqref{eq:near_far_ratio} is
+$\rho_{\mathrm{NF}}=41.3$~dB, the communication interference-to-noise ratio is
+$+29.4$~dB, and the direct-path contribution to the sensing interference under
+the default $\kappa_{\mathrm{dc}}=40$~dB is $-3.9$~dB. With the guard term
+corrected, coupling the two receivers raises the sensing interference by only
+$0.287$~dB relative to the decoupled residual floors ($-2.003$ vs.\
+$-1.716$~dB), so the structural correction to the sensing side is small. The
+coupling is nevertheless not free: it also restores the always-radiated sensing
+leakage at the communication receivers, and the illuminator's own direct path at
+the sensing receiver, which is why the corrected model is the more conservative
+of the two ($P_D=0.9481$ against $0.9629$ for the guard fix alone).
+
+A second, unintended effect turned out to matter more. The SINR guard term, not
+the interference model, was dominating the sensing link budget: under the
+coupled model with the legacy guard the median sensing SINR is $-22.0$~dB, and
+moving the guard below the noise floor raises it to $-10.1$~dB and $P_D$ from
+$0.6447$ to $0.9481$. Because the same guard entered the denominator of the
+interference-to-noise ratio, it had also deflated that ratio from $-1.7$~dB to
+$-16.3$~dB, which is why the sensing interference term was invisible in every
+earlier experiment.
+
+Finally, $\kappa_{\mathrm{dc}}$ cannot be chosen freely, and
+Table~\ref{tab:suppression_budget} locates the resulting budget. The quantity
+that fixes it is the interference-to-noise ratio at the sensing receiver,
+$I_j^{\mathrm s,dir}/N_0=+36.1$~dB: the sensing task is viable once the direct
+path is cancelled down to the noise floor, and every additional 10~dB of
+suppression above that point buys nothing. Keeping everything else fixed, $P_D$
+rises from $0.0021$ at $0$~dB to $0.8494$ at $30$~dB and then saturates near
+$0.96$ from $40$~dB onwards. Even all-neighbour fusion collapses to $P_D=0.0465$
+at zero cancellation: no amount of link selection substitutes for direct-path
+suppression. Cooperative sensing therefore requires suppression of the order of
+$\rho_{\mathrm{NF}}$, which is the price that sharing the spectrum with the
+communication function imposes on the sensing receiver. Reporting this threshold
+explicitly, instead of burying it in an unstructured interference floor, is what
+makes the scheduling problem an ISAC problem: the illumination that the
+communication function requires is the same illumination that limits the sensing
+function. Because the absolute $P_D$ at a given $\kappa_{\mathrm{dc}}$ depends on
+the soft-statistic model --- the strictly derived LLR model sits $4$--$6$ points
+lower at the same operating point --- the suppression budget, not the detection
+probability, is the model-robust statement.
+
+The remaining figures and tables in this section use the decoupled interference
+floors of the earlier abstraction, for continuity with the frozen reference
+results. The coupled instantiation quantified above is the default in the
+released code and is available as a configuration preset; it shifts the absolute
+detection probabilities while preserving the method ordering and the qualitative
+conclusions. In particular, the proposed selector attains $P_D=0.9481$ against
+$0.8705$ for sensing-SINR selection and $0.9470$ for Top-K deflection under the
+coupled model, versus $0.6506$, $0.6408$ and $0.6593$ respectively under the
+decoupled one, while reducing the reporting delay from $688$~ms to $6.9$~ms.
+
+\begin{table}[t]
+	\centering
+	\caption{Direct-path suppression budget of the sensing receiver, with all
+	other settings at the main-comparison operating point.}
+	\label{tab:suppression_budget}
+	\footnotesize
+	\setlength{\tabcolsep}{3pt}
+	\begin{tabular}{lcccccc}
+		\toprule
+		$\kappa_{\mathrm{dc}}$ (dB) & $0$ & $10$ & $20$ & $30$ & $40$ & $80$ \\
+		\midrule
+		$I_j^{\mathrm{s,dir}}/N_0$ (dB) & $+36.1$ & $+26.1$ & $+16.1$ & $+6.1$ & $-3.9$ & $-43.9$ \\
+		$P_D$ (proposed) & $0.002$ & $0.032$ & $0.358$ & $0.849$ & $0.948$ & $0.966$ \\
+		$P_D$ (all-neighbour) & $0.047$ & $0.056$ & $0.355$ & $0.866$ & $0.976$ & $0.989$ \\
+		\bottomrule
+	\end{tabular}
+\end{table}
 
 \FloatBarrier
 

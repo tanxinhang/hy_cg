@@ -39,7 +39,10 @@ RUN = ROOT / "run_isac_sim.py"
 #   * the deflection denominator includes the between-group variance term
 #     chi*(1-chi)*mu^2 of the Bernoulli drop-out mixture;
 #   * interference is built from the *active* concurrent set, so a method that
-#     selects fewer links sees less interference.
+#     selects fewer links sees less interference;
+#   * the SINR guard is noise-relative and the sensing interference is the same
+#     field the communication receiver sees (both are package defaults now; the
+#     frozen pre-correction model remains reachable via the ``legacy`` preset).
 PAPER_SET = [
     "geometry.uav_speed_min=30",
     "geometry.target_speed_min=50",
@@ -49,7 +52,7 @@ PAPER_SET = [
 
 # (mode, extra argv, output subdirectory).  Every mode uses the same paper
 # parameter set + MC.  Robustness is run per axis, each into its own
-# subdirectory, so the three axes don't overwrite each other's CSV.
+# subdirectory, so the axes don't overwrite each other's CSV.
 MODES: List[Tuple[str, List[str], str]] = [
     ("main", [], "main"),
     # Control run under the conservative full-concurrent interference model,
@@ -64,6 +67,15 @@ MODES: List[Tuple[str, List[str], str]] = [
     ("robustness", ["--axis", "comm_model"], "robustness_comm_model"),
     ("robustness", ["--axis", "error_sigma"], "robustness_error_sigma"),
     ("robustness", ["--axis", "residual_direct"], "robustness_residual_direct"),
+    # Direct-path cancellation budget (ISAC feasibility threshold).
+    ("robustness", ["--axis", "direct_cancellation"], "robustness_direct_cancellation"),
+    # Model-refinement experiments (§V).
+    ("interference-consistency", [], "interference-consistency"),
+    ("belief-mismatch", [], "belief-mismatch"),
+    ("fbl-sweep", [], "fbl-sweep"),
+    ("correlation-ablation", [], "correlation-ablation"),
+    ("submodularity", [], "submodularity"),
+    ("same-objective-gap", [], "same-objective-gap"),
 ]
 
 

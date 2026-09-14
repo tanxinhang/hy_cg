@@ -34,19 +34,43 @@ or from the shell::
 
 from __future__ import annotations
 
-from .config import Config, apply_overrides, default_config, iter_leaf_paths
+from .config import (
+    PRESETS,
+    Config,
+    apply_overrides,
+    apply_preset,
+    default_config,
+    iter_leaf_paths,
+)
 from .experiments import ABLATION_VARIANTS, DD_VARIANTS, EXPERIMENTS
-from .model import BaseGains, LinkTables, build_base_gains, compute_link_tables, generate_geometry
+from .model import (
+    BaseGains,
+    LinkTables,
+    build_base_gains,
+    compute_link_tables,
+    denominator_guard,
+    generate_geometry,
+)
 from .oracle import greedy_objective, oracle_exhaustive
 from .prior import perturbed_geometry, predicted_geometry
+from .reporting import ReportingPlan, assign_fusion_nodes
 from .selection import C2F_METHODS, METHODS
 from .simulate import run_one_trial, run_simulation, summarize
+from .theory import (
+    empirical_curvature,
+    greedy_guarantee,
+    same_objective_oracle,
+    submodularity_audit,
+    task_objective,
+)
 from .waveform import psf_local_capture, psf_main_bin, sweep_compare_analytic_vs_psf
 
 __all__ = [
     "Config",
     "default_config",
     "apply_overrides",
+    "apply_preset",
+    "PRESETS",
     "iter_leaf_paths",
     "run_simulation",
     "run_one_trial",
@@ -54,6 +78,7 @@ __all__ = [
     "generate_geometry",
     "build_base_gains",
     "compute_link_tables",
+    "denominator_guard",
     "BaseGains",
     "LinkTables",
     "METHODS",
@@ -63,11 +88,18 @@ __all__ = [
     "DD_VARIANTS",
     "oracle_exhaustive",
     "greedy_objective",
+    "same_objective_oracle",
+    "task_objective",
+    "submodularity_audit",
+    "empirical_curvature",
+    "greedy_guarantee",
     "perturbed_geometry",
     "predicted_geometry",
+    "ReportingPlan",
+    "assign_fusion_nodes",
     "psf_main_bin",
     "psf_local_capture",
     "sweep_compare_analytic_vs_psf",
 ]
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"

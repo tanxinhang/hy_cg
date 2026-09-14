@@ -477,6 +477,164 @@ def plot_runtime(rows, out_dir: Path) -> None:
     _save(fig, out_dir, "runtime.png")
 
 
+def plot_belief_mismatch(rows, out_dir: Path) -> None:
+    """P_D vs belief error amplitude, per method."""
+    if not rows:
+        return
+    plt = _pyplot()
+    fig, ax = plt.subplots(figsize=(7.0, 3.8))
+    for method in sorted({r["method"] for r in rows}):
+        sub = [r for r in rows if r["method"] == method]
+        xs = [r["belief_sigma_pos_m"] for r in sub]
+        ys = [r["P_D"] for r in sub]
+        ax.plot(xs, ys, "-o", label=method.replace("_", " "))
+    ax.set_xlabel(r"belief position error $\sigma_p$ (m)")
+    ax.set_ylabel(r"$P_D$")
+    ax.set_title("Detection under tracker belief mismatch")
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=9)
+    _save(fig, out_dir, "belief_mismatch.png")
+
+
+def plot_fbl_sweep(rows, out_dir: Path) -> None:
+    """Blocklength vs reliability / latency trade-off."""
+    if not rows:
+        return
+    plt = _pyplot()
+    xs = [r["n_block"] for r in rows]
+    chi = [r["selected_chi_mean"] for r in rows]
+    pd = [r["P_D"] for r in rows]
+    fig, ax1 = plt.subplots(figsize=(7.0, 3.8))
+    ax1.plot(xs, chi, "-o", color="#3a7", label=r"mean $\chi=1-\epsilon$")
+    ax1.set_xlabel("report blocklength n (channel uses)")
+    ax1.set_ylabel(r"reliability $\chi$", color="#3a7")
+    ax1.tick_params(axis="y", labelcolor="#3a7")
+    ax1.set_xscale("log")
+    ax2 = ax1.twinx()
+    ax2.plot(xs, pd, "-s", color="#d55", label=r"$P_D$")
+    ax2.set_ylabel(r"$P_D$", color="#d55")
+    ax2.tick_params(axis="y", labelcolor="#d55")
+    ax1.set_title("Finite-blocklength reliability vs detection")
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    _save(fig, out_dir, "fbl_sweep.png")
+
+
+def plot_correlation_ablation(rows, out_dir: Path) -> None:
+    """P_D / deflection with and without correlation-aware fusion."""
+    if not rows:
+        return
+    plt = _pyplot()
+    labels = ["independent" if not r["corr_enable"] else "correlation-aware" for r in rows]
+    pds = [r["P_D"] for r in rows]
+    ds = [r["D_mean"] for r in rows]
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(8.0, 3.6))
+    a1.bar(labels, pds, color=["#888", "#3a7"])
+    a1.set_ylabel(r"$P_D$")
+    a2.bar(labels, ds, color=["#888", "#3a7"])
+    a2.set_ylabel(r"mean deflection $D$")
+    for ax in (a1, a2):
+        ax.grid(True, axis="y", alpha=0.3)
+    fig.suptitle("Correlation-aware fusion ablation")
+    fig.tight_layout()
+    _save(fig, out_dir, "correlation_ablation.png")
+
+
+def plot_submodularity(rows, out_dir: Path) -> None:
+    """Violation rates and greedy guarantee (single-row diagnostics)."""
+    if not rows:
+        return
+    r = rows[0]
+    plt = _pyplot()
+    fig, ax = plt.subplots(figsize=(7.0, 3.4))
+    names = ["monotone\nviolations", "submod.\nviolations", "1 - curvature", "greedy\nguarantee"]
+    vals = [
+        r.get("monotone_violation_rate", 0.0),
+        r.get("submodularity_violation_rate", 0.0),
+        1.0 - r.get("curvature", 0.0),
+        r.get("greedy_guarantee", 0.0),
+    ]
+    bars = ax.bar(names, vals, color=["#3a7", "#3a7", "#d55", "#d55"])
+    for b, v in zip(bars, vals):
+        ax.text(b.get_x() + b.get_width() / 2, v + 0.02, f"{v:.3f}", ha="center", fontsize=9)
+    ax.set_ylim(0, 1.15)
+    ax.set_title("Submodularity audit (0 violations => structure holds)")
+    ax.grid(True, axis="y", alpha=0.3)
+    fig.tight_layout()
+    _save(fig, out_dir, "submodularity.png")
+
+
+def plot_same_objective_gap(rows, out_dir: Path) -> None:
+    """Greedy vs oracle on the identical objective."""
+    if not rows:
+        return
+    plt = _pyplot()
+    fig, ax = plt.subplots(figsize=(7.0, 3.8))
+    trials = [r["trial"] for r in rows]
+    ax.plot(trials, [r["oracle_obj"] for r in rows], "-o", label="oracle (exact)", color="#d55")
+    ax.plot(trials, [r["greedy_obj"] for r in rows], "-s", label="greedy (proposed)", color="#3a7")
+    mean_gap = float(np.mean([r["gap"] for r in rows]))
+    ax.set_xlabel("trial")
+    ax.set_ylabel(r"$\sum_q P_D(D_q) - \lambda_c \mathrm{cost}$")
+    ax.set_title(f"Same-objective greedy vs oracle (mean gap = {mean_gap:.1%})")
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc="best", fontsize=9)
+    _save(fig, out_dir, "same_objective_gap.png")
+
+
+def plot_interference_consistency(rows, out_dir: Path) -> None:
+    """Near-far / INR bookkeeping and the direct-path cancellation requirement."""
+    if not rows:
+        return
+    plt = _pyplot()
+    rows = [r for r in rows if r.get("method") == "proposed_lagrangian"]
+    book = [r for r in rows if r.get("group") == "bookkeeping"]
+    sweep = sorted([r for r in rows if r.get("group") == "cancellation_sweep"],
+                   key=lambda r: float(r["direct_cancellation_db"]))
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.0, 3.8))
+
+    # (a) bookkeeping variants: the two INR levels side by side
+    if book:
+        ax = axes[0]
+        labels = [r["variant"] for r in book]
+        x = np.arange(len(labels))
+        ax.bar(x - 0.2, [r["comm_inr_db"] for r in book], 0.4,
+               label=r"$I_{\rm comm}/N_0$", color="#d55")
+        ax.bar(x + 0.2, [r["sense_inr_db"] for r in book], 0.4,
+               label=r"$I_{\rm sense}/N_0$", color="#3a7")
+        for xi, r in zip(x, book):
+            ax.text(xi, r["near_far_db"] + 0.6, "near-far\n%.0f dB" % r["near_far_db"],
+                    ha="center", fontsize=6, color="#555")
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=15, ha="right", fontsize=8)
+        ax.set_ylabel("interference-to-noise ratio (dB)")
+        ax.set_title("Same field, two receivers")
+        ax.grid(True, axis="y", alpha=0.3)
+        ax.legend(fontsize=8)
+
+    # (b) cancellation sweep: sensing SINR and P_D vs kappa_dc
+    if sweep:
+        ax = axes[1]
+        db = [float(r["direct_cancellation_db"]) for r in sweep]
+        ax.plot(db, [r["sense_sinr_db"] for r in sweep], "-o", color="#3a7",
+                label=r"$\gamma^s$ (dB)")
+        ax.set_xlabel("direct-path cancellation at the sensing receiver (dB)")
+        ax.set_ylabel(r"median sensing SINR (dB)")
+        ax.grid(True, alpha=0.3)
+        ax2 = ax.twinx()
+        ax2.plot(db, [r["P_D"] for r in sweep], "-s", color="#d55", label=r"$P_D$")
+        ax2.set_ylabel(r"$P_D$")
+        ax2.set_ylim(0, 1.05)
+        ax.set_title("Cancellation that the ISAC task requires")
+        h1, l1 = ax.get_legend_handles_labels()
+        h2, l2 = ax2.get_legend_handles_labels()
+        ax.legend(h1 + h2, l1 + l2, loc="center right", fontsize=8)
+
+    fig.tight_layout()
+    _save(fig, out_dir, "interference_consistency.png")
+
+
 # ==========================================================================
 # Registry
 # ==========================================================================
@@ -492,4 +650,10 @@ PLOTTERS = {
     "waveform-check": plot_waveform_check,
     "oracle-gap": plot_oracle_gap,
     "runtime": plot_runtime,
+    "belief-mismatch": plot_belief_mismatch,
+    "fbl-sweep": plot_fbl_sweep,
+    "correlation-ablation": plot_correlation_ablation,
+    "submodularity": plot_submodularity,
+    "same-objective-gap": plot_same_objective_gap,
+    "interference-consistency": plot_interference_consistency,
 }
