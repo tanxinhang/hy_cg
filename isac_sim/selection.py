@@ -35,6 +35,9 @@ METHODS: List[MethodName] = [
     "proposed_c2f",
     "proposed_c2f_adaptive",
     "proposed_c2f_adaptive_pd",
+    "proposed_c2f_adaptive_pd_distributed",
+    "proposed_c2f_adaptive_pd_robust",
+    "proposed_c2f_adaptive_pd_calibrated",
     "proposed_c2f_pd",
     "proposed_c2f_full",
     "proposed_c2f_full_pd",
@@ -51,6 +54,17 @@ METHODS: List[MethodName] = [
     "exact_marginal_greedy",
 ]
 
+# Candidate capabilities remain CLI-selectable without silently changing the
+# frozen default experiment roster or paper reproduction path.
+EXPERIMENTAL_METHODS: set[str] = {
+    "proposed_c2f_adaptive_pd_distributed",
+    "proposed_c2f_adaptive_pd_robust",
+    "proposed_c2f_adaptive_pd_calibrated",
+}
+DEFAULT_METHODS: List[MethodName] = [
+    method for method in METHODS if method not in EXPERIMENTAL_METHODS
+]
+
 # Methods that need a second sensing-SINR table for common refined evaluation.
 # Static entries map to the ``apply_to_all`` flag used by :func:`select_c2f`;
 # the adaptive entry is dispatched to :func:`select_c2f_adaptive` separately.
@@ -58,6 +72,9 @@ C2F_METHODS: Dict[str, bool] = {
     "proposed_c2f": False,
     "proposed_c2f_adaptive": False,
     "proposed_c2f_adaptive_pd": False,
+    "proposed_c2f_adaptive_pd_distributed": False,
+    "proposed_c2f_adaptive_pd_robust": False,
+    "proposed_c2f_adaptive_pd_calibrated": False,
     "proposed_c2f_pd": False,
     "proposed_c2f_full": True,
     "proposed_c2f_full_pd": True,
@@ -70,6 +87,9 @@ METHOD_RNG_OFFSETS: Dict[str, int] = {
     "proposed_c2f": 131,
     "proposed_c2f_adaptive": 133,
     "proposed_c2f_adaptive_pd": 135,
+    "proposed_c2f_adaptive_pd_distributed": 136,
+    "proposed_c2f_adaptive_pd_robust": 138,
+    "proposed_c2f_adaptive_pd_calibrated": 140,
     "proposed_c2f_pd": 139,
     "proposed_c2f_full": 137,
     "proposed_c2f_full_pd": 141,
@@ -155,6 +175,44 @@ def sensing_only_links_for_target(cfg: Config, base: BaseGains, q: int) -> List[
     return links
 
 
+def local_cap_allows(
+    cfg: Config,
+    selected: List[Link],
+    link: Link,
+    q: int,
+    plan: "object | None",
+) -> bool:
+    """Whether ``link`` respects the per-target local-evidence audit cap."""
+    if not is_local_observation(plan, link, q):
+        return True
+    cap = int(cfg.selector.max_local_observations_per_target)
+    if cap < 0:
+        return True
+    used = sum(is_local_observation(plan, chosen, q) for chosen in selected)
+    return used < cap
+
+
+def remote_cap_allows(
+    cfg: Config,
+    selected: Dict[int, List[Link]],
+    link: Link,
+    q: int,
+    plan: "object | None",
+) -> bool:
+    """Whether adding ``link`` respects the global remote-report hard cap."""
+    if is_local_observation(plan, link, q):
+        return True
+    cap = int(cfg.selector.max_remote_reports)
+    if cap < 0:
+        return True
+    used = sum(
+        not is_local_observation(plan, chosen, qq)
+        for qq, links in selected.items()
+        for chosen in links
+    )
+    return used < cap
+
+
 def topk_links_by_marginal(
     cfg: Config,
     tables: LinkTables,
@@ -216,6 +274,8 @@ def _greedy_lagrangian(
     candidates: Dict[int, List[Link]],
     plan: "object | None" = None,
     base: BaseGains | None = None,
+    distributed_bids: bool = False,
+    audit: Dict[str, float] | None = None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray]:
     """Inner greedy loop of the proposed selector.
 
@@ -232,9 +292,14 @@ def _greedy_lagrangian(
 
     active_candidate_targets = [q for q in range(Q) if len(candidates[q]) > 0]
     if not active_candidate_targets:
+        if audit is not None:
+            audit.update(score_evaluations=0.0, coordination_messages=0.0, bid_rounds=0.0)
         return selected, D_fuse
 
     total_links = 0
+    score_evaluations = 0
+    bid_messages = 0
+    bid_rounds = 0
 
     while total_links < s.max_total_links:
         alpha = target_alpha(cfg, D_fuse)
@@ -247,12 +312,18 @@ def _greedy_lagrangian(
         best_score = -np.inf
         best_D = 0.0
         best_pd = 0.0
+        local_bids: list[tuple[float, int, Link, float, float]] = []
 
         for q in range(Q):
             if len(selected[q]) >= s.max_links_per_target:
                 continue
+            local_best: tuple[float, int, Link, float, float] | None = None
             for link in candidates[q]:
                 if link in selected_sets[q]:
+                    continue
+                if not local_cap_allows(cfg, selected[q], link, q, plan):
+                    continue
+                if not remote_cap_allows(cfg, selected, link, q, plan):
                     continue
                 new_D = deflection_for_links(
                     cfg, tables, q, selected[q] + [link], weight_mode="deflection", plan=plan, base=base
@@ -281,7 +352,24 @@ def _greedy_lagrangian(
                 else:
                     sensing_gain = alpha[q] * marginal_D
                 score = sensing_gain - delay_price
+                score_evaluations += 1
 
+                if distributed_bids:
+                    if local_best is None or score > local_best[0]:
+                        local_best = (score, q, link, new_D, candidate_pd)
+                elif score > best_score:
+                    best_score = score
+                    best_tuple = (q, link)
+                    best_D = new_D
+                    best_pd = candidate_pd
+
+            if distributed_bids and local_best is not None:
+                local_bids.append(local_best)
+                bid_messages += 1
+
+        if distributed_bids:
+            bid_rounds += 1
+            for score, q, link, new_D, candidate_pd in local_bids:
                 if score > best_score:
                     best_score = score
                     best_tuple = (q, link)
@@ -302,6 +390,14 @@ def _greedy_lagrangian(
         if s.stop_at_D_min and np.all(D_fuse[active_candidate_targets] >= cfg.detect.D_min):
             break
 
+    if audit is not None:
+        audit.update(
+            score_evaluations=float(score_evaluations),
+            coordination_messages=float(
+                bid_messages if distributed_bids else score_evaluations
+            ),
+            bid_rounds=float(bid_rounds if distributed_bids else 0),
+        )
     return selected, D_fuse
 
 
@@ -414,6 +510,7 @@ def select_c2f_adaptive(
     base: BaseGains,
     tables_coarse: LinkTables,
     plan: "object | None" = None,
+    distributed_bids: bool = False,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray, Dict[str, float]]:
     r"""Build a greedy-consistent dynamic shortlist, then replay on fine DD.
 
@@ -448,6 +545,9 @@ def select_c2f_adaptive(
     pd_coarse = np.zeros(Q)
     total_links = 0
     detector_mode = s.score_mode.lower() == "detector_pd"
+    coarse_score_evaluations = 0
+    coarse_bid_messages = 0
+    coarse_rounds = 0
     # With independent observations and deflection-optimal weights, fused
     # deflection is additive.  Cache each coarse singleton once so the rollout
     # updates its greedy state without repeatedly rebuilding the same fusion.
@@ -531,16 +631,20 @@ def select_c2f_adaptive(
     pd_value_cache: Dict[int, Dict[Link, tuple[float, float, bool]]] = {}
 
     while total_links < s.max_total_links:
+        coarse_rounds += 1
         utility_now = coarse_utility()
         best: tuple[int, Link] | None = None
         best_score = -np.inf
         best_D = 0.0
         best_pd = 0.0
+        round_bids: list[tuple[float, int, Link, float, float]] = []
 
         for q in range(Q):
             if len(coarse_selected[q]) >= s.max_links_per_target:
                 continue
             frontier_q: tuple[float, Link] | None = None
+            local_best_q: tuple[float, int, Link, float, float] | None = None
+            q_has_bid = False
             if detector_mode and q not in pd_value_cache:
                 pd_value_cache[q] = {
                     link: coarse_candidate_value(q, link)
@@ -550,6 +654,14 @@ def select_c2f_adaptive(
             for link in all_candidates[q]:
                 if link in coarse_sets[q]:
                     continue
+                if not local_cap_allows(
+                    cfg, coarse_selected[q], link, q, plan
+                ):
+                    continue
+                if not remote_cap_allows(
+                    cfg, coarse_selected, link, q, plan
+                ):
+                    continue
                 if detector_mode:
                     new_D, new_pd, valid = pd_value_cache[q][link]
                     score = coarse_score_from_value(
@@ -557,15 +669,25 @@ def select_c2f_adaptive(
                     )
                 else:
                     score, new_D, new_pd = coarse_score(q, link, utility_now)
+                coarse_score_evaluations += 1
+                q_has_bid = True
                 if link not in shortlist_sets[q] and (
                     frontier_q is None or score > frontier_q[0]
                 ):
                     frontier_q = (score, link)
-                if score > best_score:
+                if distributed_bids:
+                    if local_best_q is None or score > local_best_q[0]:
+                        local_best_q = (score, q, link, new_D, new_pd)
+                elif score > best_score:
                     best_score = score
                     best = (q, link)
                     best_D = new_D
                     best_pd = new_pd
+
+            if distributed_bids and q_has_bid:
+                coarse_bid_messages += 1
+                if local_best_q is not None:
+                    round_bids.append(local_best_q)
 
             if (
                 frontier_q is not None
@@ -575,6 +697,14 @@ def select_c2f_adaptive(
                 link_front = frontier_q[1]
                 shortlist[q].append(link_front)
                 shortlist_sets[q].add(link_front)
+
+        if distributed_bids:
+            for score, q, link, new_D, new_pd in round_bids:
+                if score > best_score:
+                    best_score = score
+                    best = (q, link)
+                    best_D = new_D
+                    best_pd = new_pd
 
         if best is None or best_score <= 0.0:
             break
@@ -610,11 +740,28 @@ def select_c2f_adaptive(
         for i, j in links:
             dd_gain[i, j, q] = base.eta_fine[i, j, q]
     tables_fine = compute_link_tables(cfg, base, dd_gain=dd_gain)
-    selected, D_fuse = _greedy_lagrangian(cfg, tables_fine, shortlist, plan, base)
+    fine_audit: Dict[str, float] = {}
+    selected, D_fuse = _greedy_lagrangian(
+        cfg, tables_fine, shortlist, plan, base,
+        distributed_bids=distributed_bids,
+        audit=fine_audit,
+    )
 
     stats = {
         "fine_eval_full": float(fine_eval_full),
         "fine_eval_c2f": float(sum(len(v) for v in shortlist.values())),
+        "selector_score_evaluations": float(
+            coarse_score_evaluations + fine_audit.get("score_evaluations", 0.0)
+        ),
+        "coordination_messages": float(
+            coarse_bid_messages + fine_audit.get("coordination_messages", 0.0)
+            if distributed_bids
+            else coarse_score_evaluations + fine_audit.get("score_evaluations", 0.0)
+        ),
+        "bid_rounds": float(
+            coarse_rounds + fine_audit.get("bid_rounds", 0.0)
+            if distributed_bids else 0.0
+        ),
     }
     return selected, D_fuse, stats
 

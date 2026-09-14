@@ -12,7 +12,11 @@ from .naming import latex_escape, method_order, paper_label
 # downstream comparison scripts keep working.
 SCALAR_KEYS: List[str] = [
     "P_D", "P_D_ci95_low", "P_D_ci95_high", "P_D_ci95_half_width",
+    "P_D_cluster_ci95_low", "P_D_cluster_ci95_high",
+    "P_D_cluster_ci95_half_width",
     "P_FA", "P_FA_ci95_low", "P_FA_ci95_high", "P_FA_ci95_half_width",
+    "P_FA_cluster_ci95_low", "P_FA_cluster_ci95_high",
+    "P_FA_cluster_ci95_half_width",
     "P_FA_overall", "P_FA_overall_ci95_low", "P_FA_overall_ci95_high",
     "P_FA_overall_ci95_half_width", "B_mean_bits", "B_std_bits",
     "T_mean_ms", "T_std_ms", "selected_links_mean", "selected_links_std",
@@ -25,6 +29,8 @@ SCALAR_KEYS: List[str] = [
     "selected_chi_ge_min_ratio_mean",
     "D_mean", "D_median", "D_p10", "D_p90",
     "fine_eval_full_mean", "fine_eval_c2f_mean", "belief_capture_rate_mean",
+    "selector_score_evaluations_mean", "coordination_messages_mean", "bid_rounds_mean",
+    "detection_runtime_mean_ms", "detection_runtime_p90_ms",
     "all_targets_satisfied_prob", "worst_target_D_mean", "worst_target_satisfied_prob",
     "actual_mean_target_P_D", "actual_worst_target_P_D", "actual_best_target_P_D",
     "paired_proposed_delta_P_D", "paired_proposed_delta_ci95_low",
@@ -45,7 +51,13 @@ def scalar_summary_row(summary: Dict[str, Dict[str, Any]], method: str, extra: D
         "P_D_ci95_low": s["P_D_ci95"][0],
         "P_D_ci95_high": s["P_D_ci95"][1],
         "P_D_ci95_half_width": s["P_D_ci95_half_width"],
+        "P_D_cluster_ci95_low": s["P_D_cluster_ci95_low"],
+        "P_D_cluster_ci95_high": s["P_D_cluster_ci95_high"],
+        "P_D_cluster_ci95_half_width": s["P_D_cluster_ci95_half_width"],
         "P_FA_active": s["P_FA"],
+        "P_FA_cluster_ci95_low": s["P_FA_cluster_ci95_low"],
+        "P_FA_cluster_ci95_high": s["P_FA_cluster_ci95_high"],
+        "P_FA_cluster_ci95_half_width": s["P_FA_cluster_ci95_half_width"],
         "P_FA_overall": s["P_FA_overall"],
         "B_mean_bits": s["B_mean_bits"],
         "T_mean_ms": s["T_mean_ms"],
@@ -71,6 +83,11 @@ def scalar_summary_row(summary: Dict[str, Dict[str, Any]], method: str, extra: D
         "fine_eval_full_mean": s["fine_eval_full_mean"],
         "fine_eval_c2f_mean": s["fine_eval_c2f_mean"],
         "belief_capture_rate_mean": s["belief_capture_rate_mean"],
+        "selector_score_evaluations_mean": s["selector_score_evaluations_mean"],
+        "coordination_messages_mean": s["coordination_messages_mean"],
+        "detection_runtime_mean_ms": s["detection_runtime_mean_ms"],
+        "detection_runtime_p90_ms": s["detection_runtime_p90_ms"],
+        "bid_rounds_mean": s["bid_rounds_mean"],
         "all_targets_satisfied_prob": s["all_targets_satisfied_prob"],
         "worst_target_D_mean": s["worst_target_D_mean"],
         "worst_target_satisfied_prob": s["worst_target_satisfied_prob"],
@@ -104,6 +121,8 @@ def print_summary(summary: Dict[str, Dict[str, Any]]) -> None:
               f"(95% CI [{s['P_D_ci95'][0]:.4f}, {s['P_D_ci95'][1]:.4f}], +/- {s['P_D_ci95_half_width']:.4f})")
         print(f"  P_FA active            : {s['P_FA']:.4f} "
               f"(95% CI [{s['P_FA_ci95'][0]:.4f}, {s['P_FA_ci95'][1]:.4f}], +/- {s['P_FA_ci95_half_width']:.4f})")
+        print(f"  P_FA trial-cluster CI  : [{s['P_FA_cluster_ci95_low']:.4f}, "
+              f"{s['P_FA_cluster_ci95_high']:.4f}]")
         print(f"  P_FA system-level      : {s['P_FA_overall']:.4f} "
               f"(95% CI [{s['P_FA_overall_ci95'][0]:.4f}, {s['P_FA_overall_ci95'][1]:.4f}], "
               f"+/- {s['P_FA_overall_ci95_half_width']:.4f})")
@@ -128,6 +147,10 @@ def print_summary(summary: Dict[str, Dict[str, Any]]) -> None:
         print(f"  Worst target D mean    : {s['worst_target_D_mean']:.4f}")
         print(f"  Worst target sat. prob : {s['worst_target_satisfied_prob']:.4f}")
         print(f"  Actual worst-target P_D: {s['actual_worst_target_P_D']:.4f}")
+        if s["selector_score_evaluations_mean"] > 0:
+            print(f"  Selector score evals    : {s['selector_score_evaluations_mean']:.2f}")
+            print(f"  Coordination messages  : {s['coordination_messages_mean']:.2f}")
+        print(f"  Detection runtime mean : {s['detection_runtime_mean_ms']:.3f} ms")
         if "paired_proposed_delta_P_D" in s:
             print(f"  Paired proposed - method: {s['paired_proposed_delta_P_D']:+.4f} "
                   f"(95% CI [{s['paired_proposed_delta_ci95_low']:+.4f}, "

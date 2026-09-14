@@ -48,6 +48,9 @@ MethodName = Literal[
     "proposed_c2f",
     "proposed_c2f_adaptive",
     "proposed_c2f_adaptive_pd",
+    "proposed_c2f_adaptive_pd_distributed",
+    "proposed_c2f_adaptive_pd_robust",
+    "proposed_c2f_adaptive_pd_calibrated",
     "proposed_c2f_pd",
     "proposed_c2f_full",
     "proposed_c2f_full_pd",
@@ -94,6 +97,27 @@ class Waveform:
     T: float = 1.0 / 30e3
     fc: float = 5.9e9
     c: float = 3e8
+
+
+@dataclass
+class WaveformImpairments:
+    """Post-matched-filter impairment ratios for robustness experiments.
+
+    All fields default to the ideal receiver, so paper/V1 presets are unchanged.
+    INR values are relative to the existing noise-plus-residual denominator.
+    Synchronisation errors are expressed in delay/Doppler bin units.
+    """
+
+    enable: bool = False
+    # If false in belief mode, truth/detection still sees the impairments but
+    # the scheduler builds its sensing table under the ideal-waveform model.
+    # This is the explicit unaware-scheduler counterfactual.
+    scheduler_aware: bool = True
+    clutter_inr: float = 0.0
+    multipath_inr: float = 0.0
+    unresolved_target_inr: float = 0.0
+    sync_delay_bins: float = 0.0
+    sync_doppler_bins: float = 0.0
 
 
 @dataclass
@@ -343,6 +367,9 @@ class Detect:
     soft_sigma0: float = 1.0
     soft_sigma_floor: float = 0.25
     soft_error_sigma_scale: float = 3.0
+    # Deterministic Monte-Carlo quadrature size used only by the experimental
+    # calibrated multi-report detector replay.  It does not affect V1 methods.
+    fused_calibration_samples: int = 8192
     # Environment-level pollution used by the Monte-Carlo detector.
     enable_comm_error_pollution: bool = True
     comm_error_model: CommErrorModel = "erasure"
@@ -407,6 +434,10 @@ class Prior:
     # to a perfect tracker.
     belief_sigma_pos_m: float = 150.0
     belief_sigma_vel_mps: float = 15.0
+    # Confidence mass of the horizontal Gaussian position-error ball used by
+    # the optional robust detector-PD selector.  For a 2-D isotropic belief,
+    # r = sigma * sqrt(-2 log(1-confidence)).
+    robust_position_confidence: float = 0.50
     # Ellipsoidal DD search gate derived from the predicted covariance.  A
     # selected link captures the truth when its delay and Doppler residuals are
     # within this many standard deviations (plus half a quantisation bin).
@@ -502,6 +533,15 @@ class Selector:
     # Resource limits.
     max_links_per_target: int = 6
     max_total_links: int = 60
+    # Counterfactual control for auditing how strongly results depend on
+    # zero-report-cost evidence produced at the fusion UAV.  ``-1`` keeps the
+    # nominal unlimited policy, ``0`` forbids local evidence, and a positive
+    # value caps its count independently for each target.
+    max_local_observations_per_target: int = -1
+    # Hard system-wide cap on inter-UAV reports.  This is independent of the
+    # observation cap because local evidence consumes sensing/computation but
+    # no reporting slot.  ``-1`` leaves the nominal selector unconstrained.
+    max_remote_reports: int = -1
     candidate_topk_per_target: int = 40
     min_marginal_D: float = 0.0
 
@@ -517,6 +557,9 @@ class Run:
     # consumed in trial-index order, so changing this value does not change the
     # random streams or numerical output.
     workers: int = 1
+    # Wall-clock metrics are intentionally opt-in because they are not
+    # deterministic across worker counts and must not contaminate V1 summaries.
+    record_runtime: bool = False
 
 
 # --------------------------------------------------------------------------
@@ -527,6 +570,7 @@ class Config:
     scale: Scale = field(default_factory=Scale)
     geometry: Geometry = field(default_factory=Geometry)
     waveform: Waveform = field(default_factory=Waveform)
+    waveform_impairments: WaveformImpairments = field(default_factory=WaveformImpairments)
     radio: Radio = field(default_factory=Radio)
     comm: CommCfg = field(default_factory=CommCfg)
     detect: Detect = field(default_factory=Detect)
@@ -627,6 +671,17 @@ PRESETS["target-local-v1"] = {
     "fusion.rule": "nearest_target",
 }
 
+# Isolated successor protocol for the first waveform-calibration phase.  It
+# deliberately inherits the frozen V1 operating point and changes only the
+# waveform-adapter switch and deterministic threshold-calibration resolution.
+# Impairment magnitudes remain zero until an experiment supplies an explicit,
+# auditable scenario; this preset must never be used to overwrite V1 results.
+PRESETS["target-local-waveform-v2-phase1"] = {
+    **PRESETS["target-local-v1"],
+    "waveform_impairments.enable": True,
+    "detect.fused_calibration_samples": 16_384,
+}
+
 
 def apply_preset(cfg: Config, name: str) -> Config:
     """Return ``cfg`` with the named preset applied.
@@ -673,6 +728,15 @@ def validate_config(cfg: Config) -> None:
         )
     if not 0.0 < cfg.detect.pd_required <= 1.0:
         raise ValueError("detect.pd_required must lie in (0, 1]")
+    if cfg.detect.fused_calibration_samples < 512:
+        raise ValueError("detect.fused_calibration_samples must be at least 512")
+    impairment_values = (
+        cfg.waveform_impairments.clutter_inr,
+        cfg.waveform_impairments.multipath_inr,
+        cfg.waveform_impairments.unresolved_target_inr,
+    )
+    if any(value < 0.0 for value in impairment_values):
+        raise ValueError("waveform impairment INR values must be non-negative")
     if cfg.fusion.rule.lower() not in {
         "max_in_rate", "max_min_rate", "nearest_target", "nearest_centroid"
     }:
@@ -682,8 +746,16 @@ def validate_config(cfg: Config) -> None:
         )
     if cfg.prior.search_gate_sigma < 0:
         raise ValueError("prior.search_gate_sigma must be non-negative")
+    if not 0.0 < cfg.prior.robust_position_confidence < 1.0:
+        raise ValueError("prior.robust_position_confidence must lie in (0, 1)")
     if cfg.run.workers < 1:
         raise ValueError("run.workers must be at least one")
+    if cfg.selector.max_local_observations_per_target < -1:
+        raise ValueError(
+            "selector.max_local_observations_per_target must be -1 or non-negative"
+        )
+    if cfg.selector.max_remote_reports < -1:
+        raise ValueError("selector.max_remote_reports must be -1 or non-negative")
 
 
 # --------------------------------------------------------------------------

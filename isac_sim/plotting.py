@@ -435,6 +435,61 @@ def plot_waveform_check(rows, out_dir: Path) -> None:
     _save(fig, out_dir, "waveform_check_scatter.png")
 
 
+def plot_waveform_detection(rows, out_dir: Path) -> None:
+    """Predicted, exact-mixture, and waveform-derived detector performance."""
+    if not rows:
+        return
+    plt = _pyplot()
+    labels = [r["scenario"].replace("_", "\n") for r in rows]
+    x = np.arange(len(rows), dtype=float)
+    width = 0.18
+    fig, ax = plt.subplots(figsize=(8.8, 4.0))
+    ax.bar(x - 1.5 * width, [r["predicted_pd"] for r in rows], width,
+           label=r"moment-matched $P_D$", color="#4c78a8")
+    ax.bar(x - 0.5 * width, [r["exact_mixture_pd"] for r in rows], width,
+           label=r"exact-mixture $P_D$", color="#f2a541")
+    ax.bar(x + 0.5 * width, [r["empirical_pd"] for r in rows], width,
+           label=r"legacy waveform $P_D$", color="#59a14f")
+    ax.bar(x + 1.5 * width, [r["calibrated_empirical_pd"] for r in rows], width,
+           label=r"calibrated waveform $P_D$", color="#8e6cbb")
+    ax.plot(x, [r["calibrated_empirical_pfa"] for r in rows], "o--",
+            color="#d64f4f", label=r"calibrated empirical $P_{FA}$")
+    ax.axhline(0.05, color="#d64f4f", lw=0.8, alpha=0.6)
+    ax.set_xticks(x, labels)
+    ax.set_ylim(0.0, 0.55)
+    ax.set_ylabel("probability")
+    ax.set_title("Waveform-derived finite-look detector validation")
+    ax.grid(True, axis="y", alpha=0.25)
+    ax.legend(fontsize=8, ncol=2)
+    _save(fig, out_dir, "waveform_detection.png")
+
+
+def plot_waveform_detection_grid(rows, out_dir: Path) -> None:
+    """One-to-one and PFA calibration audit over random fractional DD cases."""
+    if not rows:
+        return
+    plt = _pyplot()
+    fig, axes = plt.subplots(1, 2, figsize=(8.8, 3.8))
+    exact = np.asarray([r["calibrated_exact_pd"] for r in rows])
+    empirical = np.asarray([r["calibrated_empirical_pd"] for r in rows])
+    colors = np.asarray([r["report_success"] for r in rows])
+    scatter = axes[0].scatter(exact, empirical, c=colors, cmap="viridis",
+                              vmin=0.9, vmax=1.0, s=28)
+    axes[0].plot([0, 1], [0, 1], "k--", lw=0.8)
+    axes[0].set(xlim=(0, 1), ylim=(0, 1), xlabel=r"exact-mixture $P_D$",
+                ylabel=r"waveform empirical $P_D$", title=r"$P_D$ calibration")
+    fig.colorbar(scatter, ax=axes[0], label="report success")
+    pfa = np.asarray([r["calibrated_empirical_pfa"] for r in rows])
+    axes[1].scatter(np.arange(len(rows)), pfa, c=colors, cmap="viridis",
+                    vmin=0.9, vmax=1.0, s=28)
+    axes[1].axhline(0.05, color="#d64f4f", lw=1.0, ls="--")
+    axes[1].set(xlabel="random DD case", ylabel=r"empirical $P_{FA}$",
+                title=r"$P_{FA}$ calibration")
+    for ax in axes:
+        ax.grid(True, alpha=0.25)
+    _save(fig, out_dir, "waveform_detection_grid.png")
+
+
 def plot_oracle_gap(rows, out_dir: Path) -> None:
     """Greedy vs oracle objective per trial, with the gap annotation."""
     if not rows:
@@ -648,6 +703,8 @@ PLOTTERS = {
     "c2f": plot_c2f,
     "prior-sweep": plot_prior_sweep,
     "waveform-check": plot_waveform_check,
+    "waveform-detection": plot_waveform_detection,
+    "waveform-detection-grid": plot_waveform_detection_grid,
     "oracle-gap": plot_oracle_gap,
     "runtime": plot_runtime,
     "belief-mismatch": plot_belief_mismatch,

@@ -473,6 +473,102 @@ def waveform_check(
     return rows
 
 
+def waveform_detection(
+    cfg: Config,
+    n_trials: int = 30_000,
+) -> List[Dict[str, Any]]:
+    """Waveform-derived detector validation under leakage and link failures."""
+    from .waveform import waveform_llr_detection_check
+
+    scenarios = (
+        {"name": "noise_only", "interference_gamma": 0.0, "report_success": 1.0},
+        {"name": "multi_target_leakage", "interference_gamma": 1.0,
+         "report_success": 1.0, "num_interferers": 3},
+        {"name": "leakage_comm_representative", "interference_gamma": 1.0,
+         "report_success": 0.99, "num_interferers": 3},
+        {"name": "leakage_comm_stress", "interference_gamma": 1.0,
+         "report_success": 0.90, "num_interferers": 3},
+        {"name": "full_waveform_impairments", "interference_gamma": 1.0,
+         "report_success": 0.99, "num_interferers": 3, "clutter_gamma": 1.0,
+         "multipath_ratio": 0.25, "sync_error": (0.15, -0.12)},
+    )
+    seed_sequence = np.random.SeedSequence(cfg.run.seed)
+    rows: List[Dict[str, Any]] = []
+    for scenario, child in zip(
+        scenarios, seed_sequence.spawn(len(scenarios))
+    ):
+        kwargs = dict(scenario)
+        name = str(kwargs.pop("name"))
+        row = waveform_llr_detection_check(
+            cfg,
+            raw_gamma=0.5,
+            n_trials=n_trials,
+            rng=np.random.default_rng(child),
+            **kwargs,
+        )
+        rows.append({"experiment": "waveform_detection", "scenario": name, **row})
+
+    _banner(f"Waveform-derived LLR detection (n={n_trials} per scenario)")
+    print("scenario                         gamma_eff  legacy_PD  exact_PD  calibrated_PD  calibrated_PFA")
+    for row in rows:
+        print(
+            f"{row['scenario']:<32s} {row['gamma_effective']:.4f}"
+            f"      {row['empirical_pd']:.4f}    {row['exact_mixture_pd']:.4f}"
+            f"       {row['calibrated_empirical_pd']:.4f}"
+            f"         {row['calibrated_empirical_pfa']:.4f}"
+        )
+    return rows
+
+
+def waveform_detection_grid(
+    cfg: Config,
+    n_offsets: int = 24,
+    n_trials: int = 5_000,
+) -> List[Dict[str, Any]]:
+    """Random fractional-DD stress grid for the calibrated detector."""
+    from .waveform import waveform_llr_detection_check
+
+    rng = np.random.default_rng(cfg.run.seed)
+    raw_gammas = (0.25, 0.5, 1.0)
+    interference_gammas = (0.5, 1.0, 2.0)
+    report_successes = (1.0, 0.99, 0.90)
+    rows: List[Dict[str, Any]] = []
+    for idx in range(max(int(n_offsets), 1)):
+        target = tuple(rng.uniform(-0.5, 0.5, size=2))
+        # Keep the second target within about one DD bin so both resolved and
+        # strongly overlapping PSFs occur in the same validation grid.
+        interferer = tuple(np.asarray(target) + rng.uniform(-0.9, 0.9, size=2))
+        sync_error = tuple(rng.normal(0.0, 0.08, size=2))
+        row = waveform_llr_detection_check(
+            cfg,
+            raw_gamma=raw_gammas[idx % len(raw_gammas)],
+            interference_gamma=interference_gammas[(idx // 3) % 3],
+            report_success=report_successes[(idx // 9) % 3],
+            target_offset=target,
+            interferer_offset=interferer,
+            num_interferers=1 + (idx % 3),
+            clutter_gamma=(0.0, 0.5, 1.0)[idx % 3],
+            multipath_ratio=(0.0, 0.15, 0.30)[(idx // 3) % 3],
+            sync_error=sync_error,
+            n_trials=n_trials,
+            rng=np.random.default_rng(rng.integers(0, 2**32 - 1)),
+        )
+        rows.append({"experiment": "waveform_detection_grid", "case": idx, **row})
+
+    pd_error = np.asarray([
+        row["calibrated_empirical_pd"] - row["calibrated_exact_pd"] for row in rows
+    ])
+    pfa_error = np.asarray([
+        row["calibrated_empirical_pfa"] - cfg.detect.Pfa_target for row in rows
+    ])
+    _banner(f"Waveform detection random DD grid ({len(rows)} x {n_trials})")
+    print(f"P_D empirical-exact: mean={pd_error.mean():+.4e}, "
+          f"RMSE={np.sqrt(np.mean(pd_error**2)):.4e}, max_abs={np.max(np.abs(pd_error)):.4e}")
+    print(f"P_FA target error:   mean={pfa_error.mean():+.4e}, "
+          f"RMSE={np.sqrt(np.mean(pfa_error**2)):.4e}, max_abs={np.max(np.abs(pfa_error)):.4e}")
+    return rows
+
+
 # --------------------------------------------------------------------------
 # Oracle optimality gap (small-scale exact reference)
 # --------------------------------------------------------------------------
@@ -1053,6 +1149,8 @@ EXPERIMENTS: Dict[str, Callable[..., List[Dict[str, Any]]]] = {
     "c2f": c2f,
     "prior-sweep": prior_sweep,
     "waveform-check": waveform_check,
+    "waveform-detection": waveform_detection,
+    "waveform-detection-grid": waveform_detection_grid,
     "oracle-gap": oracle_gap,
     "runtime": runtime,
     "belief-mismatch": belief_mismatch,

@@ -679,7 +679,24 @@ def compute_link_tables(
                 dd_loss = dd_used[i, j, q] if cfg.dd.enable_dd_fractional_penalty else 1.0
 
                 signal = effective_sensing_power * base.target_gain[i, j, q] * G_proc * collision_penalty * dd_loss
-                gamma = signal / (n0 + residual_total + eps_den)
+                waveform_capture = 1.0
+                waveform_inr = 0.0
+                if cfg.waveform_impairments.enable:
+                    wi = cfg.waveform_impairments
+                    waveform_capture = float(
+                        np.sinc(wi.sync_delay_bins) ** 2
+                        * np.sinc(wi.sync_doppler_bins) ** 2
+                    )
+                    unresolved = max(base.dd_collision_count[i, j, q] - 1.0, 0.0)
+                    waveform_inr = float(
+                        wi.clutter_inr
+                        + wi.multipath_inr
+                        + wi.unresolved_target_inr * unresolved
+                    )
+                gamma = (
+                    signal * waveform_capture
+                    / ((n0 + residual_total + eps_den) * (1.0 + waveform_inr))
+                )
                 gamma_sense[i, j, q] = gamma
                 # Soft statistic under the configured model: the legacy
                 # ``kappa_mu * log(1+gamma)`` Gaussian mean, or the centred

@@ -260,7 +260,10 @@ def fused_h0_skewness(
     base: BaseGains | None = None,
 ) -> float:
     """Independent-link H0 skewness for Cornish--Fisher threshold calibration."""
-    if cfg.corr.enable or not links:
+    # The correlated sampler is moment-matched Gaussian only when at least two
+    # observations are sampled jointly.  A singleton still uses the exact
+    # finite-look LLR marginal and therefore retains its Gamma skewness.
+    if (cfg.corr.enable and len(links) > 1) or not links:
         return 0.0
     var0 = fused_h0_variance(cfg, tables, q, links, weights, plan, base)
     if var0 <= EPS:
@@ -270,6 +273,105 @@ def fused_h0_skewness(
         for link, w in weights.items()
     )
     return float(mu3 / (var0 ** 1.5))
+
+
+def calibrated_fused_threshold(
+    cfg: Config,
+    tables,
+    q: int,
+    links: List[Link],
+    weights: Dict[Link, float],
+    plan: "object | None" = None,
+    base: BaseGains | None = None,
+) -> float:
+    """Calibrated finite-look LLR-mixture threshold.
+
+    A singleton uses its exact Gamma--Gaussian mixture CDF. Independent
+    multi-report sums use deterministic Monte-Carlo quadrature of that same
+    implemented distribution. Correlated and non-erasure modes retain the
+    established Cornish--Fisher rule because their joint higher-order law is
+    not identified by the current correlation abstraction.
+    """
+    var0 = fused_h0_variance(cfg, tables, q, links, weights, plan, base)
+    z0 = threshold_from_pfa(cfg)
+    skew0 = fused_h0_skewness(cfg, tables, q, links, weights, plan, base)
+    fallback = (z0 + (skew0 / 6.0) * (z0 * z0 - 1.0)) * np.sqrt(max(var0, EPS))
+    if (
+        cfg.detect.soft_stat_model.lower() != "llr"
+        or cfg.detect.comm_error_model != "erasure"
+        or (cfg.corr.enable and len(links) > 1)
+    ):
+        return float(fallback)
+
+    from .reporting import report_chi
+    from .soft_channel import local_moments
+
+    if len(links) > 1:
+        n_samples = int(cfg.detect.fused_calibration_samples)
+        n_looks = max(int(cfg.detect.n_looks), 1)
+        # Reusing a fixed standard-variate stream turns this into deterministic
+        # quadrature: thresholds are reproducible and paired-method comparisons
+        # cannot differ because of calibration RNG noise.
+        rng = np.random.default_rng(0xC0FFEE)
+        fused = np.zeros(n_samples, dtype=float)
+        for link in links:
+            i, j = link
+            gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
+            a = gamma / (1.0 + gamma)
+            local = local_moments(cfg, tables, link, q)
+            chi = (
+                float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
+                if cfg.detect.enable_comm_error_pollution else 1.0
+            )
+            success = a * (rng.gamma(n_looks, 1.0, n_samples) - n_looks)
+            failure_v = cfg.detect.soft_error_sigma_scale ** 2 * local.v0
+            failure = rng.normal(0.0, np.sqrt(max(failure_v, 0.0)), n_samples)
+            received = np.where(rng.random(n_samples) < chi, success, failure)
+            fused += float(weights[link]) * received
+        return float(np.quantile(fused, 1.0 - cfg.detect.Pfa_target, method="higher"))
+
+    link = links[0]
+    i, j = link
+    gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
+    if gamma <= EPS:
+        return float(fallback)
+    n_looks = max(int(cfg.detect.n_looks), 1)
+    a = gamma / (1.0 + gamma)
+    local = local_moments(cfg, tables, link, q)
+    chi = (
+        float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
+        if cfg.detect.enable_comm_error_pollution else 1.0
+    )
+    failure_v = cfg.detect.soft_error_sigma_scale ** 2 * local.v0
+    weight = float(weights[link])
+
+    def erlang_sf(x: float) -> float:
+        if x <= 0.0:
+            return 1.0
+        term = series = 1.0
+        for k in range(1, n_looks):
+            term *= x / k
+            series += term
+        return float(np.exp(-x) * series)
+
+    def h0_tail(threshold: float) -> float:
+        unweighted = threshold / max(weight, EPS)
+        success = erlang_sf(n_looks + unweighted / a)
+        failure = (
+            float(qfunc(unweighted / np.sqrt(failure_v)))
+            if failure_v > EPS else float(unweighted < 0.0)
+        )
+        return chi * success + (1.0 - chi) * failure
+
+    scale = np.sqrt(max(var0, weight * weight * failure_v, EPS))
+    lo, hi = -20.0 * scale, 20.0 * scale
+    for _ in range(100):
+        mid = 0.5 * (lo + hi)
+        if h0_tail(mid) > cfg.detect.Pfa_target:
+            lo = mid
+        else:
+            hi = mid
+    return float(0.5 * (lo + hi))
 
 
 # ==========================================================================

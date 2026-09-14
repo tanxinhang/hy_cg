@@ -48,6 +48,8 @@ DESCRIPTIONS: Dict[str, str] = {
     "c2f": "compare coarse / C2F / full local refinement (paper Section 4)",
     "prior-sweep": "measure P_D degradation under target-state prior uncertainty",
     "waveform-check": "compare analytic eta^c / eta^loc against the OTFS PSF",
+    "waveform-detection": "recompute empirical P_D/P_FA from noisy OTFS matched-filter outputs",
+    "waveform-detection-grid": "stress-test calibrated P_D/P_FA over random fractional-DD offsets",
     "oracle-gap": "exact small-scale optimality gap of the greedy selector",
     "runtime": "per-selection wall-clock benchmark (greedy vs oracle vs baselines)",
     "belief-mismatch": "P_D degradation under tracker belief vs truth mismatch",
@@ -189,15 +191,21 @@ def main(argv: List[str] | None = None) -> None:
     print(f"output: {out_dir}")
 
     if args.mode == "main":
+        trial_records: List[Dict[str, Any]] = []
         summary = run_simulation(
-            cfg, methods=args.methods, paired_reference=args.paired_reference
+            cfg,
+            methods=args.methods,
+            paired_reference=args.paired_reference,
+            trial_records=trial_records,
         )
         print_summary(summary)
         write_csv(summary, out_dir / "main.csv")
+        write_rows_csv(trial_records, out_dir / "trials.csv")
         write_main_summary_latex(summary, out_dir / "main_summary.tex")
         if not args.no_plots:
             plot_main_comparison(summary, fig_dir)
-        print(f"\nSaved: {out_dir / 'main.csv'}, {out_dir / 'main_summary.tex'}"
+        print(f"\nSaved: {out_dir / 'main.csv'}, {out_dir / 'trials.csv'}, "
+              f"{out_dir / 'main_summary.tex'}"
               + ("" if args.no_plots else f", figures in {fig_dir}"))
         return
 

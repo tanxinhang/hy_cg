@@ -9,6 +9,7 @@ random-number design makes paired differences attributable to the selected set.
 from __future__ import annotations
 
 import math
+import time
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -17,6 +18,7 @@ import numpy as np
 
 from .config import Config, Link, MethodName, apply_overrides
 from .fusion import (
+    calibrated_fused_threshold,
     compute_weights,
     deflection_for_links,
     fused_h0_variance,
@@ -45,8 +47,8 @@ from .reporting import (
 )
 from .selection import (
     C2F_METHODS,
+    DEFAULT_METHODS,
     METHOD_RNG_OFFSETS,
-    METHODS,
     feasible_links_for_target,
     select_all_neighbor,
     select_c2f,
@@ -87,6 +89,13 @@ class MethodResult:
     comm_feasible_edge_ratio: float
     fine_eval_full: float = 0.0
     fine_eval_c2f: float = 0.0
+    selector_score_evaluations: float = 0.0
+    coordination_messages: float = 0.0
+    bid_rounds: float = 0.0
+    # Wall-clock time spent only in final detector evaluation.  Selection and
+    # table construction are excluded so threshold-calibration overhead can be
+    # audited without changing the V1 decision path.
+    detection_runtime_s: float = 0.0
     # Belief mode only: fraction of selected links whose belief-guided DD
     # window actually captured the true target bin (1.0 outside belief mode).
     belief_capture_rate: float = 1.0
@@ -135,6 +144,8 @@ def evaluate_detection(
     base: BaseGains | None = None,
 ) -> Tuple[int, int, int, int, int, int, np.ndarray]:
     """Evaluate detection and false alarms with two P_FA denominators."""
+    from .soft_channel import draw_received_soft_vector
+
     d = cfg.detect
     detected = 0
     detected_per_target = np.zeros(cfg.scale.Q, dtype=int)
@@ -155,20 +166,29 @@ def evaluate_detection(
         weights = compute_weights(cfg, tables, q, links, mode=weight_mode, plan=plan, base=base)
         var0 = fused_h0_variance(cfg, tables, q, links, weights, plan=plan, base=base)
         skew0 = fused_h0_skewness(cfg, tables, q, links, weights, plan=plan, base=base)
-        z_cf = base_thr + (skew0 / 6.0) * (base_thr * base_thr - 1.0)
-        thr = z_cf * math.sqrt(max(var0, EPS))
+        if method == "proposed_c2f_adaptive_pd_calibrated":
+            thr = calibrated_fused_threshold(
+                cfg, tables, q, links, weights, plan=plan, base=base
+            )
+        else:
+            z_cf = base_thr + (skew0 / 6.0) * (base_thr * base_thr - 1.0)
+            thr = z_cf * math.sqrt(max(var0, EPS))
 
-        F = 0.0
-        for link, w in weights.items():
-            F += w * draw_h1_soft_stat(cfg, tables, link, q, rng, plan)
+        ordered_links = list(weights)
+        weight_vector = np.asarray([weights[link] for link in ordered_links])
+        h1_vector = draw_received_soft_vector(
+            cfg, tables, ordered_links, q, rng, True, plan, base
+        )
+        F = float(weight_vector @ h1_vector)
         if F > thr:
             detected += 1
             detected_per_target[q] = 1
 
         for _ in range(d.num_false_per_target):
-            F0 = 0.0
-            for link, w in weights.items():
-                F0 += w * draw_h0_soft_stat(cfg, tables, link, q, rng, plan)
+            h0_vector = draw_received_soft_vector(
+                cfg, tables, ordered_links, q, rng, False, plan, base
+            )
+            F0 = float(weight_vector @ h0_vector)
             if F0 > thr:
                 false_alarm_active += 1
 
@@ -431,6 +451,9 @@ def run_method_on_trial(
     eval_base: BaseGains | None = None,
     eval_tables: LinkTables | None = None,
     belief_dd_std: tuple[np.ndarray, np.ndarray] | None = None,
+    cached_adaptive_pd: Optional[
+        Tuple[Dict[int, List[Link]], np.ndarray, Dict[str, float]]
+    ] = None,
 ) -> MethodResult:
     """Run one method on one trial.
 
@@ -444,6 +467,9 @@ def run_method_on_trial(
     belief_mode = eval_base is not None and eval_tables is not None
     selector_rng = rng_for_method(cfg, trial_index, method)
     detector_rng = rng_for_detection(cfg, trial_index)
+    selector_score_evaluations = 0.0
+    coordination_messages = 0.0
+    bid_rounds = 0.0
 
     if method == "proposed_lagrangian":
         selected, D = cached_lagrangian if cached_lagrangian is not None else select_lagrangian(cfg, base, tables, plan)
@@ -453,18 +479,47 @@ def run_method_on_trial(
     elif method in {
         "proposed_c2f_adaptive",
         "proposed_c2f_adaptive_pd",
+        "proposed_c2f_adaptive_pd_distributed",
+        "proposed_c2f_adaptive_pd_robust",
+        "proposed_c2f_adaptive_pd_calibrated",
     }:
-        if method == "proposed_c2f_adaptive_pd":
+        if method in {
+            "proposed_c2f_adaptive_pd",
+            "proposed_c2f_adaptive_pd_distributed",
+            "proposed_c2f_adaptive_pd_robust",
+            "proposed_c2f_adaptive_pd_calibrated",
+        }:
             select_cfg = apply_overrides(cfg, {
                 "selector.score_mode": "detector_pd",
             })
         else:
             select_cfg = cfg
-        selected, D, c2f_stats = select_c2f_adaptive(
-            select_cfg, base, tables, plan=plan
-        )
+        select_base = base
+        select_tables = tables
+        if method == "proposed_c2f_adaptive_pd_robust":
+            from .belief import geometry_robust_base
+
+            select_base = geometry_robust_base(select_cfg, base)
+            if select_base is not base:
+                select_tables = compute_link_tables(select_cfg, select_base)
+        if (
+            method in {
+                "proposed_c2f_adaptive_pd",
+                "proposed_c2f_adaptive_pd_calibrated",
+            }
+            and cached_adaptive_pd is not None
+        ):
+            selected, D, c2f_stats = cached_adaptive_pd
+        else:
+            selected, D, c2f_stats = select_c2f_adaptive(
+                select_cfg, select_base, select_tables, plan=plan,
+                distributed_bids=(method == "proposed_c2f_adaptive_pd_distributed"),
+            )
         fine_eval_full = float(c2f_stats["fine_eval_full"])
         fine_eval_c2f = float(c2f_stats["fine_eval_c2f"])
+        selector_score_evaluations = float(c2f_stats["selector_score_evaluations"])
+        coordination_messages = float(c2f_stats["coordination_messages"])
+        bid_rounds = float(c2f_stats["bid_rounds"])
         sel_tables = c2f_tables if c2f_tables is not None else tables
     elif method in C2F_METHODS:
         if method in {"proposed_c2f_pd", "proposed_c2f_full_pd"}:
@@ -572,8 +627,12 @@ def run_method_on_trial(
             for q in range(cfg.scale.Q)
         ])
 
+    detection_start = time.perf_counter() if cfg.run.record_runtime else 0.0
     detection = evaluate_detection(
         cfg, tables_eval, selected_eval, detector_rng, method, plan, det_base
+    )
+    detection_runtime_s = (
+        time.perf_counter() - detection_start if cfg.run.record_runtime else 0.0
     )
     detected, total_targets, fa, total_false, fa_overall, total_false_overall, detected_per_target = detection
     feasible_targets, feasible_links = feasible_stats(cfg, base, tables, plan)
@@ -603,6 +662,10 @@ def run_method_on_trial(
         feasible_links=feasible_links,
         fine_eval_full=fine_eval_full,
         fine_eval_c2f=fine_eval_c2f,
+        selector_score_evaluations=selector_score_evaluations,
+        coordination_messages=coordination_messages,
+        bid_rounds=bid_rounds,
+        detection_runtime_s=detection_runtime_s,
         belief_capture_rate=capture_rate,
         reporting_plan=plan,
         **comm_metrics,
@@ -625,6 +688,15 @@ def run_one_trial(
         base_truth = build_base_gains(cfg, geom, rng)
         tables_truth = compute_link_tables(cfg, base_truth)
 
+        scheduler_cfg = cfg
+        if (
+            cfg.waveform_impairments.enable
+            and not cfg.waveform_impairments.scheduler_aware
+        ):
+            scheduler_cfg = apply_overrides(
+                cfg, {"waveform_impairments.enable": False}
+            )
+
         belief = BeliefState.from_truth(cfg, geom, rng)
         geom_belief = belief.as_geometry(geom)
         # Reuse the UAV-UAV channel but expose only the configured RCS view to
@@ -634,26 +706,30 @@ def run_one_trial(
             cfg, geom_belief, rng, channel=base_truth,
             rcs_view=cfg.prior.scheduler_rcs.lower(),
         )
-        tables_belief = compute_link_tables(cfg, base_belief)
+        tables_belief = compute_link_tables(scheduler_cfg, base_belief)
         belief_dd_std = belief_dd_std_bins(cfg, geom_belief, belief)
 
         plan = _build_plan(cfg, base_belief, tables_belief, geom_belief)
 
         needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
         c2f_tables = None
-        method_roster = methods if methods is not None else METHODS
+        method_roster = methods if methods is not None else DEFAULT_METHODS
         if needs_fine and any(m in C2F_METHODS for m in method_roster):
-            c2f_tables = compute_link_tables(cfg, base_belief, dd_gain=base_belief.eta_fine)
+            c2f_tables = compute_link_tables(
+                scheduler_cfg, base_belief, dd_gain=base_belief.eta_fine
+            )
 
         cached_lagrangian = select_lagrangian(cfg, base_belief, tables_belief, plan)
         if cfg.refine.enable:
             reference_cfg = apply_overrides(
                 cfg, {"selector.score_mode": "detector_pd"}
             )
-            reference_selected = select_c2f_adaptive(
+            reference_result = select_c2f_adaptive(
                 reference_cfg, base_belief, tables_belief, plan=plan
-            )[0]
+            )
+            reference_selected = reference_result[0]
         else:
+            reference_result = None
             reference_selected = cached_lagrangian[0]
         reference_counts = {
             q: len(reference_selected.get(q, [])) for q in range(cfg.scale.Q)
@@ -665,6 +741,7 @@ def run_one_trial(
                 reference_counts, cached_lagrangian, c2f_tables, plan,
                 eval_base=base_truth, eval_tables=tables_truth,
                 belief_dd_std=belief_dd_std,
+                cached_adaptive_pd=reference_result,
             )
             for method in method_roster
         }
@@ -677,7 +754,7 @@ def run_one_trial(
 
     needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
     c2f_tables = None
-    method_roster = methods if methods is not None else METHODS
+    method_roster = methods if methods is not None else DEFAULT_METHODS
     if needs_fine and any(m in C2F_METHODS for m in method_roster):
         c2f_tables = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
 
@@ -686,10 +763,12 @@ def run_one_trial(
         reference_cfg = apply_overrides(
             cfg, {"selector.score_mode": "detector_pd"}
         )
-        reference_selected = select_c2f_adaptive(
+        reference_result = select_c2f_adaptive(
             reference_cfg, base, tables, plan=plan
-        )[0]
+        )
+        reference_selected = reference_result[0]
     else:
+        reference_result = None
         reference_selected = cached_lagrangian[0]
     reference_counts = {
         q: len(reference_selected.get(q, [])) for q in range(cfg.scale.Q)
@@ -697,7 +776,9 @@ def run_one_trial(
 
     return {
         method: run_method_on_trial(
-            cfg, base, tables, method, trial_index, reference_counts, cached_lagrangian, c2f_tables, plan
+            cfg, base, tables, method, trial_index, reference_counts,
+            cached_lagrangian, c2f_tables, plan,
+            cached_adaptive_pd=reference_result,
         )
         for method in method_roster
     }
@@ -707,6 +788,7 @@ def run_simulation(
     cfg: Config,
     methods: Optional[List[str]] = None,
     paired_reference: Optional[str] = None,
+    trial_records: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Run the full Monte-Carlo experiment once under the given configuration.
 
@@ -715,7 +797,7 @@ def run_simulation(
     for compatibility, while generic reference-labelled fields support
     experimental successor methods without mislabelling the contrast.
     """
-    method_roster = methods if methods is not None else METHODS
+    method_roster = methods if methods is not None else DEFAULT_METHODS
     if paired_reference is not None and paired_reference not in method_roster:
         raise ValueError(
             f"paired_reference={paired_reference!r} is not in the method roster"
@@ -726,6 +808,40 @@ def run_simulation(
     def consume(t: int, trial: Dict[str, MethodResult]) -> None:
         for method, res in trial.items():
             all_results[method].append(res)
+            if trial_records is not None:
+                observations = sum(len(links) for links in res.selected_links.values())
+                reports = remote_report_count(res.selected_links, res.reporting_plan)
+                selected_text = ";".join(
+                    f"{q}:" + ",".join(f"{i}-{j}" for i, j in links)
+                    for q, links in sorted(res.selected_links.items())
+                )
+                fusion_nodes = getattr(res.reporting_plan, "f_q", None)
+                trial_records.append({
+                    "trial": t,
+                    "method": method,
+                    "detected": res.detected,
+                    "total_targets": res.total_targets,
+                    "detected_fraction": res.detected / max(res.total_targets, 1),
+                    "false_alarm": res.false_alarm,
+                    "total_false": res.total_false,
+                    "false_alarm_fraction": res.false_alarm / max(res.total_false, 1),
+                    "selected_observations": observations,
+                    "remote_reports": reports,
+                    "local_observations": observations - reports,
+                    "overhead_bits": res.overhead_bits,
+                    "overhead_delay_ms": 1e3 * res.overhead_delay_s,
+                    "D_mean": float(np.mean(res.D_fuse_per_target)),
+                    "D_median": float(np.median(res.D_fuse_per_target)),
+                    "belief_capture_rate": res.belief_capture_rate,
+                    "selector_score_evaluations": res.selector_score_evaluations,
+                    "coordination_messages": res.coordination_messages,
+                    "bid_rounds": res.bid_rounds,
+                    "detection_runtime_ms": 1e3 * res.detection_runtime_s,
+                    "fusion_nodes": "" if fusion_nodes is None else ",".join(
+                        str(int(v)) for v in fusion_nodes
+                    ),
+                    "selected_links": selected_text,
+                })
         if cfg.run.verbose and ((t + 1) % print_interval == 0 or (t + 1) == cfg.run.num_mc):
             watch = "proposed_lagrangian" if "proposed_lagrangian" in all_results else method_roster[0]
             prop = all_results[watch]
@@ -828,6 +944,10 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     rate_sat = col("selected_rate_satisfaction_ratio")
     chi_sat = col("selected_chi_ge_min_ratio")
     feasible_edge_ratio = col("comm_feasible_edge_ratio")
+    selector_score_evaluations = col("selector_score_evaluations")
+    coordination_messages = col("coordination_messages")
+    bid_rounds = col("bid_rounds")
+    detection_runtime_s = col("detection_runtime_s")
 
     def finite_mean(values: np.ndarray, default: float = 0.0) -> float:
         finite = values[np.isfinite(values)]
@@ -837,6 +957,32 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     D_satisfied = predicted_pd_arr >= cfg.detect.pd_required
     detected_target_arr = np.vstack([r.detected_per_target for r in results])
     P_D_per_target_actual = np.mean(detected_target_arr, axis=0)
+    trial_pd = np.asarray([
+        r.detected / max(r.total_targets, 1) for r in results
+    ], dtype=float)
+
+    def cluster_interval(values: np.ndarray, stream: int) -> tuple[float, float]:
+        if values.size <= 1:
+            point = float(np.mean(values)) if values.size else 0.0
+            return point, point
+        bootstrap_rng = np.random.default_rng([cfg.run.seed, stream])
+        bootstrap_means = np.empty(5000, dtype=float)
+        for start in range(0, bootstrap_means.size, 250):
+            stop = min(start + 250, bootstrap_means.size)
+            indices = bootstrap_rng.integers(
+                0, values.size, size=(stop - start, values.size)
+            )
+            bootstrap_means[start:stop] = np.mean(values[indices], axis=1)
+        low, high = np.percentile(bootstrap_means, [2.5, 97.5])
+        return float(low), float(high)
+
+    cluster_low, cluster_high = cluster_interval(trial_pd, 712367)
+    cluster_half = 0.5 * float(cluster_high - cluster_low)
+    trial_pfa = np.asarray([
+        r.false_alarm / max(r.total_false, 1) for r in results
+    ], dtype=float)
+    pfa_cluster_low, pfa_cluster_high = cluster_interval(trial_pfa, 712369)
+    pfa_cluster_half = 0.5 * float(pfa_cluster_high - pfa_cluster_low)
 
     pd = total_detected / max(total_targets, 1)
     pfa = total_fa / max(total_false, 1)
@@ -851,11 +997,19 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "P_D_ci95_low": pd_ci[0],
         "P_D_ci95_high": pd_ci[1],
         "P_D_ci95_half_width": pd_ci[2],
+        "P_D_cluster_ci95": (float(cluster_low), float(cluster_high)),
+        "P_D_cluster_ci95_low": float(cluster_low),
+        "P_D_cluster_ci95_high": float(cluster_high),
+        "P_D_cluster_ci95_half_width": cluster_half,
         "P_FA": pfa,
         "P_FA_ci95": pfa_ci[:2],
         "P_FA_ci95_low": pfa_ci[0],
         "P_FA_ci95_high": pfa_ci[1],
         "P_FA_ci95_half_width": pfa_ci[2],
+        "P_FA_cluster_ci95": (pfa_cluster_low, pfa_cluster_high),
+        "P_FA_cluster_ci95_low": pfa_cluster_low,
+        "P_FA_cluster_ci95_high": pfa_cluster_high,
+        "P_FA_cluster_ci95_half_width": pfa_cluster_half,
         "P_FA_overall": pfa_overall,
         "P_FA_overall_ci95": pfa_overall_ci[:2],
         "P_FA_overall_ci95_low": pfa_overall_ci[0],
@@ -874,6 +1028,11 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "feasible_links_mean": float(np.mean(feasible_links)),
         "fine_eval_full_mean": float(np.mean(fine_eval_full)),
         "fine_eval_c2f_mean": float(np.mean(fine_eval_c2f)),
+        "selector_score_evaluations_mean": float(np.mean(selector_score_evaluations)),
+        "coordination_messages_mean": float(np.mean(coordination_messages)),
+        "bid_rounds_mean": float(np.mean(bid_rounds)),
+        "detection_runtime_mean_ms": float(np.mean(detection_runtime_s) * 1e3),
+        "detection_runtime_p90_ms": float(np.percentile(detection_runtime_s, 90) * 1e3),
         "belief_capture_rate_mean": float(np.mean(belief_capture)),
         "comm_feasible_edge_ratio_mean": float(np.mean(feasible_edge_ratio)),
         "selected_rate_mean_mbps": finite_mean(selected_rate_mean),

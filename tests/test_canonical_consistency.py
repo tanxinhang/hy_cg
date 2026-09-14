@@ -9,13 +9,31 @@ import numpy as np
 
 from isac_sim.config import Config, apply_preset, validate_config
 from isac_sim.corr import correlation_aware_weights, covariance_matrix
-from isac_sim.fusion import predicted_pd_for_links, selection_utility, target_alpha
+from isac_sim.fusion import (
+    calibrated_fused_threshold,
+    compute_weights,
+    predicted_pd_for_links,
+    selection_utility,
+    target_alpha,
+)
 from isac_sim.llr import llr_delta, llr_var0
 from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry
 from isac_sim.packetization import packetization_audit
 from isac_sim.reporting import ReportingPlan
-from isac_sim.reporting import assign_fusion_nodes
-from isac_sim.soft_channel import draw_received_soft_stat, local_moments, received_moments
+from isac_sim.reporting import assign_fusion_nodes, is_local_observation
+from isac_sim.soft_channel import (
+    draw_received_soft_stat,
+    draw_received_soft_vector,
+    local_moments,
+    received_moments,
+)
+from isac_sim.waveform import (
+    full_otfs_kernel,
+    otfs_demodulate,
+    otfs_modulate,
+    sweep_compare_analytic_vs_psf,
+    waveform_llr_detection_check,
+)
 from isac_sim.selection import feasible_links_for_target, select_c2f_adaptive
 from isac_sim.simulate import (
     rng_for_detection,
@@ -49,6 +67,26 @@ class CanonicalConfigurationTests(unittest.TestCase):
         cfg.fusion.rule = "oracle_truth"
         with self.assertRaisesRegex(ValueError, "fusion.rule"):
             validate_config(cfg)
+
+    def test_waveform_impairments_reduce_sensing_sinr_only_when_enabled(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 4, 2
+        cfg.dd.use_otfs_bin_validity = False
+        rng = np.random.default_rng(44)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        ideal = compute_link_tables(cfg, base)
+
+        cfg.waveform_impairments.enable = True
+        cfg.waveform_impairments.clutter_inr = 0.5
+        cfg.waveform_impairments.multipath_inr = 0.25
+        cfg.waveform_impairments.unresolved_target_inr = 0.2
+        cfg.waveform_impairments.sync_delay_bins = 0.1
+        cfg.waveform_impairments.sync_doppler_bins = -0.1
+        impaired = compute_link_tables(cfg, base)
+        active = ideal.gamma_sense > 0.0
+        self.assertTrue(np.all(impaired.gamma_sense[active] < ideal.gamma_sense[active]))
+        np.testing.assert_array_equal(impaired.gamma_comm, ideal.gamma_comm)
 
     def test_packetization_audit_distinguishes_items_from_padded_packets(self) -> None:
         cfg = apply_preset(Config(), "paper-canonical")
@@ -190,6 +228,53 @@ class CanonicalConfigurationTests(unittest.TestCase):
         self.assertLessEqual(stats["fine_eval_c2f"], 2 * cfg.refine.shortlist_size)
         self.assertLessEqual(stats["fine_eval_c2f"], stats["fine_eval_full"])
 
+    def test_local_evidence_counterfactual_cap_is_enforced(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 5, 2
+        cfg.detect.num_false_per_target = 1
+        cfg.refine.shortlist_size = 5
+        cfg.selector.max_links_per_target = 4
+        cfg.selector.max_total_links = 8
+        rng = np.random.default_rng(1703)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = assign_fusion_nodes(cfg, base, tables, geom)
+
+        cfg.selector.max_local_observations_per_target = 0
+        selected_zero, _, _ = select_c2f_adaptive(cfg, base, tables, plan)
+        self.assertTrue(all(
+            not is_local_observation(plan, link, q)
+            for q, links in selected_zero.items() for link in links
+        ))
+
+        cfg.selector.max_local_observations_per_target = 1
+        selected_one, _, _ = select_c2f_adaptive(cfg, base, tables, plan)
+        for q, links in selected_one.items():
+            local_count = sum(is_local_observation(plan, link, q) for link in links)
+            self.assertLessEqual(local_count, 1)
+
+    def test_remote_report_hard_cap_is_enforced(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 5, 2
+        cfg.detect.num_false_per_target = 1
+        cfg.refine.shortlist_size = 5
+        cfg.selector.max_links_per_target = 4
+        cfg.selector.max_total_links = 8
+        cfg.selector.max_local_observations_per_target = 1
+        cfg.selector.max_remote_reports = 2
+        rng = np.random.default_rng(1704)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = assign_fusion_nodes(cfg, base, tables, geom)
+        selected, _, _ = select_c2f_adaptive(cfg, base, tables, plan)
+        remote_count = sum(
+            not is_local_observation(plan, link, q)
+            for q, links in selected.items() for link in links
+        )
+        self.assertLessEqual(remote_count, 2)
+
     def test_paper_preset_is_coherent(self) -> None:
         cfg = apply_preset(Config(), "paper-canonical")
         validate_config(cfg)
@@ -243,6 +328,138 @@ class CanonicalConfigurationTests(unittest.TestCase):
 
 
 class ObjectiveAndMomentTests(unittest.TestCase):
+    def test_otfs_modulation_round_trip_and_integer_impulse(self) -> None:
+        rng = np.random.default_rng(1901)
+        Xdd = rng.normal(size=(8, 8)) + 1j * rng.normal(size=(8, 8))
+        reconstructed = otfs_demodulate(otfs_modulate(Xdd), 8, 8)
+        np.testing.assert_allclose(reconstructed, Xdd, atol=1e-12)
+
+        kernel = full_otfs_kernel(8, 8, 0.0, 0.0, 30_000.0, 5900)
+        self.assertAlmostEqual(float(np.abs(kernel[0, 0]) ** 2), 1.0, places=11)
+        self.assertAlmostEqual(float(np.sum(np.abs(kernel) ** 2)), 1.0, places=11)
+
+    def test_otfs_psf_matches_analytic_dd_gain(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        comparison = sweep_compare_analytic_vs_psf(
+            cfg, n_samples=16, rng=np.random.default_rng(1902)
+        )
+        coarse_error = np.abs(
+            comparison["eta_c_analytic"] - comparison["eta_c_psf"]
+        )
+        local_error = np.abs(
+            comparison["eta_loc_analytic"] - comparison["eta_loc_psf"]
+        )
+        self.assertLess(float(np.max(coarse_error)), 1e-3)
+        self.assertLess(float(np.max(local_error)), 1e-10)
+
+    def test_waveform_llr_matches_exact_finite_look_mixture(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        result = waveform_llr_detection_check(
+            cfg,
+            raw_gamma=0.5,
+            interference_gamma=1.0,
+            report_success=0.90,
+            n_trials=20_000,
+            rng=np.random.default_rng(1903),
+        )
+        self.assertGreater(result["leakage_projection"], 0.20)
+        self.assertLess(result["gamma_effective"], result["raw_gamma"])
+        self.assertLess(
+            abs(result["empirical_pd"] - result["exact_mixture_pd"]), 0.015
+        )
+        self.assertLess(
+            abs(result["empirical_pfa"] - result["exact_mixture_pfa"]), 0.010
+        )
+        self.assertAlmostEqual(result["calibrated_exact_pfa"], 0.05, places=10)
+        self.assertLess(
+            abs(result["calibrated_empirical_pd"] - result["calibrated_exact_pd"]),
+            0.015,
+        )
+        self.assertLess(
+            abs(result["calibrated_empirical_pfa"] - 0.05), 0.010
+        )
+
+    def test_multi_report_calibrated_threshold_controls_false_alarm(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 4, 1
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.detect.fused_calibration_samples = 16_384
+        rng = np.random.default_rng(1904)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = ReportingPlan(mode="explicit", f_q=np.array([1]))
+        links = [(0, 1), (2, 1), (0, 3)]
+        weights = compute_weights(cfg, tables, 0, links, plan=plan, base=base)
+        threshold = calibrated_fused_threshold(
+            cfg, tables, 0, links, weights, plan=plan, base=base
+        )
+        weight_vector = np.asarray([weights[link] for link in links])
+        samples = np.asarray([
+            weight_vector @ draw_received_soft_vector(
+                cfg, tables, links, 0, rng, False, plan, base
+            )
+            for _ in range(12_000)
+        ])
+        self.assertLess(abs(float(np.mean(samples > threshold)) - 0.05), 0.012)
+
+    def test_correlated_joint_sampler_matches_declared_h0_model(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 4, 1
+        cfg.corr.enable = True
+        cfg.dd.use_otfs_bin_validity = False
+        rng = np.random.default_rng(1701)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        links = [(0, 1), (2, 1), (0, 3)]
+        plan = ReportingPlan(mode="explicit", f_q=np.array([1]))
+
+        moments = [received_moments(cfg, tables, link, 0, plan) for link in links]
+        sigma = np.sqrt([moment.v0 for moment in moments])
+        expected = covariance_matrix(cfg, links, sigma, base=base, q=0)
+        samples = np.vstack([
+            draw_received_soft_vector(
+                cfg, tables, links, 0, rng, False, plan, base
+            )
+            for _ in range(8000)
+        ])
+        empirical = np.cov(samples, rowvar=False, ddof=0)
+        scale = np.maximum(np.abs(expected), 1e-12)
+        self.assertLess(float(np.max(np.abs(empirical - expected) / scale)), 0.12)
+
+        weights = correlation_aware_weights(
+            cfg,
+            links,
+            np.ones(len(links)),
+            sigma,
+            base=base,
+            q=0,
+        )
+        variance = float(weights @ expected @ weights)
+        threshold = 1.6448536269514722 * math.sqrt(variance)
+        fused = samples @ weights
+        self.assertTrue(0.04 <= float(np.mean(fused > threshold)) <= 0.06)
+
+    def test_correlation_mode_retains_singleton_llr_skewness(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 3, 1
+        cfg.corr.enable = True
+        cfg.dd.use_otfs_bin_validity = False
+        rng = np.random.default_rng(1702)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        link = (0, 1)
+        plan = ReportingPlan(mode="explicit", f_q=np.array([1]))
+        weights = {link: 1.0}
+        from isac_sim.fusion import fused_h0_skewness
+
+        self.assertGreater(
+            fused_h0_skewness(cfg, tables, 0, [link], weights, plan, base),
+            0.0,
+        )
+
     def test_detector_aligned_pd_is_a_probability(self) -> None:
         cfg = apply_preset(Config(), "paper-canonical")
         cfg.scale.M, cfg.scale.Q = 4, 1

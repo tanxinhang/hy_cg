@@ -24,7 +24,7 @@ when ``xhat != x``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Dict, List
 
 import numpy as np
@@ -199,6 +199,36 @@ def belief_capture_rate(
             if captured:
                 hit += 1
     return hit / max(total, 1)
+
+
+def geometry_robust_base(cfg: Config, base: BaseGains) -> BaseGains:
+    r"""Return a conservative path-gain view over a position confidence ball.
+
+    The belief error is horizontal isotropic Gaussian with standard deviation
+    ``sigma``.  Its radius has Rayleigh CDF, hence the configured confidence
+    mass corresponds to
+
+    ``r = sigma * sqrt(-2 log(1-confidence))``.
+
+    For every target position within that ball, the triangle inequality gives
+    ``d_true <= d_hat + r``.  Since the bistatic target gain is proportional to
+    ``d_i^-2 d_j^-2``, multiplying the predicted gain by
+
+    ``[d_i/(d_i+r)]^2 [d_j/(d_j+r)]^2``
+
+    is a valid lower bound on the distance-dependent component.  RCS, DD
+    leakage, correlation and communication uncertainty are intentionally not
+    claimed by this bound.
+    """
+    sigma = max(float(cfg.prior.belief_sigma_pos_m), 0.0)
+    if not cfg.prior.belief_mode or sigma <= 0.0:
+        return base
+    confidence = float(cfg.prior.robust_position_confidence)
+    radius = sigma * np.sqrt(-2.0 * np.log1p(-confidence))
+    distances = np.maximum(np.asarray(base.d_uav_tgt, dtype=float), 1.0)
+    one_way = (distances / (distances + radius)) ** 2
+    bistatic_factor = one_way[:, None, :] * one_way[None, :, :]
+    return replace(base, target_gain=base.target_gain * bistatic_factor)
 
 
 def predicted_geometry_from_belief(cfg: Config, geom_truth: Geometry, rng: np.random.Generator) -> Geometry:

@@ -1,0 +1,115 @@
+% Experimental successor text.  This file is intentionally NOT included by
+% the V1 manuscript.  Promote it only after the waveform V2 release gates pass.
+\section{Waveform-Calibrated Sensing Extension}
+\label{sec:waveform_calibrated_extension}
+
+The released V1 uses an analytical delay--Doppler (DD) proxy to rank sensing
+triplets.  We retain that model as the reproducible reference and introduce a
+separate waveform-calibrated extension.  The extension maps an OTFS point-spread
+function (PSF) to the local detector distribution; it does not yet model a
+standards-compliant pulse-shaped OTFS receiver.
+
+\subsection{Waveform-Equivalent Local Observation}
+
+For sensing triplet $e=(i,j,q)$ and incoherent look
+$r\in\{1,\ldots,K_{\rm look}\}$, let $\mathcal W_e$ denote the local DD
+window and write its vectorized matched-filter output as
+\begin{equation}
+ \mathbf y_e^{(r)}=
+ \alpha_{e,q}^{(r)}\mathbf h_{e,q}
+ +\sum_{q'\ne q}\alpha_{e,q'}^{(r)}\mathbf h_{e,q'}
+ +\mathbf c_e^{(r)}+\mathbf m_e^{(r)}+\mathbf n_e^{(r)}.
+ \label{eq:v2_waveform_observation}
+\end{equation}
+Here $\mathbf h_{e,q}$ is the PSF restricted to $\mathcal W_e$ and includes
+the fractional delay, fractional Doppler, and template synchronization offset.
+The remaining terms represent unresolved targets, clutter, unassociated
+multipath, and receiver noise.  Their conditional null covariance is denoted by
+$\mathbf R_{0,e}$.  A normalized template $\mathbf w_e$ produces
+$z_e^{(r)}=\mathbf w_e^{H}\mathbf y_e^{(r)}$ and the waveform-equivalent SINR
+\begin{equation}
+ \gamma_e^{\rm wf}=
+ \frac{\sigma_{\alpha,e}^{2}
+       |\mathbf w_e^{H}\mathbf h_{e,q}|^2}
+      {\mathbf w_e^{H}\mathbf R_{0,e}\mathbf w_e}.
+ \label{eq:v2_waveform_sinr}
+\end{equation}
+The corresponding window-capture factor is
+\begin{equation}
+ \eta_e^{\rm wf}=
+ \frac{|\mathbf w_e^{H}\mathbf h_{e,q}|^2}
+      {\|\mathbf h_{e,q}\|_2^2}.
+ \label{eq:v2_waveform_capture}
+\end{equation}
+The V1 sinc product $\eta_e^{\rm c}$ is retained as a coarse approximation to
+\eqref{eq:v2_waveform_capture}; it is not treated as an independent physical
+gain in the calibrated path.
+
+\subsection{Finite-Look Local Statistic}
+
+To avoid overloading the DD-grid delay dimension $L$, the number of
+incoherently integrated frames is denoted by $K_{\rm look}$.  Define
+\begin{equation}
+ E_e=\sum_{r=1}^{K_{\rm look}}
+ \frac{|z_e^{(r)}|^2}{\mathbf w_e^{H}\mathbf R_{0,e}\mathbf w_e}.
+ \label{eq:v2_integrated_energy}
+\end{equation}
+Under the independent fast-fluctuation model,
+$E_e\sim\operatorname{Gamma}(K_{\rm look},1)$ under $\mathcal H_0$ and
+$E_e\sim\operatorname{Gamma}(K_{\rm look},1+\gamma_e^{\rm wf})$ under
+$\mathcal H_1$.  The null-centred local log-likelihood statistic is
+\begin{equation}
+ \ell_e=
+ \frac{\gamma_e^{\rm wf}}{1+\gamma_e^{\rm wf}}
+ \left(E_e-K_{\rm look}\right).
+ \label{eq:v2_waveform_llr}
+\end{equation}
+Its mean shift and null variance are
+\begin{equation}
+ \delta_e=\frac{K_{\rm look}(\gamma_e^{\rm wf})^2}
+ {1+\gamma_e^{\rm wf}},\qquad
+ v_{0,e}=\frac{K_{\rm look}(\gamma_e^{\rm wf})^2}
+ {(1+\gamma_e^{\rm wf})^2}.
+ \label{eq:v2_waveform_llr_moments}
+\end{equation}
+
+\subsection{Reporting Mixture and Calibrated Fusion Threshold}
+
+Let $\chi_e$ be the finite-blocklength success probability of the report.  The
+post-report statistic has hypothesis-dependent distribution
+\begin{equation}
+ F_{h,e}(x)=\chi_e F_{h,e}^{\rm succ}(x)
+ +(1-\chi_e)F_e^{\rm fail}(x),\qquad h\in\{0,1\}.
+ \label{eq:v2_report_mixture}
+\end{equation}
+For $S_q=\sum_{e\in\mathcal S_q}w_e\widetilde\ell_e$, let
+$F_{h,q}^{\mathcal S}$ denote the resulting fused distribution.  The
+calibrated threshold and predicted detection probability are
+\begin{equation}
+ \xi_q(\mathcal S)=
+ \left(F_{0,q}^{\mathcal S}\right)^{-1}(1-P_{\rm FA}),\qquad
+ \widehat P_{D,q}^{\rm cal}(\mathcal S)=
+ 1-F_{1,q}^{\mathcal S}\!\left(\xi_q(\mathcal S)\right).
+ \label{eq:v2_calibrated_pd}
+\end{equation}
+For a singleton, the Gamma--Gaussian mixture is evaluated directly.  For
+independent multi-report fusion, the current implementation estimates the null
+quantile by deterministic Monte Carlo.  Correlated or non-erasure reporting
+retains the V1 moment approximation and is outside the phase-1 claim.
+
+\subsection{Phase-1 Interface to V1 Selection}
+
+Phase 1 changes only the detector threshold after a V1-selected set has been
+formed.  It therefore measures calibration error without confounding it with a
+different selected set, report payload, or serial delay.  In a later phase,
+$\widehat P_{D,q}^{\rm cal}$ may replace the V1 Gaussian approximation inside
+the greedy marginal.  Until that coupled selector is implemented and validated,
+no waveform-calibrated selection-gain claim is made.
+
+\subsection{Scope}
+
+This extension validates the mapping from a compact no-cyclic-prefix OTFS PSF
+to finite-look detection statistics.  Pulse shaping, a tapped time-varying
+channel, synchronization estimation, channel estimation, and waveform-induced
+cross-report dependence remain outside the present model.  The V1 analytical
+protocol and its released results remain the fallback reference.

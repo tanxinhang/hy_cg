@@ -6,11 +6,14 @@ import unittest
 
 import numpy as np
 
+from isac_sim.belief import geometry_robust_base
 from isac_sim.config import Config, PRESETS, apply_preset, iter_leaf_paths, validate_config
 from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry
 from isac_sim.reporting import assign_fusion_nodes
 from isac_sim.report import scalar_summary_row
+from isac_sim.selection import DEFAULT_METHODS
 from isac_sim.simulate import run_simulation
+from isac_sim.simulate import run_one_trial
 
 
 class TargetLocalV1ContractTests(unittest.TestCase):
@@ -36,6 +39,30 @@ class TargetLocalV1ContractTests(unittest.TestCase):
         self.assertNotEqual(id(PRESETS["paper-canonical"]), id(PRESETS["target-local-v1"]))
         self.assertNotIn("fusion.rule", PRESETS["paper-canonical"])
         self.assertEqual(PRESETS["target-local-v1"]["fusion.rule"], "nearest_target")
+
+    def test_waveform_phase1_is_isolated_from_frozen_v1(self) -> None:
+        v1 = apply_preset(Config(), "target-local-v1")
+        phase1 = apply_preset(Config(), "target-local-waveform-v2-phase1")
+
+        v1_leaves = dict(iter_leaf_paths(v1))
+        phase1_leaves = dict(iter_leaf_paths(phase1))
+        changed = {
+            key: (v1_leaves[key], phase1_leaves[key])
+            for key in v1_leaves
+            if v1_leaves[key] != phase1_leaves[key]
+        }
+        self.assertEqual(
+            changed,
+            {
+                "detect.fused_calibration_samples": (8192, 16_384),
+                "waveform_impairments.enable": (False, True),
+            },
+        )
+        self.assertFalse(v1.waveform_impairments.enable)
+        self.assertNotIn(
+            "proposed_c2f_adaptive_pd_calibrated", DEFAULT_METHODS
+        )
+        validate_config(phase1)
 
     def test_nearest_target_requires_planning_geometry(self) -> None:
         cfg = apply_preset(Config(), "target-local-v1")
@@ -113,6 +140,122 @@ class TargetLocalV1ContractTests(unittest.TestCase):
             row["paired_reference_method"], "proposed_c2f_adaptive_pd"
         )
         self.assertIn("paired_reference_delta_ci95_low", row)
+
+    def test_trial_records_and_cluster_interval_are_available(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 4, 2
+        cfg.detect.num_false_per_target = 1
+        cfg.refine.shortlist_size = 3
+        cfg.selector.max_links_per_target = 2
+        cfg.selector.max_total_links = 4
+        cfg.run.num_mc = 3
+        cfg.run.verbose = False
+        records: list[dict[str, object]] = []
+        summary = run_simulation(
+            cfg,
+            methods=["proposed_c2f_adaptive_pd"],
+            trial_records=records,
+        )
+        self.assertEqual(len(records), cfg.run.num_mc)
+        self.assertEqual([record["trial"] for record in records], [0, 1, 2])
+        self.assertTrue(all("selected_links" in record for record in records))
+        result = summary["proposed_c2f_adaptive_pd"]
+        self.assertIn("P_D_cluster_ci95_low", result)
+        self.assertIn("P_FA_cluster_ci95_low", result)
+        self.assertLessEqual(
+            result["P_D_cluster_ci95_low"], result["P_D_cluster_ci95_high"]
+        )
+        self.assertLessEqual(
+            result["P_FA_cluster_ci95_low"], result["P_FA_cluster_ci95_high"]
+        )
+        self.assertEqual(result["detection_runtime_mean_ms"], 0.0)
+
+    def test_runtime_measurement_is_explicitly_opt_in(self) -> None:
+        cfg = apply_preset(Config(), "target-local-waveform-v2-phase1")
+        cfg.scale.M, cfg.scale.Q = 4, 1
+        cfg.detect.num_false_per_target = 1
+        cfg.refine.shortlist_size = 3
+        cfg.selector.max_links_per_target = 2
+        cfg.selector.max_total_links = 2
+        cfg.run.record_runtime = True
+        result = run_one_trial(
+            cfg, 0, methods=["proposed_c2f_adaptive_pd_calibrated"]
+        )["proposed_c2f_adaptive_pd_calibrated"]
+        self.assertGreater(result.detection_runtime_s, 0.0)
+
+    def test_distributed_bids_match_central_selection_with_less_coordination(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 5, 2
+        cfg.detect.num_false_per_target = 1
+        cfg.refine.shortlist_size = 5
+        cfg.selector.max_links_per_target = 3
+        cfg.selector.max_total_links = 6
+        cfg.selector.max_local_observations_per_target = 1
+        cfg.selector.max_remote_reports = 2
+        for trial in range(3):
+            results = run_one_trial(
+                cfg,
+                trial,
+                methods=[
+                    "proposed_c2f_adaptive_pd",
+                    "proposed_c2f_adaptive_pd_distributed",
+                ],
+            )
+            central = results["proposed_c2f_adaptive_pd"]
+            distributed = results["proposed_c2f_adaptive_pd_distributed"]
+
+            self.assertEqual(central.selected_links, distributed.selected_links)
+            np.testing.assert_allclose(
+                central.D_fuse_per_target, distributed.D_fuse_per_target
+            )
+            self.assertEqual(
+                central.selector_score_evaluations,
+                distributed.selector_score_evaluations,
+            )
+            self.assertLess(
+                distributed.coordination_messages,
+                central.coordination_messages,
+            )
+
+    def test_calibrated_replay_changes_only_the_detector_threshold(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 5, 2
+        cfg.detect.num_false_per_target = 2
+        cfg.refine.shortlist_size = 5
+        cfg.selector.max_links_per_target = 3
+        cfg.selector.max_total_links = 6
+        for trial in range(3):
+            results = run_one_trial(
+                cfg,
+                trial,
+                methods=[
+                    "proposed_c2f_adaptive_pd",
+                    "proposed_c2f_adaptive_pd_calibrated",
+                ],
+            )
+            reference = results["proposed_c2f_adaptive_pd"]
+            calibrated = results["proposed_c2f_adaptive_pd_calibrated"]
+            self.assertEqual(reference.selected_links, calibrated.selected_links)
+            self.assertEqual(reference.overhead_bits, calibrated.overhead_bits)
+            self.assertEqual(reference.overhead_delay_s, calibrated.overhead_delay_s)
+
+    def test_geometry_robust_view_is_conservative_and_non_mutating(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 4, 2
+        rng = np.random.default_rng(1801)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        original = base.target_gain.copy()
+
+        robust = geometry_robust_base(cfg, base)
+
+        self.assertIsNot(robust, base)
+        np.testing.assert_array_equal(base.target_gain, original)
+        self.assertTrue(np.all(robust.target_gain <= base.target_gain))
+        self.assertTrue(np.any(robust.target_gain < base.target_gain))
+
+        cfg.prior.belief_sigma_pos_m = 0.0
+        self.assertIs(geometry_robust_base(cfg, base), base)
 
 
 if __name__ == "__main__":

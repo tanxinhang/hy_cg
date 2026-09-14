@@ -150,3 +150,53 @@ def draw_received_soft_stat(
         )
         return float(rng.normal(mean, d.soft_error_sigma_scale * math.sqrt(local.v0)))
     raise ValueError(d.comm_error_model)
+
+
+def draw_received_soft_vector(
+    cfg: Config,
+    tables,
+    links: list[Link],
+    q: int,
+    rng: np.random.Generator,
+    h1: bool,
+    plan: "object | None" = None,
+    base: "object | None" = None,
+) -> np.ndarray:
+    """Draw one internally consistent vector of received soft statistics.
+
+    The canonical independence path deliberately delegates to the exact
+    per-link LLR/channel sampler, preserving its established distribution and
+    random stream.  When observation correlation is enabled, selection and
+    thresholding use a covariance model; Monte Carlo must sample that same
+    joint model.  We therefore draw the declared moment-matched multivariate
+    Gaussian with the exact post-report marginal means/variances and the same
+    correlation matrix used by fusion.
+
+    This is a correlation *sensitivity model*, not a claim that correlated
+    finite-look LLRs are jointly Gaussian.  Its value is internal calibration:
+    under H0 the covariance used to set the threshold is exactly the one being
+    sampled, so a configured false-alarm probability is testable.
+    """
+    if not links:
+        return np.zeros(0, dtype=float)
+    if (not cfg.corr.enable) or len(links) == 1:
+        return np.asarray([
+            draw_received_soft_stat(cfg, tables, link, q, rng, h1, plan)
+            for link in links
+        ], dtype=float)
+
+    from .corr import covariance_matrix
+
+    moments = [received_moments(cfg, tables, link, q, plan) for link in links]
+    mean = np.asarray([
+        moment.m1 if h1 else moment.m0 for moment in moments
+    ], dtype=float)
+    sigma = np.asarray([
+        math.sqrt(max(moment.v1 if h1 else moment.v0, 0.0))
+        for moment in moments
+    ], dtype=float)
+    covariance = covariance_matrix(cfg, links, sigma, base=base, q=q)
+    return np.asarray(
+        rng.multivariate_normal(mean, covariance, check_valid="raise"),
+        dtype=float,
+    )
