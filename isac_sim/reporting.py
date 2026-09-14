@@ -133,6 +133,26 @@ def assign_fusion_nodes(
         return ReportingPlan(mode="tx", f_q=None)
 
     rule = cfg.fusion.rule.lower()
+    supported_rules = {
+        "max_in_rate", "max_min_rate", "nearest_target", "nearest_centroid"
+    }
+    if rule not in supported_rules:
+        raise ValueError(
+            f"Unknown fusion.rule={cfg.fusion.rule!r}; expected one of "
+            f"{sorted(supported_rules)}"
+        )
+    if rule in {"nearest_target", "nearest_centroid"}:
+        if geom is None:
+            raise ValueError(
+                f"fusion.rule={cfg.fusion.rule!r} requires predicted target geometry"
+            )
+        if geom.p_uav.shape != (M, 3) or geom.p_tgt.shape != (Q, 3):
+            raise ValueError(
+                "predicted geometry shape does not match scale.M/scale.Q: "
+                f"p_uav={geom.p_uav.shape}, p_tgt={geom.p_tgt.shape}, M={M}, Q={Q}"
+            )
+        if not np.all(np.isfinite(geom.p_uav)) or not np.all(np.isfinite(geom.p_tgt)):
+            raise ValueError("predicted fusion-planning geometry must be finite")
     f_q = np.full(Q, -1, dtype=int)
 
     for q in range(Q):
@@ -159,12 +179,13 @@ def assign_fusion_nodes(
                 continue
             if rule == "max_min_rate":
                 score = float(np.min(rates[reachable]))
-            elif rule == "nearest_centroid":
-                if geom is None:
-                    score = 0.0
-                else:
-                    score = -float(np.linalg.norm(geom.p_uav[m] - geom.p_tgt[q]))
-            else:  # "max_in_rate"
+            elif rule in {"nearest_target", "nearest_centroid"}:
+                # In belief mode ``geom`` is the predicted geometry, not the
+                # current-CPI target truth.  This locality rule thus avoids
+                # truth leakage while distributing target-specific fusion
+                # traffic across the fleet.
+                score = -float(np.linalg.norm(geom.p_uav[m] - geom.p_tgt[q]))
+            else:  # validated "max_in_rate"
                 score = float(np.sum(rates[reachable]))
             if score > best_score:
                 best_score, best_m = score, m

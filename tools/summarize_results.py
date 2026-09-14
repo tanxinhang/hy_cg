@@ -5,9 +5,8 @@
 Reads every CSV under ``results/`` (produced by ``tools/rerun_paper.py``) and
 writes ``results/README.md`` with:
 
-* the main-comparison table and the derived headline numbers
-  (all-neighbor retention, overhead/delay reduction, Top-K Deflection delay
-  saving) that the paper quotes in the abstract and Section 4;
+* the canonical main-comparison table, paired confidence intervals, and derived
+  resource reductions used by the paper;
 * the component-ablation table (Table II);
 * the DD-domain / C2F refinement comparison (fine-grid evaluation saving);
 * the lambda / comm / robustness sweep summaries.
@@ -75,8 +74,9 @@ def main() -> int:
     add = lines.append
 
     add("# 论文数据重跑汇总（isac_sim）\n")
-    add("> 由 `tools/rerun_paper.py` 以论文参数（M=15, Q=10, UAV 30-60 m/s, "
-        "目标 50-90 m/s, MC=1000, seed=2026）生成，`tools/summarize_results.py` 归纳。\n")
+    add("> 由 `tools/rerun_paper.py` 以 canonical 论文参数生成，"
+        "`tools/summarize_results.py` 归纳。主对比使用 MC=1000、seed=2026；"
+        "辅助审计的试验数以各目录 `config.json` 为准。\n")
 
     # ------------------------------------------------------------------
     # Main comparison
@@ -85,30 +85,40 @@ def main() -> int:
     if main_rows:
         m = by_method(main_rows)
         add("## 1. 主对比（Fig. 2）\n")
-        add("| Method | P_D | Bits (kbit) | Delay (ms) | Worst P_D |")
-        add("|---|---|---|---|---|")
-        order = ["proposed_lagrangian", "topk_deflection", "sense_sinr",
+        add("| Method | P_D | Proposed - method (95% CI) | Bits (kbit) | Delay (ms) | Worst P_D |")
+        add("|---|---|---|---|---|---|")
+        order = ["proposed_c2f", "proposed_lagrangian", "global_topk_deflection",
+                 "cost_aware_greedy", "exact_marginal_greedy",
+                 "topk_deflection", "sense_sinr",
                  "single_best", "nearest", "shortest_bistatic", "random",
                  "all_neighbor"]
         for name in order:
             if name not in m:
                 continue
             r = m[name]
-            add(f"| {name} | {fnum(r, 'P_D')} | "
-                f"{fnum(r, 'B_mean_bits', 2) if 'B_mean_bits' in r else '-'} | "
+            paired = "-"
+            if r.get("paired_proposed_delta_P_D", "") != "":
+                paired = (
+                    f"{float(r['paired_proposed_delta_P_D']):+.4f} "
+                    f"[{float(r['paired_proposed_delta_ci95_low']):+.4f}, "
+                    f"{float(r['paired_proposed_delta_ci95_high']):+.4f}]"
+                )
+            add(f"| {name} | {fnum(r, 'P_D')} | {paired} | "
+                f"{float(r['B_mean_bits']) / 1000.0:.2f} | "
                 f"{fnum(r, 'T_mean_ms', 2) if 'T_mean_ms' in r else '-'} | "
                 f"{fnum(r, 'actual_worst_target_P_D')} |")
 
-        if "proposed_lagrangian" in m and "all_neighbor" in m:
-            p, a = m["proposed_lagrangian"], m["all_neighbor"]
+        proposed_name = "proposed_c2f" if "proposed_c2f" in m else "proposed_lagrangian"
+        if proposed_name in m and "all_neighbor" in m:
+            p, a = m[proposed_name], m["all_neighbor"]
             try:
                 pd_p, pd_a = float(p["P_D"]), float(a["P_D"])
                 bb_p, bb_a = float(p["B_mean_bits"]), float(a["B_mean_bits"])
                 tt_p, tt_a = float(p["T_mean_ms"]), float(a["T_mean_ms"])
                 add("\n**派生数字（摘要口径）：**\n")
-                add(f"- 保留 all-neighbor 检测概率：`{pct(pd_p, pd_a)}`（论文 97.2%）")
-                add(f"- 降低信令开销：`{pct(bb_a - bb_p, bb_a)}`（论文 96.7%）")
-                add(f"- 降低交换时延：`{pct(tt_a - tt_p, tt_a)}`（论文 99.0%）")
+                add(f"- 保留 all-neighbor 检测概率：`{pct(pd_p, pd_a)}`")
+                add(f"- 降低信令开销：`{pct(bb_a - bb_p, bb_a)}`")
+                add(f"- 降低交换时延：`{pct(tt_a - tt_p, tt_a)}`")
                 add(f"- 时延绝对值：all-neighbor `{tt_a:.1f}` ms → proposed `{tt_p:.1f}` ms")
             except (KeyError, ValueError):
                 pass
@@ -116,8 +126,7 @@ def main() -> int:
                 tk = m["topk_deflection"]
                 try:
                     tt_tk = float(tk["T_mean_ms"])
-                    add(f"- 比 Top-K Deflection 时延低：`{pct(tt_tk - tt_p, tt_tk)}`"
-                        f"（论文 6.5%）")
+                    add(f"- 比 Top-K Deflection 时延低：`{pct(tt_tk - tt_p, tt_tk)}`")
                 except (KeyError, ValueError):
                     pass
         add("")
@@ -127,7 +136,7 @@ def main() -> int:
     if main_rows and ctrl_rows:
         m_new, m_old = by_method(main_rows), by_method(ctrl_rows)
         if "proposed_lagrangian" in m_new and "proposed_lagrangian" in m_old:
-            add("### 1.1 干扰模型对照（active_set vs full_concurrent）\n")
+            add("### 1.1 干扰模型对照（orthogonal canonical vs full-concurrent ablation）\n")
             add("| 干扰模型 | proposed P_D | proposed 时延 (ms) | 保留率 |")
             add("|---|---|---|---|")
             for tag, m in [("active_set（新，活跃集并发）", m_new),
@@ -236,7 +245,7 @@ def main() -> int:
     # ``<out>/<mode>/<mode>.csv``, i.e. ``<results>/<subdir>/<mode>/<mode>.csv``.
     # Reading ``<results>/<mode>/<mode>.csv`` instead silently picks up leftovers
     # from ad-hoc manual runs and reports a stale model as if it were current.
-    add("## 5. 理论深化实验（新模型 / 保证）\n")
+    add("## 5. 结构审计（有限实例，不构成保证）\n")
 
     bm_rows = load_rows(mode_csv(res, "belief-mismatch"))
     if bm_rows:
@@ -270,13 +279,13 @@ def main() -> int:
 
     sub_rows = load_rows(mode_csv(res, "submodularity"))
     if sub_rows:
-        add("### 5.4 次模性审计与 greedy 保证\n")
-        add("| mono. viol. | submod. viol. | curvature | guarantee |")
+        add("### 5.4 有限实例的边际收益与曲率审计\n")
+        add("| mono. viol. | submod. viol. | curvature | matroid reference |")
         add("|---|---|---|---|")
         for r in sub_rows:
             add(f"| {fnum(r, 'monotone_violation_rate')} | "
                 f"{fnum(r, 'submodularity_violation_rate')} | "
-                f"{fnum(r, 'curvature')} | {fnum(r, 'greedy_guarantee')} |")
+                f"{fnum(r, 'curvature')} | {fnum(r, 'matroid_reference_bound')} |")
         add("")
 
     gap_rows = load_rows(mode_csv(res, "same-objective-gap"))

@@ -1,307 +1,91 @@
-
-\section{Proposed C2F DD-Aware Lagrangian Link Selection}
+\section{Target-Local Adaptive C2F Selection}
 \label{sec:proposed_algorithm}
 
-We select a compact set of cooperative candidates whose marginal fusion gain
-justifies their reporting cost. The selection is implemented as a low-complexity
-greedy rule guided by a Lagrangian marginal-gain score. For target $q$, the
-feasible candidate set is
+\subsection{Prediction-Only Fusion Planning}
+
+Let $\widehat{\mathbf p}_q$ be the predicted position supplied by the upstream
+tracker. V1 assigns target $q$ to
 \begin{equation}
-	\mathcal{E}_q =
-	\left\{
-	(i,j)\in\mathcal{E}:
-	R_{ij}\geq R_{\min},
-	(l_{ijq},k_{ijq})~\text{is DD-valid}
-	\right\}.
+	f_q=\arg\min_{m\in\mathcal M}
+	\left\|\widehat{\mathbf p}_q-\mathbf p_m^{\mathrm{UAV}}\right\|_2 .
+	\label{eq:nearest_target_fusion}
+\end{equation}
+The assignment is recomputed from the predicted belief; the true target state
+and current-CPI RCS realization are unavailable to the scheduler. Unlike the
+previous target-agnostic rule
+$\arg\max_m\sum_j R_{jm}$, \eqref{eq:nearest_target_fusion} can map different targets to different fusion
+UAVs. It therefore changes the reporting quantities $R_{j f_q}$ and
+$\chi_{j f_q}$ before link selection begins.
+
+For target $q$, the resulting feasible candidate set is
+\begin{equation}
+	\mathcal{E}_q=\left\{(i,j):R_{j f_q}\geq R_{\min},\;
+	(l_{ijq},k_{ijq})~\text{is DD-valid}\right\}.
 	\label{eq:feasible_candidate_set}
 \end{equation}
-Here $c_{ijq}$ and the DD-valid condition are defined in
-Section~\ref{sec:system_model}. We use
-$\tilde c_{ijq}=10^3c_{ijq}$ as the delay in milliseconds.
+The report generated at UAV $j$ is sent to $f_q$. Under the released serial
+finite-blocklength MAC, every selected report occupies $n/B_{\mathrm c}$
+seconds and carries 640 bits.
 
-Given the current selected set $\mathcal S_q$, the target-priority coefficient
-is updated as
+\subsection{Fair Detector-Aligned Marginal}
+
+Let $\mathbf D=(D_1,\ldots,D_Q)$ collect the communication-calibrated fused
+deflections. We use the weak-target potential
 \begin{equation}
-	\alpha_q =
-	\frac{\partial P_{D,q}}{\partial D_q}
-	+
-	\mu_{\alpha}
-	\frac{[D_{\min}-D_q(\mathcal S_q)]^+}{D_{\min}},
+\begin{split}
+	U(\mathbf D)=&-Q\tau_\alpha\log\!\sum_{q\in\mathcal Q}
+	\exp[-P_{D,q}(D_q)/\tau_\alpha]\\
+	&-\frac{\mu_\alpha}{2D_{\min}}
+	\sum_{q\in\mathcal Q}[D_{\min}-D_q]^2_+ .
+\end{split}
+	\label{eq:fair_sensing_utility}
+\end{equation}
+Its target priority is the gradient
+\begin{equation}
+\begin{aligned}
+	\alpha_q&=Qw_q\frac{\partial P_{D,q}}{\partial D_q}
+	+\mu_\alpha\frac{[D_{\min}-D_q]^+}{D_{\min}},\\
+	w_q&=\frac{e^{-P_{D,q}/\tau_\alpha}}
+	{\sum_r e^{-P_{D,r}/\tau_\alpha}}.
+\end{aligned}
 	\label{eq:target_priority_compact}
 \end{equation}
-where $[x]^+=\max(x,0)$. The derivative follows from
-\eqref{eq:pd_approx} with a small regularization when $D_q$ is close to zero,
-and $\alpha_q^{(0)}$ denotes the value evaluated at
-$\mathcal S_q=\emptyset$.
 
-For candidate $(i,j)$ and target $q$, the marginal calibrated deflection gain is
+For candidate $e=(i,j,q)$ and current selection $\mathcal S$, the implemented
+greedy replay evaluates
 \begin{equation}
-	\Delta D_{ijq}
-	=
-	D_q\!\left(\mathcal S_q\cup\{(i,j)\}\right)
-	-
-	D_q(\mathcal S_q),
-	\label{eq:marginal_deflection_gain}
-\end{equation}
-where $D_q(\cdot)$ uses the calibrated statistics in
-\eqref{eq:comm_error_calibration}. The Lagrangian score is
-\begin{equation}
-	\Delta\mathcal L_{ijq}
-	=
-	\alpha_q\Delta D_{ijq}
-	-
-	\lambda_c\tilde c_{ijq},
+	\Delta\mathcal L_e=
+	U\!\left(\mathbf D(\mathcal S\cup\{e\})\right)
+	-U\!\left(\mathbf D(\mathcal S)\right)
+	-\lambda_c\widetilde c_e,
 	\label{eq:lagrangian_score_compact}
 \end{equation}
-where $\lambda_c>0$ controls the delay penalty.
+where $\widetilde c_e$ is the reporting latency in milliseconds. The replay
+uses the same post-channel moments and threshold correction as the Monte-Carlo
+detector. Starting from $\mathcal S=\varnothing$, it commits the largest
+positive marginal while enforcing $|\mathcal S_q|\le L_{\max}$ and
+$|\mathcal S|\le L_{\mathrm{tot}}$.
 
-To reduce local DD-grid refinement cost, we use a C2F strategy. Let
-$L_{\mathrm{all}}$ be the number of feasible candidates before screening and
-$L_{\mathrm{short}}\ll L_{\mathrm{all}}$ be the shortlist size. In the coarse
-stage, candidates are ranked by
+\subsection{Adaptive Two-Stage Refinement}
+
+Computing waveform-derived local DD energy for every feasible triplet is
+unnecessary. The coarse stage evaluates candidates using
+$\eta_{ijq}^{\mathrm c}$ and maintains a dynamic frontier. Promising candidates
+are refined with $\eta_{ijq}^{\mathrm f}=\eta_{ijq}^{\mathrm{loc}}$; after each
+commit, affected marginals are refreshed and the fine stage replays the exact
+detector-aligned rule in \eqref{eq:lagrangian_score_compact}. This is an
+adaptive shortlist rather than a fixed one-shot top-$K$ filter. In the V1 main
+experiment, the procedure evaluates 117.7 local DD neighborhoods per trial,
+versus 509.3 under full refinement, a 76.9\% reduction.
+
+The implemented task objective is
 \begin{equation}
-	\Delta\mathcal L_{ijq}^{\mathrm c}
-	=
-	\alpha_q^{(0)}
-	\Delta D_{ijq}^{\mathrm c}
-	-
-	\lambda_c\tilde c_{ijq},
-	\label{eq:coarse_lagrangian_score_compact}
-\end{equation}
-where $\Delta D_{ijq}^{\mathrm c}$ is computed using the coarse DD gain in
-\eqref{eq:coarse_dd_gain}. Only the top $L_{\mathrm{short}}$ candidates are
-retained for fine refinement.
-
-The fine stage applies \eqref{eq:fine_dd_gain} only to the shortlisted
-candidates and recomputes \eqref{eq:marginal_deflection_gain} and
-\eqref{eq:lagrangian_score_compact}. Starting from
-$\mathcal S_q=\emptyset$, the algorithm repeatedly selects the remaining
-candidate with the largest positive $\Delta\mathcal L_{ijq}$ and updates
-$D_q(\mathcal S_q)$ and $\alpha_q$. It stops when no positive-score candidate
-exists, the link-number limit is reached, or all active targets with feasible
-candidates satisfy $D_q(\mathcal S_q)\geq D_{\min}$. C2F reduces fine DD-grid
-evaluations from $\mathcal O(QL_{\mathrm{all}}(2W+1)^2)$ to
-$\mathcal O(QL_{\mathrm{short}}(2W+1)^2)$.
-
-\subsection{Optimality Guarantee of the Greedy Rule}
-\label{subsec:greedy_guarantee}
-
-The greedy rule \eqref{eq:lagrangian_score_compact} is precisely the
-first-order greedy step on the scalar objective
-\begin{equation}
-	F(\mathcal S)
-	=
-	\sum_{q\in\mathcal Q}
-	P_{D,q}\!\left(D_q(\mathcal S_q)\right)
-	-
-	\lambda_c
-	\sum_{(i,j)\in\mathcal S}
-	\tilde c_{ijq},
+	F(\mathcal S)=U\!\left(\mathbf D(\mathcal S)\right)
+	-\lambda_c\sum_{e\in\mathcal S}\widetilde c_e .
 	\label{eq:task_objective}
 \end{equation}
-since $\alpha_q=\partial P_{D,q}/\partial D_q$ is the local slope of the
-detection utility in \eqref{eq:target_priority_compact}. The structure of
-$F$ justifies the greedy rule. When the local statistics are independent, the
-deflection \eqref{eq:correlation_aware_deflection} is additive,
-$D_q=\sum_{(i,j)}\delta_{ijq}^2/\bar\sigma_{ij,0}^2$, so
-$P_{D,q}(D_q)$ is a monotone concave function of a modular function and is
-therefore submodular. With the correlation model enabled,
-$D_q=\boldsymbol\delta_q^T\mathbf\Sigma_q^{-1}\boldsymbol\delta_q$ is the
-conditional information gain of an exponential-family model and is likewise
-submodular in the link set. Since the reporting cost is linear in
-$\mathcal S$, $F$ is a submodular function minus a linear cost, and the
-cost-agnostic greedy selection attains the standard curvature guarantee
-\begin{equation}
-	F(\mathcal S_{\mathrm{greedy}})
-	\;\ge\;
-	\frac{1-e^{-c}}{c}
-	F(\mathcal S^\star),
-	\label{eq:greedy_guarantee}
-\end{equation}
-where $c\in[0,1]$ is the total curvature of the utility and
-$\mathcal S^\star$ is the optimal set under the link budgets. The factor
-interpolates between $1-1/e$ at $c=1$ and exact optimality at $c=0$ (the
-modular case). Section~\ref{sec:simulation_results} verifies the
-diminishing-returns property numerically and reports the empirical curvature
-and the implied guarantee, together with the small-scale greedy-vs-oracle gap
-on the \emph{same} objective \eqref{eq:task_objective}.
-
-
-
-
-
-
-%\section{Proposed C2F DD-Aware Lagrangian Link Selection}
-%\label{sec:proposed_algorithm}
-%
-%We select a compact set of cooperative candidates whose marginal fusion gain
-%justifies their reporting cost. For target $q$, the feasible candidate set is
-%\begin{equation}
-%	\mathcal{E}_q =
-%	\left\{
-%	(i,j)\in\mathcal{E}:
-%	R_{ij}\geq R_{\min},
-%	(l_{ijq},k_{ijq})~\text{is DD-valid}
-%	\right\}.
-%	\label{eq:feasible_candidate_set}
-%\end{equation}
-%Here $c_{ijq}$ and the DD-valid condition are defined in
-%Section~\ref{sec:system_model}. We use
-%$\tilde c_{ijq}=10^3c_{ijq}$ to measure the delay in milliseconds.
-%
-%Given the current selected set $\mathcal S_q$, the target-priority coefficient
-%is updated as
-%\begin{equation}
-%	\alpha_q =
-%	\frac{\partial P_{D,q}}{\partial D_q}
-%	+
-%	\mu_{\alpha}
-%	\frac{[D_{\min}-D_q(\mathcal S_q)]^+}{D_{\min}},
-%	\label{eq:target_priority_compact}
-%\end{equation}
-%where $[x]^+=\max(x,0)$. The derivative follows from
-%\eqref{eq:pd_approx} with a small regularization constant, and
-%$\alpha_q^{(0)}$ denotes the value evaluated at
-%$\mathcal S_q=\emptyset$.
-%
-%For candidate $(i,j)$ and target $q$, the marginal calibrated deflection gain is
-%\begin{equation}
-%	\Delta D_{ijq}
-%	=
-%	D_q\!\left(\mathcal S_q\cup\{(i,j)\}\right)
-%	-
-%	D_q(\mathcal S_q),
-%	\label{eq:marginal_deflection_gain}
-%\end{equation}
-%where $D_q(\cdot)$ uses the calibrated statistics in
-%\eqref{eq:comm_error_calibration}. The Lagrangian score is
-%\begin{equation}
-%	\Delta\mathcal L_{ijq}
-%	=
-%	\alpha_q\Delta D_{ijq}
-%	-
-%	\lambda_c\tilde c_{ijq},
-%	\label{eq:lagrangian_score_compact}
-%\end{equation}
-%where $\lambda_c>0$ controls the delay penalty. The first term measures the
-%target-weighted marginal deflection gain, while the second penalizes reporting
-%delay.
-%
-%To reduce local DD-grid refinement cost, we use a C2F strategy. Let
-%$L_{\mathrm{all}}$ be the number of feasible candidates before screening and
-%$L_{\mathrm{short}}\ll L_{\mathrm{all}}$ be the shortlist size. In the coarse
-%stage, candidates are ranked by
-%\begin{equation}
-%	\Delta\mathcal L_{ijq}^{\mathrm c}
-%	=
-%	\alpha_q^{(0)}
-%	\Delta D_{ijq}^{\mathrm c}
-%	-
-%	\lambda_c\tilde c_{ijq},
-%	\label{eq:coarse_lagrangian_score_compact}
-%\end{equation}
-%where $\Delta D_{ijq}^{\mathrm c}$ is computed using the coarse DD gain in
-%\eqref{eq:coarse_dd_gain}. For each target, only the top
-%$L_{\mathrm{short}}$ candidates are retained.
-%
-%In the fine stage, local DD-grid refinement in \eqref{eq:fine_dd_gain} is
-%applied only to the shortlisted candidates. The refined DD gains are then used
-%to recompute \eqref{eq:marginal_deflection_gain} and
-%\eqref{eq:lagrangian_score_compact}. Starting from
-%$\mathcal S_q=\emptyset$, the algorithm repeatedly selects the remaining
-%candidate with the largest positive $\Delta\mathcal L_{ijq}$ and updates
-%$D_q(\mathcal S_q)$ and $\alpha_q$. The procedure stops when no positive-score
-%candidate exists, the link-number limit is reached, or all active targets with
-%feasible candidates satisfy $D_q(\mathcal S_q)\geq D_{\min}$.
-%
-%Compared with full local refinement, C2F reduces the number of fine DD-grid
-%evaluations from
-%$\mathcal O(QL_{\mathrm{all}}(2W+1)^2)$ to
-%$\mathcal O(QL_{\mathrm{short}}(2W+1)^2)$.
-
-
-%\section{Proposed C2F DD-Aware Lagrangian Link Selection}
-%\label{sec:proposed_algorithm}
-%
-%This section presents the proposed communication-error-calibrated and
-%C2F DD-aware Lagrangian link-selection method. The objective is to select a
-%small set of cooperative sensing-reporting links whose calibrated marginal
-%sensing gain justifies their reporting cost.
-%
-%For target $q$, the feasible candidate set is
-%\begin{equation}
-%	\mathcal{E}_q
-%	=
-%	\left\{
-%	(i,j)\in\mathcal{E}:
-%	R_{ij}\geq R_{\min},
-%	(l_{ijq},k_{ijq})~\text{is DD-valid}
-%	\right\}.
-%	\label{eq:feasible_candidate_set}
-%\end{equation}
-%Let $\tilde{c}_{ijq}=10^3c_{ijq}$ denote the exchange delay in milliseconds.
-%At each greedy iteration, candidate $(i,j,q)$ is evaluated by the Lagrangian
-%score
-%\begin{equation}
-%	\operatorname{score}_{ijq}
-%	=
-%	\alpha_q
-%	\frac{
-%		\left(\mu_{ijq}^{\mathrm{eff}}\right)^2
-%	}
-%	{
-%		\bar{\sigma}_{ij,0}^2
-%	}
-%	-
-%	\lambda_c \tilde{c}_{ijq},
-%	\label{eq:lagrangian_score_compact}
-%\end{equation}
-%where $\lambda_c>0$ is the communication-price parameter. The first term is the
-%communication-error-calibrated marginal deflection gain, while the second term
-%penalizes the reporting delay.
-%
-%The target-priority coefficient is updated according to the current fused
-%deflection:
-%\begin{equation}
-%	\alpha_q
-%	=
-%	\frac{\partial P_{D,q}}{\partial D_q}
-%	+
-%	\mu_{\alpha}
-%	\frac{[D_{\min}-D_q(\mathcal{S}_q)]^+}{D_{\min}},
-%	\label{eq:target_priority_compact}
-%\end{equation}
-%where $[x]^+=\max(x,0)$. The derivative term is obtained from
-%\eqref{eq:pd_approx} with a small positive regularization constant to avoid
-%singularity when no link has been selected. Thus, targets with low current
-%deflection receive higher priority in subsequent selections.
-%
-%To reduce the cost of local DD-grid refinement, a C2F strategy is used. In the
-%coarse stage, each candidate is evaluated using the main-bin DD gain
-%$\eta_{ijq}^{\mathrm{c}}$, and the coarse utility is
-%\begin{equation}
-%	\Delta\mathcal{L}_{ijq}^{\mathrm{c}}
-%	=
-%	\alpha_q^{(0)}
-%	\Delta D_{ijq}^{\mathrm{c}}
-%	-
-%	\lambda_c \tilde{c}_{ijq},
-%	\label{eq:coarse_lagrangian_score_compact}
-%\end{equation}
-%where $\Delta D_{ijq}^{\mathrm{c}}$ is the marginal deflection computed using
-%the coarse DD-domain gain. For each target, only the top $L_{\mathrm{short}}$
-%candidates with the largest $\Delta\mathcal{L}_{ijq}^{\mathrm{c}}$ are
-%retained. In the fine stage, local DD-grid refinement is applied only to the
-%shortlisted candidates, and the final greedy selection is performed using
-%\eqref{eq:lagrangian_score_compact}.
-%
-%Starting from $\mathcal{S}_q=\emptyset$, the algorithm repeatedly selects the
-%remaining candidate with the largest positive score, updates
-%$D_q(\mathcal{S}_q)$ and $\alpha_q$, and stops when no positive-score candidate
-%remains, the link-number limit is reached, or all active targets satisfy
-%$D_q(\mathcal{S}_q)\geq D_{\min}$. Compared with full local refinement, the C2F
-%procedure reduces the number of fine DD-grid evaluations from
-%$\mathcal{O}(QL_{\mathrm{all}}(2W+1)^2)$ to
-%$\mathcal{O}(QL_{\mathrm{short}}(2W+1)^2)$, where
-%$L_{\mathrm{short}}\ll L_{\mathrm{all}}$.
-%
+The cost term can make $F$ non-monotone, while the soft minimum couples targets
+and the constraints combine per-target and total caps. We therefore make no
+universal submodular approximation claim. V1 is an architectural extension of
+the existing selector: its principal new variable is $f_q$ in
+\eqref{eq:nearest_target_fusion}, not a new greedy score.

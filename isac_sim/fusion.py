@@ -29,8 +29,16 @@ from typing import Dict, List
 import numpy as np
 
 from .config import Config, Link
-from .model import EPS, BaseGains, d_pd_d_D, pd_from_deflection
+from .model import (
+    EPS,
+    BaseGains,
+    d_pd_d_D,
+    pd_from_deflection,
+    qfunc,
+    threshold_from_pfa,
+)
 from .reporting import report_dest
+from .soft_channel import local_moments, received_h0_third_central, received_moments
 
 
 # ==========================================================================
@@ -46,21 +54,9 @@ def effective_h1_mean_for_link(
     architecture, the fusion UAV ``f_q`` in the explicit one), so the reporting
     reliability is the ``j -> dest`` communication quality.
     """
-    i, j = link
-    mu = float(tables.mu_soft[i, j, q])
-
     if (not cfg.detect.enable_comm_error_pollution) or (not cfg.selector.use_comm_error_calibration):
-        return mu
-
-    chi = float(tables.chi_comm[j, report_dest(plan, link, q)])
-    model = cfg.detect.comm_error_model
-    if model == "erasure":
-        return chi * mu
-    if model == "flip":
-        return (chi - (1.0 - chi) * cfg.detect.soft_error_flip_scale) * mu
-    if model == "biased":
-        return (chi + (1.0 - chi) * cfg.detect.soft_error_bias_scale) * mu
-    raise ValueError(model)
+        return local_moments(cfg, tables, link, q).gap
+    return received_moments(cfg, tables, link, q, plan).gap
 
 
 def _base_std_for_link(cfg: Config, tables, link: Link, q: int) -> float:
@@ -81,42 +77,17 @@ def h0_variance_for_link(
     cfg: Config, tables, link: Link, q: int | None = None, plan: "object | None" = None
 ) -> float:
     """H0 variance of the soft statistic, inflated by failed packets."""
-    i, j = link
-    sigma0 = _base_std_for_link(cfg, tables, link, q if q is not None else 0)
-
-    if not cfg.detect.enable_comm_error_pollution:
-        return sigma0 ** 2
-
-    chi = float(tables.chi_comm[j, report_dest(plan, link, q if q is not None else 0)])
-    sigma_err = cfg.detect.soft_error_sigma_scale * sigma0
-    return chi * sigma0 ** 2 + (1.0 - chi) * sigma_err ** 2
+    qq = q if q is not None else 0
+    return received_moments(cfg, tables, link, qq, plan).v0
 
 
 def deflection_variance_for_link(
     cfg: Config, tables, link: Link, q: int, plan: "object | None" = None
 ) -> float:
-    """Full effective variance of the soft statistic used by the deflection.
-
-    Models the communication error as a Bernoulli drop-out mixture
-    ``s_eff = B * s + (1 - B) * e`` with ``B ~ Bern(chi)``.  The total
-    variance is, by the law of total variance,
-
-        Var(s_eff) = chi*sigma^2 + (1-chi)*sigma_err^2   (within-group)
-                   + chi*(1-chi)*mu^2                    (between-group)
-
-    The first term is :func:`h0_variance_for_link`; the second (between-group)
-    term ``chi*(1-chi)*mu^2`` was previously dropped and is added here.
-    """
-    i, j = link
-    sigma0 = _base_std_for_link(cfg, tables, link, q)
+    """H0 variance used by the ordinary deflection ``(m1-m0)^2/v0``."""
     if (not cfg.detect.enable_comm_error_pollution) or (not cfg.selector.use_comm_error_calibration):
-        return sigma0 ** 2
-
-    var_within = h0_variance_for_link(cfg, tables, link, q, plan)
-    chi = float(tables.chi_comm[j, report_dest(plan, link, q)])
-    mu = float(tables.mu_soft[i, j, q])
-    var_between = chi * (1.0 - chi) * mu ** 2
-    return var_within + var_between
+        return local_moments(cfg, tables, link, q).v0
+    return received_moments(cfg, tables, link, q, plan).v0
 
 
 # ==========================================================================
@@ -207,6 +178,49 @@ def deflection_for_links(
     return float((max(mean_gap, 0.0) ** 2) / (var0 + EPS))
 
 
+def predicted_pd_for_links(
+    cfg: Config,
+    tables,
+    q: int,
+    links: List[Link],
+    weight_mode: str = "deflection",
+    plan: "object | None" = None,
+    base: BaseGains | None = None,
+) -> float:
+    """Moment-matched detection probability for the implemented detector.
+
+    Unlike :func:`pd_from_deflection`, this prediction retains the unequal H0
+    and H1 variances of the finite-look LLR, the post-report packet mixture,
+    and the Cornish--Fisher H0 threshold correction.  It remains an analytic
+    scheduler surrogate; Monte-Carlo detection is still the release metric.
+    """
+    if not links:
+        return 0.0
+
+    weights = compute_weights(cfg, tables, q, links, mode=weight_mode, plan=plan, base=base)
+    moments = [received_moments(cfg, tables, link, q, plan) for link in links]
+    mean1 = float(sum(weights[link] * mom.m1 for link, mom in zip(links, moments)))
+    var0 = fused_h0_variance(cfg, tables, q, links, weights, plan=plan, base=base)
+
+    if cfg.corr.enable and base is not None and len(links) > 1:
+        from .corr import covariance_matrix
+
+        sigma1 = np.array([np.sqrt(max(mom.v1, 0.0)) for mom in moments], dtype=float)
+        Sigma1 = covariance_matrix(cfg, links, sigma1, base=base, q=q)
+        w = np.array([weights[link] for link in links], dtype=float)
+        var1 = float(w @ Sigma1 @ w)
+    else:
+        var1 = float(sum(
+            (weights[link] ** 2) * mom.v1 for link, mom in zip(links, moments)
+        ))
+
+    skew0 = fused_h0_skewness(cfg, tables, q, links, weights, plan=plan, base=base)
+    z0 = threshold_from_pfa(cfg)
+    z_cf = z0 + (skew0 / 6.0) * (z0 * z0 - 1.0)
+    threshold = z_cf * np.sqrt(max(var0, EPS))
+    return float(qfunc((threshold - mean1) / np.sqrt(max(var1, EPS))))
+
+
 def fused_h0_variance(
     cfg: Config,
     tables,
@@ -236,13 +250,79 @@ def fused_h0_variance(
     return float(sum((w ** 2) * h0_variance_for_link(cfg, tables, link, q, plan) for link, w in weights.items()))
 
 
+def fused_h0_skewness(
+    cfg: Config,
+    tables,
+    q: int,
+    links: List[Link],
+    weights: Dict[Link, float],
+    plan: "object | None" = None,
+    base: BaseGains | None = None,
+) -> float:
+    """Independent-link H0 skewness for Cornish--Fisher threshold calibration."""
+    if cfg.corr.enable or not links:
+        return 0.0
+    var0 = fused_h0_variance(cfg, tables, q, links, weights, plan, base)
+    if var0 <= EPS:
+        return 0.0
+    mu3 = sum(
+        (w ** 3) * received_h0_third_central(cfg, tables, link, q, plan)
+        for link, w in weights.items()
+    )
+    return float(mu3 / (var0 ** 1.5))
+
+
 # ==========================================================================
 # Target priority
 # ==========================================================================
+def selection_utility_from_pd(
+    cfg: Config, D_fuse: np.ndarray, predicted_pd: np.ndarray
+) -> float:
+    """Evaluate the canonical fair potential for supplied target-level PDs."""
+    s = cfg.selector
+    D = np.asarray(D_fuse, dtype=float)
+    if not s.use_target_priority:
+        return float(np.sum(D))
+
+    pd = np.asarray(predicted_pd, dtype=float)
+    if s.use_softmin_alpha:
+        tau = max(float(s.softmin_tau), EPS)
+        z = -pd / tau
+        zmax = float(np.max(z)) if z.size else 0.0
+        sensing = -float(cfg.scale.Q) * tau * (
+            zmax + np.log(max(float(np.sum(np.exp(z - zmax))), EPS))
+        )
+    else:
+        sensing = float(np.sum(pd))
+
+    D_min = max(float(cfg.detect.D_min), EPS)
+    deficit = np.maximum(D_min - D, 0.0)
+    penalty = float(s.mu_deficit) * float(np.sum(deficit * deficit)) / (2.0 * D_min)
+    return sensing - penalty
+
+
+def selection_utility(cfg: Config, D_fuse: np.ndarray) -> float:
+    r"""Fair sensing utility whose gradient is the unclipped ``alpha_q``.
+
+    With soft-min target prioritisation enabled,
+
+    ``U(D) = -Q*tau*log sum_q exp(-P_D,q/tau)
+             - mu/(2*D_min) * sum_q [D_min-D_q]_+^2``.
+
+    The first term emphasizes weak targets and the second penalizes detection
+    deficits.  Disabling soft-min replaces its first term by ``sum_q P_D,q``;
+    disabling target priority altogether yields ``sum_q D_q``.
+    """
+    D = np.asarray(D_fuse, dtype=float)
+    pd = np.asarray(pd_from_deflection(cfg, D), dtype=float)
+    return selection_utility_from_pd(cfg, D, pd)
+
+
 def target_alpha(cfg: Config, D_fuse: np.ndarray) -> np.ndarray:
     r"""Marginal value of improving each target.
 
-    ``alpha_q = dR/dD_q + mu * normalized_deficit``.  With
+    ``alpha_q = dU/dD_q`` for :func:`selection_utility` before numerical
+    clipping.  With
     ``use_softmin_alpha`` the derivative term is weighted by a soft-min over the
     predicted ``P_D`` so that weak targets receive larger priority.
     """

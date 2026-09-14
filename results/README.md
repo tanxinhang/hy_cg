@@ -1,10 +1,15 @@
 # 论文数据重跑汇总（isac_sim）
 
+> **Legacy archive — not canonical release evidence.** 本目录由提交
+> `603b61d` 的混合模型生成，包含 decoupled/active-set、heuristic reliability
+> 等旧口径。投稿数字只能取自 `results_release/`，其配置契约见
+> `PAPER_RELEASE.md`。下表原来的 `kbit` 表头有误；数值实际单位为 bit。
+
 > 由 `tools/rerun_paper.py` 以论文参数（M=15, Q=10, UAV 30-60 m/s, 目标 50-90 m/s, MC=1000, seed=2026）生成，`tools/summarize_results.py` 归纳。
 
 ## 1. 主对比（Fig. 2）
 
-| Method | P_D | Bits (kbit) | Delay (ms) | Worst P_D |
+| Method | P_D | Bits (bit) | Delay (ms) | Worst P_D |
 |---|---|---|---|---|
 | proposed_lagrangian | 0.9481 | 9535.36 | 6.94 | 0.9350 |
 | topk_deflection | 0.9470 | 9535.36 | 7.42 | 0.9370 |
@@ -32,7 +37,7 @@
 
 ## 2. C2F DD 精化（Fig. 2 / §4 DD 消融）
 
-| Method | P_D | Fine-grid eval | T (ms) | Bits (kbit) |
+| Method | P_D | Fine-grid eval | T (ms) | Bits (bit) |
 |---|---|---|---|---|
 | proposed_lagrangian | 0.9481 | 0.0 | 6.94 | 9535 |
 | proposed_c2f | 0.9572 | 247.6 | 5.76 | 8856 |
@@ -45,7 +50,7 @@
 
 ## 3. 组件消融（Table II，固定预算）
 
-| Variant | P_D | Bits (kbit) | Delay (ms) | Worst P_D |
+| Variant | P_D | Bits (bit) | Delay (ms) | Worst P_D |
 |---|---|---|---|---|
 | full | 0.9469 | 9170.56 | 6.56 | 0.9380 |
 | w/o_alpha | 0.8504 | 15880.32 | 9.40 | 0.8260 |

@@ -57,6 +57,7 @@ from .reporting import ReportingPlan, assign_fusion_nodes
 from .selection import C2F_METHODS, METHODS
 from .simulate import run_one_trial, run_simulation, summarize
 from .theory import (
+    curvature_reference_bound,
     empirical_curvature,
     greedy_guarantee,
     same_objective_oracle,
@@ -93,6 +94,7 @@ __all__ = [
     "submodularity_audit",
     "empirical_curvature",
     "greedy_guarantee",
+    "curvature_reference_bound",
     "perturbed_geometry",
     "predicted_geometry",
     "ReportingPlan",

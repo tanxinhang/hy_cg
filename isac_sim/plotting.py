@@ -541,24 +541,24 @@ def plot_correlation_ablation(rows, out_dir: Path) -> None:
 
 
 def plot_submodularity(rows, out_dir: Path) -> None:
-    """Violation rates and greedy guarantee (single-row diagnostics)."""
+    """Finite-instance violation rates and curvature diagnostics."""
     if not rows:
         return
     r = rows[0]
     plt = _pyplot()
     fig, ax = plt.subplots(figsize=(7.0, 3.4))
-    names = ["monotone\nviolations", "submod.\nviolations", "1 - curvature", "greedy\nguarantee"]
+    names = ["monotone\nviolations", "submod.\nviolations", "1 - curvature", "matroid\nreference"]
     vals = [
         r.get("monotone_violation_rate", 0.0),
         r.get("submodularity_violation_rate", 0.0),
         1.0 - r.get("curvature", 0.0),
-        r.get("greedy_guarantee", 0.0),
+        r.get("matroid_reference_bound", 0.0),
     ]
     bars = ax.bar(names, vals, color=["#3a7", "#3a7", "#d55", "#d55"])
     for b, v in zip(bars, vals):
         ax.text(b.get_x() + b.get_width() / 2, v + 0.02, f"{v:.3f}", ha="center", fontsize=9)
     ax.set_ylim(0, 1.15)
-    ax.set_title("Submodularity audit (0 violations => structure holds)")
+    ax.set_title("Finite-instance diminishing-returns audit")
     ax.grid(True, axis="y", alpha=0.3)
     fig.tight_layout()
     _save(fig, out_dir, "submodularity.png")

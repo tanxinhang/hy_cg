@@ -1,39 +1,35 @@
-"""Structural guarantees for the greedy link selector.
+"""Structural interpretation and small-scale audits for the greedy selector.
 
 The reviewers' sharpest question about the proposed method was *"why greedy?"*.
 A greedy heuristic is only defensible when its objective has structure.  This
 module provides that structure, in three parts:
 
-1. **Same-objective oracle.**  The greedy rule
+1. **Same-objective oracle.**  The paper-canonical greedy rule evaluates the
+   exact marginal of the fair sensing potential
 
-       score = alpha_q * DeltaD - lambda_c * cost
+       U(D) = -Q tau log sum_q exp(-P_D,q/tau)
+              - mu/(2 D_min) sum_q [D_min-D_q]_+^2
 
-   with ``alpha_q = d P_D / d D_q`` is precisely the *first-order* greedy step
-   on the scalar objective
+   minus linear reporting cost.  The historical ``alpha_q * DeltaD`` rule is
+   retained as a first-order ablation, not presented as the exact objective.
 
-       F(S) = sum_q P_D(D_q(S_q)) - lambda_c * sum_{l in S} cost_l .
+       F(S) = U(D(S)) - lambda_c * sum_{l in S} cost_l .
 
    ``task_objective`` evaluates exactly that ``F``, and
    ``same_objective_oracle`` exhaustively maximises it on a small instance, so
    the reported gap is on the *same* function the greedy optimises (unlike the
    older detection-only oracle, which dropped ``lambda_c`` and ``alpha_q``).
 
-2. **Submodularity audit.**  ``P_D(D)`` is a monotone concave function of the
-   deflection ``D``, and with deflection-optimal weights and independent
-   observations ``D_q`` is *additive* (``sum_l delta_l^2/sigma_l^2``).  A
-   monotone concave function of a modular function is submodular, so ``F``
-   should be submodular (monotone) when the link cost is linear.  The audit
-   verifies this empirically: it samples set pairs ``A subset B`` and elements
-   ``e notin B`` and counts diminishing-returns violations.
+2. **Submodularity audit.**  The independent-observation special case has an
+   additive deflection.  General correlation, the fair multi-target potential,
+   and a positive reporting price do not inherit a blanket theorem.  The audit
+   therefore checks the *implemented task objective* empirically and reports
+   violations without promoting a finite sample to a proof.
 
-3. **Curvature bound.**  For a monotone submodular ``F`` with total curvature
-   ``c in [0, 1]``, the cost-agnostic greedy achieves
-
-       F(S_greedy) >= (1/c)(1 - e^{-c}) * F(S*),
-
-   which interpolates between the ``(1 - 1/e)`` guarantee at ``c = 1`` and
-   exact optimality at ``c = 0`` (modular).  ``empirical_curvature`` estimates
-   ``c`` on the single-target ground set.
+3. **Curvature diagnostic.**  Curvature is reported only as an empirical shape
+   diagnostic.  The per-target plus total link caps form a matroid-style
+   constraint, for which ``1/(1+c)`` is the relevant classical reference under
+   assumptions that need not hold here.  It is not labelled a guarantee.
 """
 
 from __future__ import annotations
@@ -44,8 +40,8 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from .config import Config, Link
-from .fusion import deflection_for_links
-from .model import BaseGains, LinkTables, pd_from_deflection
+from .fusion import deflection_for_links, selection_utility
+from .model import BaseGains, LinkTables
 from .selection import feasible_links_for_target, link_cost_ms
 
 
@@ -59,17 +55,19 @@ def task_objective(
     plan: "object | None" = None,
     base: BaseGains | None = None,
 ) -> float:
-    """``sum_q P_D(D_q) - lambda_c * sum_l cost_l`` -- the greedy's surrogate."""
+    """Exact fair sensing utility minus the configured linear reporting cost."""
     s = cfg.selector
-    total = 0.0
+    D = np.zeros(cfg.scale.Q, dtype=float)
+    total_cost = 0.0
     for q in range(cfg.scale.Q):
         links = selected.get(q, [])
-        D = deflection_for_links(cfg, tables, q, links, weight_mode="deflection", plan=plan, base=base)
-        total += float(pd_from_deflection(cfg, D))
+        D[q] = deflection_for_links(
+            cfg, tables, q, links, weight_mode="deflection", plan=plan, base=base
+        )
         if s.use_delay_price:
             for link in links:
-                total -= s.lambda_c * link_cost_ms(cfg, tables, q, link, plan)
-    return total
+                total_cost += s.lambda_c * link_cost_ms(cfg, tables, q, link, plan)
+    return selection_utility(cfg, D) - total_cost
 
 
 def same_objective_oracle(
@@ -131,11 +129,29 @@ def _comb(n: int, r: int) -> int:
 # ==========================================================================
 # Submodularity audit + curvature
 # ==========================================================================
-def _single_target_value(
-    cfg: Config, tables, q: int, subset: List[Link], plan, base
-) -> float:
-    D = deflection_for_links(cfg, tables, q, subset, weight_mode="deflection", plan=plan, base=base)
-    return float(pd_from_deflection(cfg, D))
+def _ground_elements(
+    cfg: Config, base: BaseGains, tables: LinkTables, plan: "object | None"
+) -> List[tuple[int, Link]]:
+    return [
+        (q, link)
+        for q in range(cfg.scale.Q)
+        for link in feasible_links_for_target(cfg, base, tables, q, plan)
+    ]
+
+
+def _selection_from_elements(
+    cfg: Config, elements: List[tuple[int, Link]]
+) -> Dict[int, List[Link]]:
+    selected: Dict[int, List[Link]] = {q: [] for q in range(cfg.scale.Q)}
+    for q, link in elements:
+        selected[q].append(link)
+    return selected
+
+
+def _audited_value(cfg, tables, elements, plan, base) -> float:
+    return task_objective(
+        cfg, tables, _selection_from_elements(cfg, elements), plan=plan, base=base
+    )
 
 
 def submodularity_audit(
@@ -146,26 +162,23 @@ def submodularity_audit(
     n_samples: int = 500,
     seed: int = 0,
 ) -> Dict[str, float]:
-    """Empirical diminishing-returns check on the per-target P_D objective.
+    """Empirical diminishing-returns check on the implemented task objective.
 
     For random ``A subset B`` and ``e notin B``, submodularity requires
     ``F(A u e) - F(A) >= F(B u e) - F(B)``.  Returns the fraction of violations
     and the average (and minimum) marginal-gain ratio.
     """
     rng = np.random.default_rng(seed)
-    Q = cfg.scale.Q
+    pool = _ground_elements(cfg, base, tables, plan)
     monotone_violations = 0
     submod_violations = 0
     ratios: List[float] = []
     n_checks = 0
 
     for _ in range(n_samples):
-        q = int(rng.integers(0, Q))
-        cand = feasible_links_for_target(cfg, base, tables, q, plan)
-        if len(cand) < 3:
-            continue
-        pool = list(cand)
         n_pool = len(pool)
+        if n_pool < 3:
+            continue
         k = int(rng.integers(1, n_pool))
         b_idx = rng.choice(n_pool, size=k, replace=False)
         B = [pool[int(x)] for x in b_idx]
@@ -177,10 +190,10 @@ def submodularity_audit(
             continue
         e = [rest[int(rng.integers(0, len(rest)))]]
 
-        F_A = _single_target_value(cfg, tables, q, A, plan, base)
-        F_Ae = _single_target_value(cfg, tables, q, A + e, plan, base)
-        F_B = _single_target_value(cfg, tables, q, B, plan, base)
-        F_Be = _single_target_value(cfg, tables, q, B + e, plan, base)
+        F_A = _audited_value(cfg, tables, A, plan, base)
+        F_Ae = _audited_value(cfg, tables, A + e, plan, base)
+        F_B = _audited_value(cfg, tables, B, plan, base)
+        F_Be = _audited_value(cfg, tables, B + e, plan, base)
 
         n_checks += 1
         if F_Ae < F_A - 1e-12 or F_Be < F_B - 1e-12:
@@ -194,7 +207,8 @@ def submodularity_audit(
 
     if n_checks == 0:
         return {"n_checks": 0.0, "monotone_violation_rate": 0.0,
-                "submodularity_violation_rate": 0.0, "curvature": 0.0, "greedy_guarantee": 1.0}
+                "submodularity_violation_rate": 0.0, "curvature": 0.0,
+                "matroid_reference_bound": 1.0}
 
     curvature = float(empirical_curvature(cfg, base, tables, plan))
     return {
@@ -204,7 +218,7 @@ def submodularity_audit(
         "mean_marginal_ratio": float(np.mean(ratios)) if ratios else 1.0,
         "min_marginal_ratio": float(np.min(ratios)) if ratios else 1.0,
         "curvature": curvature,
-        "greedy_guarantee": float(greedy_guarantee(curvature)),
+        "matroid_reference_bound": float(curvature_reference_bound(curvature)),
     }
 
 
@@ -214,40 +228,40 @@ def empirical_curvature(
     tables: LinkTables,
     plan: "object | None" = None,
 ) -> float:
-    r"""Total curvature of the single-target P_D objective, averaged over targets.
+    r"""Empirical curvature of the normalized implemented task objective.
 
     For a monotone submodular ``F`` with ground set ``V``,
 
         c = 1 - min_e ( F(V) - F(V \ {e}) ) / F({e}).
 
-    ``c = 0`` iff ``F`` is modular (greedy is then exact); ``c -> 1`` gives the
-    worst-case ``1 - 1/e`` guarantee.  Computed exactly over each target's
-    candidate list -- tractable because ``M`` is small in the audit regime.
+    ``c = 0`` indicates modular behavior and ``c -> 1`` strong diminishing
+    returns.  The diagnostic is computed on the finite audited ground set and
+    is not promoted to a theorem for correlated observations.
     """
-    Q = cfg.scale.Q
-    total_c = 0.0
+    V = _ground_elements(cfg, base, tables, plan)
+    if len(V) < 2:
+        return 0.0
+    F0 = _audited_value(cfg, tables, [], plan, base)
+    F_V = _audited_value(cfg, tables, V, plan, base) - F0
+    c = 0.0
     n = 0
-    for q in range(Q):
-        V = feasible_links_for_target(cfg, base, tables, q, plan)
-        if len(V) < 2:
+    for e in V:
+        F_e = _audited_value(cfg, tables, [e], plan, base) - F0
+        if F_e <= 1e-12:
             continue
-        F_V = _single_target_value(cfg, tables, q, V, plan, base)
-        c_q = 0.0
-        for e in V:
-            Fe = _single_target_value(cfg, tables, q, [e], plan, base)
-            if Fe <= 1e-12:
-                continue
-            V_no_e = [x for x in V if x != e]
-            F_Vne = _single_target_value(cfg, tables, q, V_no_e, plan, base)
-            c_q = max(c_q, 1.0 - (F_V - F_Vne) / Fe)
-        total_c += float(np.clip(c_q, 0.0, 1.0))
+        V_no_e = [x for x in V if x != e]
+        last_marginal = F_V - (_audited_value(cfg, tables, V_no_e, plan, base) - F0)
+        c = max(c, 1.0 - last_marginal / F_e)
         n += 1
-    return total_c / n if n else 0.0
+    return float(np.clip(c, 0.0, 1.0)) if n else 0.0
+
+
+def curvature_reference_bound(curvature: float) -> float:
+    """Classical ``1/(1+c)`` matroid reference, not a guarantee for this task."""
+    c = float(np.clip(curvature, 0.0, 1.0))
+    return 1.0 / (1.0 + c)
 
 
 def greedy_guarantee(curvature: float) -> float:
-    """``(1/c)(1 - e^{-c})`` approximation factor for curvature ``c``."""
-    c = float(np.clip(curvature, 1e-9, 1.0))
-    if c < 1e-9:
-        return 1.0
-    return (1.0 - np.exp(-c)) / c
+    """Backward-compatible alias for the non-claiming curvature reference."""
+    return curvature_reference_bound(curvature)

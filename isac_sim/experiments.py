@@ -492,6 +492,7 @@ def oracle_gap(
     and the relative gap ``(oracle - greedy) / oracle``.
     """
     from .model import build_base_gains, compute_link_tables, generate_geometry
+    from .reporting import assign_fusion_nodes
     from .oracle import greedy_objective, oracle_exhaustive
     from .selection import select_lagrangian
 
@@ -512,10 +513,13 @@ def oracle_gap(
         geom = generate_geometry(small_cfg, rng)
         base = build_base_gains(small_cfg, geom, rng)
         tables = compute_link_tables(small_cfg, base)
-
-        selected_greedy, _ = select_lagrangian(small_cfg, base, tables)
-        selected_oracle, obj_oracle = oracle_exhaustive(small_cfg, base, tables)
-        obj_greedy = greedy_objective(small_cfg, tables, selected_greedy)
+        plan = (
+            assign_fusion_nodes(small_cfg, base, tables, geom)
+            if small_cfg.fusion.mode.lower() == "explicit" else None
+        )
+        selected_greedy, _ = select_lagrangian(small_cfg, base, tables, plan)
+        selected_oracle, obj_oracle = oracle_exhaustive(small_cfg, base, tables, plan)
+        obj_greedy = greedy_objective(small_cfg, tables, selected_greedy, plan, base)
 
         denom = max(obj_oracle, 1e-9)
         gap = float((obj_oracle - obj_greedy) / denom)
@@ -921,14 +925,14 @@ def submodularity(
     small_Q: int = 3,
     n_samples: int = 800,
 ) -> List[Dict[str, Any]]:
-    """Diminishing-returns audit and greedy approximation guarantee.
+    """Finite-instance diminishing-returns and curvature audit.
 
-    Verifies empirically that the ``sum_q P_D(D_q)`` objective is monotone and
-    submodular, estimates its total curvature and reports the implied
-    ``(1/c)(1 - e^{-c})`` greedy guarantee.
+    The audit evaluates the implemented fair utility and reporting cost.  It is
+    evidence about the tested instances, not a universal submodularity proof.
     """
     from .model import build_base_gains, compute_link_tables, generate_geometry
-    from .theory import greedy_guarantee, submodularity_audit
+    from .reporting import assign_fusion_nodes
+    from .theory import curvature_reference_bound, submodularity_audit
 
     small_cfg = apply_overrides(cfg, {
         "scale.M": int(small_M),
@@ -951,7 +955,13 @@ def submodularity(
         geom = generate_geometry(small_cfg, rng)
         base = build_base_gains(small_cfg, geom, rng)
         tables = compute_link_tables(small_cfg, base)
-        audit = submodularity_audit(small_cfg, base, tables, n_samples=n_samples, seed=t)
+        plan = (
+            assign_fusion_nodes(small_cfg, base, tables, geom)
+            if small_cfg.fusion.mode.lower() == "explicit" else None
+        )
+        audit = submodularity_audit(
+            small_cfg, base, tables, plan=plan, n_samples=n_samples, seed=t
+        )
         for k in agg:
             agg[k] += float(audit.get(k, 0.0)) / n_trials
     c = float(np.clip(agg["curvature"], 0.0, 1.0))
@@ -966,11 +976,13 @@ def submodularity(
         "submodularity_violation_rate": agg["submodularity_violation_rate"],
         "min_marginal_ratio": agg["min_marginal_ratio"],
         "curvature": c,
-        "greedy_guarantee": float(greedy_guarantee(c)),
+        "matroid_reference_bound": float(curvature_reference_bound(c)),
+        "guarantee_applicable": False,
     })
     print(f"  monotone violations={agg['monotone_violation_rate']:.4f}  "
           f"submodularity violations={agg['submodularity_violation_rate']:.4f}")
-    print(f"  curvature={c:.4f}  greedy guarantee={greedy_guarantee(c):.4f}")
+    print(f"  empirical curvature={c:.4f}  "
+          f"matroid reference={curvature_reference_bound(c):.4f} (not a guarantee)")
     return rows
 
 
@@ -984,12 +996,13 @@ def same_objective_gap(
     """Greedy-vs-oracle gap on the *same* objective the greedy optimises.
 
     Unlike ``oracle-gap`` (which maximised ``sum_q D_q``), the oracle here
-    maximises ``sum_q P_D(D_q) - lambda_c * cost`` -- the exact scalar function
-    whose first-order greedy step is the proposed rule.
+    maximises the fair sensing potential minus reporting cost, exactly matching
+    the paper-canonical marginal rule.
     """
     from .model import build_base_gains, compute_link_tables, generate_geometry
     from .selection import select_lagrangian
     from .theory import same_objective_oracle, task_objective
+    from .reporting import assign_fusion_nodes
 
     small_cfg = apply_overrides(cfg, {
         "scale.M": int(small_M),
@@ -1006,9 +1019,13 @@ def same_objective_gap(
         geom = generate_geometry(small_cfg, rng)
         base = build_base_gains(small_cfg, geom, rng)
         tables = compute_link_tables(small_cfg, base)
-        selected_greedy, _ = select_lagrangian(small_cfg, base, tables)
-        selected_oracle, obj_oracle = same_objective_oracle(small_cfg, base, tables)
-        obj_greedy = task_objective(small_cfg, tables, selected_greedy, None, base)
+        plan = (
+            assign_fusion_nodes(small_cfg, base, tables, geom)
+            if small_cfg.fusion.mode.lower() == "explicit" else None
+        )
+        selected_greedy, _ = select_lagrangian(small_cfg, base, tables, plan)
+        selected_oracle, obj_oracle = same_objective_oracle(small_cfg, base, tables, plan)
+        obj_greedy = task_objective(small_cfg, tables, selected_greedy, plan, base)
         gap = float((obj_oracle - obj_greedy) / max(obj_oracle, 1e-9))
         gaps.append(gap)
         rows.append({

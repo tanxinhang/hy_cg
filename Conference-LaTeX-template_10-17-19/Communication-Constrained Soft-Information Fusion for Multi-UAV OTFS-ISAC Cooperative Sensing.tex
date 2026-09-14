@@ -2,6 +2,7 @@
 \IEEEoverridecommandlockouts
 \usepackage{booktabs}       % 修复 toprule midrule bottomrule
 \usepackage{placeins}       % 修复 FloatBarrier
+\usepackage{balance}
 \usepackage{graphicx}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
@@ -16,7 +17,7 @@
 \begin{document}
 	
 	% ===================== 标题 =====================
-	\title{Communication-Constrained Soft-Information Fusion for Multi-UAV OTFS-ISAC Cooperative Sensing}
+	\title{Target-Local Soft-Information Fusion for Communication-Constrained Multi-UAV OTFS-ISAC Sensing}
 	
 	% ===================== 作者（标准格式） =====================
 	\author{
@@ -37,32 +38,29 @@
 	% ===================== 摘要（纯净版） =====================
 
 	\begin{abstract}
-		In multi-UAV OTFS-ISAC networks, inter-UAV soft-information exchange can
-		improve cooperative sensing, but excessive signaling overhead, exchange
-		delay, and unreliable reporting links may offset the sensing gain. To address
-		this issue, this paper proposes a communication-error-calibrated and
-		coarse-to-fine (C2F) delay-Doppler (DD)-aware Lagrangian link-selection
-		method for communication-constrained multi-UAV cooperative sensing. The
-		proposed method evaluates each target-dependent cooperative link according to
-		its calibrated marginal deflection gain, reporting reliability, exchange
-		delay, and DD-domain energy-capture efficiency. A coarse DD-domain Lagrangian utility
-		is first used to screen candidate links, and local DD-grid refinement is then
-		applied only to shortlisted candidates, thereby reducing unnecessary fine-grid
-		evaluations. Simulation results in a 15-UAV, 10-target aerial sensing
-		scenario show that the proposed method retains about 97.2\% of the
-		all-neighbor detection probability while reducing signaling overhead and
-		exchange delay by approximately 96.7\% and 99.0\%, respectively. Under the
-		same per-target selected-link budget, it outperforms Sensing-SINR-based
-		selection and achieves comparable detection to Top-K Deflection with about
-		6.5\% lower exchange delay. Because the communication and sensing receivers
-		share one interference field, the sensing task requires direct-path
-		suppression of the order of the near-far ratio (40~dB here); below that the
-		detection probability collapses irrespective of how the links are selected.
+		Multi-UAV cooperative sensing gains depend not only on which observations are
+		selected, but also on where their soft reports are fused. We propose a
+		target-local fusion architecture for prior-assisted OTFS-ISAC sensing. Each
+		target is assigned to the UAV nearest its predicted position; a communication-
+		error-calibrated, adaptive coarse-to-fine (C2F) selector then screens and
+		replays target-dependent sensing--reporting candidates using the implemented
+		detector. The fusion rule uses predicted beliefs only and preserves the same
+		finite-blocklength model, 640-bit packet, 2048 channel uses, greedy objective,
+		and resource constraints as the previous canonical system. In 1000 paired
+		trials with 15 UAVs and 10 targets, the resulting V1 system attains
+		$P_D=0.9734$ (95\% CI: $[0.9701,0.9764]$) and worst-target
+		$P_D=0.968$ using 11.993 reports, 7.676~kbit, and 12.793~ms of serial
+		reporting. At identical per-trial resources, its paired gains are 0.0067 over
+		exact-marginal greedy and 0.0085 over sensing-SINR selection, with both 95\%
+		confidence intervals above zero. A fusion-rule ablation and six operating-
+		boundary sweeps show that the gain arises from target-related fusion planning
+		jointly with two-stage selection, while large belief errors, strict rate
+		thresholds, and sparse deployments remain the principal limitations.
 	\end{abstract}
 
 	\begin{IEEEkeywords}
-		Multi-UAV networks, OTFS-ISAC, cooperative sensing, soft-information fusion,
-		DD-domain refinement, Lagrangian link selection.
+		Multi-UAV networks, OTFS-ISAC, target-local fusion, cooperative sensing,
+		finite-blocklength reporting, coarse-to-fine selection.
 	\end{IEEEkeywords}
 
 
@@ -71,6 +69,7 @@
 	\input{ProposedMethod.tex}  % 已修复无空格
 	\input{SimulationResults.tex}
 	
+	\balance
 	\input{Conclusion.tex}
 	% ===================== 参考文献（IEEE 标准格式） =====================
 	\input{References.tex}

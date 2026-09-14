@@ -1,23 +1,26 @@
 """Monte-Carlo execution and metric aggregation.
 
 One trial = one independent geometry realisation + one detection evaluation per
-method.  All methods see the same geometry, so differences are attributable to
-the selection rule alone.
+method. All methods see the same geometry and the same detector-noise stream;
+method-specific randomness is isolated to the selection stage. This common-
+random-number design makes paired differences attributable to the selected set.
 """
 
 from __future__ import annotations
 
 import math
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from .config import Config, Link, MethodName
+from .config import Config, Link, MethodName, apply_overrides
 from .fusion import (
     compute_weights,
     deflection_for_links,
     fused_h0_variance,
+    fused_h0_skewness,
     fusion_weight_mode_for_method,
 )
 from .model import (
@@ -38,6 +41,7 @@ from .selection import (
     feasible_links_for_target,
     select_all_neighbor,
     select_c2f,
+    select_c2f_adaptive,
     select_lagrangian,
     select_topk_baseline,
 )
@@ -77,6 +81,9 @@ class MethodResult:
     # Belief mode only: fraction of selected links whose belief-guided DD
     # window actually captured the true target bin (1.0 outside belief mode).
     belief_capture_rate: float = 1.0
+    # Trial-level assignment retained for packetization and conflict-graph
+    # audits; it is intentionally excluded from scalar paper metrics.
+    reporting_plan: object | None = None
 
 
 # ==========================================================================
@@ -91,45 +98,9 @@ def draw_h1_soft_stat(
     plan: "ReportingPlan | None" = None,
 ) -> float:
     """Draw one soft statistic under H1, including communication errors."""
-    from .llr import draw_llr
+    from .soft_channel import draw_received_soft_stat
 
-    i, j = link
-    d = cfg.detect
-    gamma = float(tables.gamma_sense[i, j, q])
-
-    if _is_llr(cfg):
-        if not d.enable_comm_error_pollution:
-            return draw_llr(gamma, d.n_looks, rng, h1=True)
-        chi = float(tables.chi_comm[j, report_dest(plan, link, q)])
-        if rng.random() < chi:
-            return draw_llr(gamma, d.n_looks, rng, h1=True)
-        if d.comm_error_model == "erasure":
-            return draw_llr(gamma, d.n_looks, rng, h1=False)
-        if d.comm_error_model == "flip":
-            return -d.soft_error_flip_scale * draw_llr(gamma, d.n_looks, rng, h1=True)
-        if d.comm_error_model == "biased":
-            return d.soft_error_bias_scale * draw_llr(gamma, d.n_looks, rng, h1=True)
-        raise ValueError(d.comm_error_model)
-
-    mu = float(tables.mu_soft[i, j, q])
-    sigma0 = float(tables.sigma0[i, j])
-    sigma1 = max(d.soft_sigma_floor, sigma0 / math.sqrt(1.0 + gamma + EPS))
-
-    if not d.enable_comm_error_pollution:
-        return float(rng.normal(mu, sigma1))
-
-    chi = float(tables.chi_comm[j, report_dest(plan, link, q)])
-    if rng.random() < chi:
-        return float(rng.normal(mu, sigma1))
-
-    sigma_err = d.soft_error_sigma_scale * sigma0
-    if d.comm_error_model == "erasure":
-        return float(rng.normal(0.0, sigma_err))
-    if d.comm_error_model == "flip":
-        return float(rng.normal(-d.soft_error_flip_scale * mu, sigma_err))
-    if d.comm_error_model == "biased":
-        return float(rng.normal(d.soft_error_bias_scale * mu, sigma_err))
-    raise ValueError(d.comm_error_model)
+    return draw_received_soft_stat(cfg, tables, link, q, rng, h1=True, plan=plan)
 
 
 def draw_h0_soft_stat(
@@ -137,34 +108,9 @@ def draw_h0_soft_stat(
     plan: "ReportingPlan | None" = None,
 ) -> float:
     """Draw one soft statistic under H0."""
-    from .llr import draw_llr
+    from .soft_channel import draw_received_soft_stat
 
-    i, j = link
-    d = cfg.detect
-    gamma = float(tables.gamma_sense[i, j, q])
-
-    if _is_llr(cfg):
-        # Under H0 a failed packet carries no target information either way, so
-        # the substituted statistic is always an H0-valued LLR draw.
-        return draw_llr(gamma, d.n_looks, rng, h1=False)
-
-    sigma0 = float(tables.sigma0[i, j])
-
-    if not d.enable_comm_error_pollution:
-        return float(rng.normal(0.0, sigma0))
-
-    chi = float(tables.chi_comm[j, report_dest(plan, link, q)])
-    if rng.random() < chi:
-        return float(rng.normal(0.0, sigma0))
-
-    sigma_err = d.soft_error_sigma_scale * sigma0
-    if d.comm_error_model == "erasure":
-        return float(rng.normal(0.0, sigma_err))
-    if d.comm_error_model == "flip":
-        return float(rng.normal(0.0, sigma_err))
-    if d.comm_error_model == "biased":
-        return float(rng.normal(d.h0_error_bias_scale * sigma0, sigma_err))
-    raise ValueError(d.comm_error_model)
+    return draw_received_soft_stat(cfg, tables, link, q, rng, h1=False, plan=plan)
 
 
 # ==========================================================================
@@ -199,7 +145,9 @@ def evaluate_detection(
         total_false_active += d.num_false_per_target
         weights = compute_weights(cfg, tables, q, links, mode=weight_mode, plan=plan, base=base)
         var0 = fused_h0_variance(cfg, tables, q, links, weights, plan=plan, base=base)
-        thr = base_thr * math.sqrt(max(var0, EPS))
+        skew0 = fused_h0_skewness(cfg, tables, q, links, weights, plan=plan, base=base)
+        z_cf = base_thr + (skew0 / 6.0) * (base_thr * base_thr - 1.0)
+        thr = z_cf * math.sqrt(max(var0, EPS))
 
         F = 0.0
         for link, w in weights.items():
@@ -368,8 +316,14 @@ def communication_metrics_for_selection(
 # Trial driver
 # ==========================================================================
 def rng_for_method(cfg: Config, trial_index: int, method: str) -> np.random.Generator:
+    """Method-specific stream used only by randomized selection rules."""
     offset = METHOD_RNG_OFFSETS[method]
     return np.random.default_rng([cfg.run.seed, 12345, trial_index, offset])
+
+
+def rng_for_detection(cfg: Config, trial_index: int) -> np.random.Generator:
+    """Common detector stream shared by every method in a paired trial."""
+    return np.random.default_rng([cfg.run.seed, 54321, trial_index])
 
 
 def _build_plan(cfg: Config, base: BaseGains, tables: LinkTables, geom) -> "ReportingPlan | None":
@@ -442,6 +396,7 @@ def run_method_on_trial(
     plan: "ReportingPlan | None" = None,
     eval_base: BaseGains | None = None,
     eval_tables: LinkTables | None = None,
+    belief_dd_std: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> MethodResult:
     """Run one method on one trial.
 
@@ -453,16 +408,53 @@ def run_method_on_trial(
     from .belief import truth_captured_links
 
     belief_mode = eval_base is not None and eval_tables is not None
-    rng = rng_for_method(cfg, trial_index, method)
+    selector_rng = rng_for_method(cfg, trial_index, method)
+    detector_rng = rng_for_detection(cfg, trial_index)
 
     if method == "proposed_lagrangian":
         selected, D = cached_lagrangian if cached_lagrangian is not None else select_lagrangian(cfg, base, tables, plan)
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
         sel_tables = tables
+    elif method in {
+        "proposed_c2f_adaptive",
+        "proposed_c2f_adaptive_pd",
+    }:
+        if method == "proposed_c2f_adaptive_pd":
+            matched_budget = (
+                int(sum(reference_counts.values()))
+                if reference_counts is not None else cfg.selector.max_total_links
+            )
+            select_cfg = apply_overrides(cfg, {
+                "selector.score_mode": "detector_pd",
+                "selector.use_delay_price": False,
+                "selector.lambda_c": 0.0,
+                "selector.max_total_links": matched_budget,
+            })
+        else:
+            select_cfg = cfg
+        selected, D, c2f_stats = select_c2f_adaptive(
+            select_cfg, base, tables, plan=plan
+        )
+        fine_eval_full = float(c2f_stats["fine_eval_full"])
+        fine_eval_c2f = float(c2f_stats["fine_eval_c2f"])
+        sel_tables = c2f_tables if c2f_tables is not None else tables
     elif method in C2F_METHODS:
+        if method == "proposed_c2f_pd":
+            matched_budget = (
+                int(sum(reference_counts.values()))
+                if reference_counts is not None else cfg.selector.max_total_links
+            )
+            select_cfg = apply_overrides(cfg, {
+                "selector.score_mode": "detector_pd",
+                "selector.use_delay_price": False,
+                "selector.lambda_c": 0.0,
+                "selector.max_total_links": matched_budget,
+            })
+        else:
+            select_cfg = cfg
         selected, D, c2f_stats = select_c2f(
-            cfg, base, tables, apply_to_all=C2F_METHODS[method], plan=plan
+            select_cfg, base, tables, apply_to_all=C2F_METHODS[method], plan=plan
         )
         fine_eval_full = float(c2f_stats["fine_eval_full"])
         fine_eval_c2f = float(c2f_stats["fine_eval_c2f"])
@@ -476,20 +468,34 @@ def run_method_on_trial(
         if reference_counts is None:
             ref_selected, _ = select_lagrangian(cfg, base, tables, plan)
             reference_counts = {q: len(ref_selected.get(q, [])) for q in range(cfg.scale.Q)}
-        selected, D = select_topk_baseline(cfg, base, tables, reference_counts, method, rng, plan)
+        selected, D = select_topk_baseline(
+            cfg, base, tables, reference_counts, method, selector_rng, plan
+        )
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
         sel_tables = tables
 
     # Belief mode: only links whose belief-guided search window captures the
     # true delay-Doppler bin carry target evidence to the detector.
-    selected_eval = truth_captured_links(cfg, eval_base, base, selected) if belief_mode else selected
+    selected_eval = (
+        truth_captured_links(cfg, eval_base, base, selected, belief_dd_std)
+        if belief_mode else selected
+    )
 
-    tables_eval = tables
+    # Local DD refinement is a receiver capability, so every method is
+    # evaluated on refined statistics when the canonical C2F path is enabled.
+    # Methods differ in how they *select* candidates, not in whether a selected
+    # report is allowed to use the same local estimator.
+    tables_eval = (
+        c2f_tables if cfg.refine.enable and c2f_tables is not None else sel_tables
+    )
     det_base = base
     if belief_mode:
         det_base = eval_base
-        tables_eval = eval_tables
+        tables_eval = (
+            compute_link_tables(cfg, eval_base, dd_gain=eval_base.eta_fine)
+            if cfg.refine.enable else eval_tables
+        )
         D = np.array([
             deflection_for_links(
                 cfg, eval_tables, q, selected_eval.get(q, []),
@@ -498,7 +504,36 @@ def run_method_on_trial(
             for q in range(cfg.scale.Q)
         ])
 
-    if cfg.comm.interference_model == "active_set":
+    if cfg.comm.mac_model == "slot":
+        # Slot MAC must take precedence over the coarse active-set label.  Each
+        # reporting leg is evaluated against its actual co-slot transmitters.
+        base_rebuild = eval_base if belief_mode else base
+        reuse_from = eval_tables if belief_mode else sel_tables
+        tables_eval = build_slot_tables(cfg, base_rebuild, reuse_from, selected, plan)
+        D = np.array([
+            deflection_for_links(
+                cfg, tables_eval, q, selected_eval.get(q, []),
+                weight_mode=fusion_weight_mode_for_method(method), plan=plan, base=base_rebuild,
+            )
+            for q in range(cfg.scale.Q)
+        ])
+    elif tables_eval is not sel_tables:
+        # In belief mode the refined truth table must be paired with the
+        # truth-captured subset and truth geometry. Reusing ``selected`` and
+        # the scheduler belief here credits missed DD gates with sensing
+        # information and makes the reported deflection inconsistent with the
+        # detector that follows.
+        D = np.array([
+            deflection_for_links(
+                cfg, tables_eval, q, selected_eval.get(q, []),
+                weight_mode=fusion_weight_mode_for_method(method), plan=plan, base=det_base,
+            )
+            for q in range(cfg.scale.Q)
+        ])
+    elif cfg.comm.interference_model == "active_set":
+        # Post-selection sensitivity evaluation only.  The selector used the
+        # conservative pre-selection table, so this branch must not be described
+        # as an endogenous active-set optimum.
         active_tx = np.zeros(cfg.scale.M, dtype=bool)
         for q, links in selected.items():
             for (i, j) in links:
@@ -515,23 +550,10 @@ def run_method_on_trial(
             )
             for q in range(cfg.scale.Q)
         ])
-    elif cfg.comm.mac_model == "slot":
-        # Slot MAC: interference and latency are unified.  The reporting legs
-        # are grouped by conflict-graph colouring, the SINR is recomputed with
-        # only co-slot transmitters as interferers, and the aggregate delay is
-        # the sum of slot durations (handled by ``total_overhead_delay_s``).
-        base_rebuild = eval_base if belief_mode else base
-        reuse_from = eval_tables if belief_mode else sel_tables
-        tables_eval = build_slot_tables(cfg, base_rebuild, reuse_from, selected, plan)
-        D = np.array([
-            deflection_for_links(
-                cfg, tables_eval, q, selected_eval.get(q, []),
-                weight_mode=fusion_weight_mode_for_method(method), plan=plan, base=base_rebuild,
-            )
-            for q in range(cfg.scale.Q)
-        ])
 
-    detection = evaluate_detection(cfg, tables_eval, selected_eval, rng, method, plan, det_base)
+    detection = evaluate_detection(
+        cfg, tables_eval, selected_eval, detector_rng, method, plan, det_base
+    )
     detected, total_targets, fa, total_false, fa_overall, total_false_overall, detected_per_target = detection
     feasible_targets, feasible_links = feasible_stats(cfg, base, tables, plan)
     comm_metrics = communication_metrics_for_selection(cfg, base, tables_eval, selected, plan)
@@ -540,7 +562,7 @@ def run_method_on_trial(
     if belief_mode:
         from .belief import belief_capture_rate
 
-        capture_rate = belief_capture_rate(cfg, eval_base, base, selected)
+        capture_rate = belief_capture_rate(cfg, eval_base, base, selected, belief_dd_std)
 
     return MethodResult(
         name=method,
@@ -561,6 +583,7 @@ def run_method_on_trial(
         fine_eval_full=fine_eval_full,
         fine_eval_c2f=fine_eval_c2f,
         belief_capture_rate=capture_rate,
+        reporting_plan=plan,
         **comm_metrics,
     )
 
@@ -576,33 +599,52 @@ def run_one_trial(
 
     # ---- Truth vs belief ------------------------------------------------
     if cfg.prior.belief_mode:
-        from .belief import belief_geometry
+        from .belief import BeliefState, belief_dd_std_bins
 
         base_truth = build_base_gains(cfg, geom, rng)
         tables_truth = compute_link_tables(cfg, base_truth)
 
-        geom_belief = belief_geometry(cfg, geom, rng)
-        # Reuse the *physical* channel (UAV-UAV fading + target RCS) from the
-        # truth; only the target state differs between belief and truth.
-        base_belief = build_base_gains(cfg, geom_belief, rng, channel=base_truth)
+        belief = BeliefState.from_truth(cfg, geom, rng)
+        geom_belief = belief.as_geometry(geom)
+        # Reuse the UAV-UAV channel but expose only the configured RCS view to
+        # the scheduler.  The paper-canonical path uses the mean RCS, never the
+        # current-CPI truth realization.
+        base_belief = build_base_gains(
+            cfg, geom_belief, rng, channel=base_truth,
+            rcs_view=cfg.prior.scheduler_rcs.lower(),
+        )
         tables_belief = compute_link_tables(cfg, base_belief)
+        belief_dd_std = belief_dd_std_bins(cfg, geom_belief, belief)
 
         plan = _build_plan(cfg, base_belief, tables_belief, geom_belief)
 
-        cached_lagrangian = select_lagrangian(cfg, base_belief, tables_belief, plan)
-        reference_counts = {q: len(cached_lagrangian[0].get(q, [])) for q in range(cfg.scale.Q)}
-
         needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
         c2f_tables = None
-        if needs_fine and any(m in C2F_METHODS for m in (methods or METHODS)):
+        method_roster = methods if methods is not None else METHODS
+        if needs_fine and any(m in C2F_METHODS for m in method_roster):
             c2f_tables = compute_link_tables(cfg, base_belief, dd_gain=base_belief.eta_fine)
 
-        method_roster = methods if methods is not None else METHODS
+        cached_lagrangian = select_lagrangian(cfg, base_belief, tables_belief, plan)
+        if cfg.refine.enable and any(
+            m in method_roster for m in (
+                "proposed_c2f", "proposed_c2f_pd", "proposed_c2f_adaptive_pd"
+            )
+        ):
+            reference_selected = select_c2f(
+                cfg, base_belief, tables_belief, apply_to_all=False, plan=plan
+            )[0]
+        else:
+            reference_selected = cached_lagrangian[0]
+        reference_counts = {
+            q: len(reference_selected.get(q, [])) for q in range(cfg.scale.Q)
+        }
+
         return {
             method: run_method_on_trial(
                 cfg, base_belief, tables_belief, method, trial_index,
                 reference_counts, cached_lagrangian, c2f_tables, plan,
                 eval_base=base_truth, eval_tables=tables_truth,
+                belief_dd_std=belief_dd_std,
             )
             for method in method_roster
         }
@@ -613,15 +655,27 @@ def run_one_trial(
 
     plan = _build_plan(cfg, base, tables, geom)
 
-    cached_lagrangian = select_lagrangian(cfg, base, tables, plan)
-    reference_counts = {q: len(cached_lagrangian[0].get(q, [])) for q in range(cfg.scale.Q)}
-
     needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
     c2f_tables = None
-    if needs_fine and any(m in C2F_METHODS for m in (methods or METHODS)):
+    method_roster = methods if methods is not None else METHODS
+    if needs_fine and any(m in C2F_METHODS for m in method_roster):
         c2f_tables = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
 
-    method_roster = methods if methods is not None else METHODS
+    cached_lagrangian = select_lagrangian(cfg, base, tables, plan)
+    if cfg.refine.enable and any(
+        m in method_roster for m in (
+            "proposed_c2f", "proposed_c2f_pd", "proposed_c2f_adaptive_pd"
+        )
+    ):
+        reference_selected = select_c2f(
+            cfg, base, tables, apply_to_all=False, plan=plan
+        )[0]
+    else:
+        reference_selected = cached_lagrangian[0]
+    reference_counts = {
+        q: len(reference_selected.get(q, [])) for q in range(cfg.scale.Q)
+    }
+
     return {
         method: run_method_on_trial(
             cfg, base, tables, method, trial_index, reference_counts, cached_lagrangian, c2f_tables, plan
@@ -633,16 +687,26 @@ def run_one_trial(
 def run_simulation(
     cfg: Config,
     methods: Optional[List[str]] = None,
+    paired_reference: Optional[str] = None,
 ) -> Dict[str, Dict[str, Any]]:
-    """Run the full Monte-Carlo experiment once under the given configuration."""
+    """Run the full Monte-Carlo experiment once under the given configuration.
+
+    ``paired_reference`` selects the method used for common-random-number
+    detection differences. The historical proposed-C2F fields are preserved
+    for compatibility, while generic reference-labelled fields support
+    experimental successor methods without mislabelling the contrast.
+    """
     method_roster = methods if methods is not None else METHODS
+    if paired_reference is not None and paired_reference not in method_roster:
+        raise ValueError(
+            f"paired_reference={paired_reference!r} is not in the method roster"
+        )
     all_results: Dict[str, List[MethodResult]] = {m: [] for m in method_roster}
     print_interval = max(1, cfg.run.num_mc // 10)
 
-    for t in range(cfg.run.num_mc):
-        for method, res in run_one_trial(cfg, t, methods=method_roster).items():
+    def consume(t: int, trial: Dict[str, MethodResult]) -> None:
+        for method, res in trial.items():
             all_results[method].append(res)
-
         if cfg.run.verbose and ((t + 1) % print_interval == 0 or (t + 1) == cfg.run.num_mc):
             watch = "proposed_lagrangian" if "proposed_lagrangian" in all_results else method_roster[0]
             prop = all_results[watch]
@@ -653,7 +717,50 @@ def run_simulation(
             print(f"MC {t + 1:4d}/{cfg.run.num_mc}: {watch} "
                   f"P_D={det / max(tot, 1):.4f}, P_FA={fa / max(tf, 1):.4f}")
 
-    return {method: summarize(results, cfg) for method, results in all_results.items()}
+    if cfg.run.workers == 1:
+        for t in range(cfg.run.num_mc):
+            consume(t, run_one_trial(cfg, t, methods=method_roster))
+    else:
+        jobs = ((cfg, t, method_roster) for t in range(cfg.run.num_mc))
+        with ProcessPoolExecutor(max_workers=cfg.run.workers) as pool:
+            for t, trial in enumerate(pool.map(_run_trial_job, jobs, chunksize=1)):
+                consume(t, trial)
+
+    summary = {method: summarize(results, cfg) for method, results in all_results.items()}
+    reference_method = paired_reference or (
+        "proposed_c2f" if "proposed_c2f" in all_results
+        else "proposed_lagrangian" if "proposed_lagrangian" in all_results
+        else None
+    )
+    if reference_method is not None:
+        prop = all_results[reference_method]
+        for method, results in all_results.items():
+            diffs = np.array([
+                (p.detected - r.detected) / max(p.total_targets, 1)
+                for p, r in zip(prop, results)
+            ], dtype=float)
+            mean = float(np.mean(diffs)) if diffs.size else 0.0
+            half = (
+                1.96 * float(np.std(diffs, ddof=1)) / np.sqrt(diffs.size)
+                if diffs.size > 1 else 0.0
+            )
+            summary[method]["paired_reference_method"] = reference_method
+            summary[method]["paired_reference_delta_P_D"] = mean
+            summary[method]["paired_reference_delta_ci95_low"] = mean - half
+            summary[method]["paired_reference_delta_ci95_high"] = mean + half
+            if paired_reference is None:
+                summary[method]["paired_proposed_delta_P_D"] = mean
+                summary[method]["paired_proposed_delta_ci95_low"] = mean - half
+                summary[method]["paired_proposed_delta_ci95_high"] = mean + half
+    return summary
+
+
+def _run_trial_job(
+    job: tuple[Config, int, List[str]],
+) -> Dict[str, MethodResult]:
+    """Pickle-friendly worker entry point for deterministic parallel trials."""
+    cfg, trial_index, methods = job
+    return run_one_trial(cfg, trial_index, methods=methods)
 
 
 # ==========================================================================
@@ -712,12 +819,18 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     return {
         "P_D": pd,
         "P_D_ci95": pd_ci[:2],
+        "P_D_ci95_low": pd_ci[0],
+        "P_D_ci95_high": pd_ci[1],
         "P_D_ci95_half_width": pd_ci[2],
         "P_FA": pfa,
         "P_FA_ci95": pfa_ci[:2],
+        "P_FA_ci95_low": pfa_ci[0],
+        "P_FA_ci95_high": pfa_ci[1],
         "P_FA_ci95_half_width": pfa_ci[2],
         "P_FA_overall": pfa_overall,
         "P_FA_overall_ci95": pfa_overall_ci[:2],
+        "P_FA_overall_ci95_low": pfa_overall_ci[0],
+        "P_FA_overall_ci95_high": pfa_overall_ci[1],
         "P_FA_overall_ci95_half_width": pfa_overall_ci[2],
         "B_mean_bits": float(np.mean(overhead_bits)),
         "B_std_bits": float(np.std(overhead_bits)),

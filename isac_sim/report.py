@@ -11,7 +11,11 @@ from .naming import latex_escape, method_order, paper_label
 # Scalar metrics exported by the single-run CSV.  Order is kept stable so that
 # downstream comparison scripts keep working.
 SCALAR_KEYS: List[str] = [
-    "P_D", "P_FA", "P_FA_overall", "B_mean_bits", "T_mean_ms", "selected_links_mean",
+    "P_D", "P_D_ci95_low", "P_D_ci95_high", "P_D_ci95_half_width",
+    "P_FA", "P_FA_ci95_low", "P_FA_ci95_high", "P_FA_ci95_half_width",
+    "P_FA_overall", "P_FA_overall_ci95_low", "P_FA_overall_ci95_high",
+    "P_FA_overall_ci95_half_width", "B_mean_bits", "B_std_bits",
+    "T_mean_ms", "T_std_ms", "selected_links_mean", "selected_links_std",
     "active_target_ratio_mean", "feasible_target_ratio_mean", "feasible_links_mean",
     "comm_feasible_edge_ratio_mean",
     "selected_rate_mean_mbps", "selected_rate_min_mbps_mean", "selected_rate_p10_mbps_mean",
@@ -19,8 +23,13 @@ SCALAR_KEYS: List[str] = [
     "selected_gamma_comm_mean_db", "selected_rate_satisfaction_ratio_mean",
     "selected_chi_ge_min_ratio_mean",
     "D_mean", "D_median", "D_p10", "D_p90",
+    "fine_eval_full_mean", "fine_eval_c2f_mean", "belief_capture_rate_mean",
     "all_targets_satisfied_prob", "worst_target_D_mean", "worst_target_satisfied_prob",
     "actual_mean_target_P_D", "actual_worst_target_P_D", "actual_best_target_P_D",
+    "paired_proposed_delta_P_D", "paired_proposed_delta_ci95_low",
+    "paired_proposed_delta_ci95_high",
+    "paired_reference_method", "paired_reference_delta_P_D",
+    "paired_reference_delta_ci95_low", "paired_reference_delta_ci95_high",
     "P_D_per_kbit", "P_D_per_ms", "D_per_kbit", "D_per_ms",
 ]
 
@@ -57,6 +66,9 @@ def scalar_summary_row(summary: Dict[str, Dict[str, Any]], method: str, extra: D
         "D_median": s["D_median"],
         "D_p10": s["D_p10"],
         "D_p90": s["D_p90"],
+        "fine_eval_full_mean": s["fine_eval_full_mean"],
+        "fine_eval_c2f_mean": s["fine_eval_c2f_mean"],
+        "belief_capture_rate_mean": s["belief_capture_rate_mean"],
         "all_targets_satisfied_prob": s["all_targets_satisfied_prob"],
         "worst_target_D_mean": s["worst_target_D_mean"],
         "worst_target_satisfied_prob": s["worst_target_satisfied_prob"],
@@ -68,6 +80,17 @@ def scalar_summary_row(summary: Dict[str, Dict[str, Any]], method: str, extra: D
         "D_per_kbit": s["D_per_kbit"],
         "D_per_ms": s["D_per_ms"],
     })
+    for key in (
+        "paired_proposed_delta_P_D",
+        "paired_proposed_delta_ci95_low",
+        "paired_proposed_delta_ci95_high",
+        "paired_reference_method",
+        "paired_reference_delta_P_D",
+        "paired_reference_delta_ci95_low",
+        "paired_reference_delta_ci95_high",
+    ):
+        if key in s:
+            row[key] = s[key]
     return row
 
 
@@ -100,6 +123,15 @@ def print_summary(summary: Dict[str, Dict[str, Any]]) -> None:
         print(f"  Worst target D mean    : {s['worst_target_D_mean']:.4f}")
         print(f"  Worst target sat. prob : {s['worst_target_satisfied_prob']:.4f}")
         print(f"  Actual worst-target P_D: {s['actual_worst_target_P_D']:.4f}")
+        if "paired_proposed_delta_P_D" in s:
+            print(f"  Paired proposed - method: {s['paired_proposed_delta_P_D']:+.4f} "
+                  f"(95% CI [{s['paired_proposed_delta_ci95_low']:+.4f}, "
+                  f"{s['paired_proposed_delta_ci95_high']:+.4f}])")
+        elif "paired_reference_delta_P_D" in s:
+            print(f"  Paired {s['paired_reference_method']} - method: "
+                  f"{s['paired_reference_delta_P_D']:+.4f} "
+                  f"(95% CI [{s['paired_reference_delta_ci95_low']:+.4f}, "
+                  f"{s['paired_reference_delta_ci95_high']:+.4f}])")
         print(f"  Efficiency P_D/kbit    : {s['P_D_per_kbit']:.4f}")
         print(f"  Efficiency P_D/ms      : {s['P_D_per_ms']:.4f}")
 

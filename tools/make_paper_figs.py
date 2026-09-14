@@ -2,17 +2,16 @@
 
 The paper includes four figures:
 
-    fig2_main_comparison.pdf  <- results/main/main/figs/main_paper.png
-    fig3_lambda_tradeoff.pdf  <- results/lambda-sweep/.../lambda_paper.png
-    fig5_comm_sweep.pdf       <- results/comm-sweep/.../comm_sweep_paper.png
+    fig2_main_comparison.pdf  <- results/main/main/main.csv
+    fig3_lambda_tradeoff.pdf  <- results/lambda-sweep/lambda-sweep/figs/lambda_paper.png
+    fig5_comm_sweep.pdf       <- results/comm-sweep/comm-sweep/figs/comm_sweep_paper.png
     fig6_robustness.pdf       <- built here from the four robustness axes
 
 ``fig1`` (the framework diagram) is hand-drawn and is left untouched.
 
-The single-panel figures are re-rendered straight from the saved CSVs so they
-stay vector graphics; only the main-comparison panel is converted from the PNG
-that the CLI already produced (its plotter needs the in-memory summary object,
-not the CSV).
+The main-comparison panel is re-rendered from its CSV so a ``--no-plots``
+release run is sufficient.  Sweep panels are converted from the PNGs produced
+by their experiment plotters.
 
 Usage::
 
@@ -36,14 +35,29 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
+matplotlib.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans", "sans-serif"],
+    "font.size": 7,
+    "axes.spines.right": False,
+    "axes.spines.top": False,
+    "axes.linewidth": 0.8,
+    "pdf.fonttype": 42,
+    "svg.fonttype": "none",
+})
+
 ROOT = Path(__file__).resolve().parent.parent
 PAPER_FIGS = ROOT / "Conference-LaTeX-template_10-17-19" / "figs"
 
-METHODS = ["proposed_lagrangian", "topk_deflection", "sense_sinr", "single_best",
-           "all_neighbor"]
+METHODS = ["proposed_c2f", "global_topk_deflection", "cost_aware_greedy",
+           "exact_marginal_greedy", "sense_sinr", "all_neighbor"]
 STYLE = {
     "proposed_lagrangian": ("#1f77b4", "o", "Proposed"),
+    "proposed_c2f": ("#1f77b4", "o", "Proposed C2F"),
     "topk_deflection": ("#ff7f0e", "s", "Top-K deflection"),
+    "global_topk_deflection": ("#ff7f0e", "s", "Global Top-K"),
+    "cost_aware_greedy": ("#9467bd", "D", "Cost-aware greedy"),
+    "exact_marginal_greedy": ("#8c564b", "P", "Exact-marginal greedy"),
     "sense_sinr": ("#2ca02c", "^", "Sensing-SINR"),
     "single_best": ("#9467bd", "D", "Single-best"),
     "all_neighbor": ("#d62728", "v", "All-neighbour"),
@@ -76,7 +90,55 @@ def png_to_pdf(src: Path, dst: Path) -> bool:
     return True
 
 
-def build_fig6(out: Path) -> bool:
+def build_fig2(out: Path, results_root: Path) -> bool:
+    """Render the three-panel headline comparison from the released CSV."""
+    rs = rows(results_root / "main" / "main" / "main.csv")
+    by_method = {r["method"]: r for r in rs}
+    active = [m for m in METHODS if m in by_method]
+    if not active:
+        print("  [skip] no main comparison data")
+        return False
+
+    labels = [STYLE[m][2] for m in active]
+    x = list(range(len(active)))
+    fig, axes = plt.subplots(
+        1, 3, figsize=(7.2, 2.8), gridspec_kw={"width_ratios": [1.25, 1.0, 1.0]}
+    )
+    panels = [
+        ("P_D", r"Detection probability $P_D$", "P_D_ci95_half_width"),
+        ("T_mean_ms", "Serial reporting delay (ms)", None),
+        ("active_target_ratio_mean", "Active-target ratio", None),
+    ]
+    for panel_label, ax, (metric, ylabel, error_metric) in zip("abc", axes, panels):
+        values = [f(by_method[m], metric) for m in active]
+        colors = [STYLE[m][0] for m in active]
+        kwargs: Dict[str, Any] = {}
+        if error_metric is not None:
+            kwargs.update(yerr=[f(by_method[m], error_metric) for m in active],
+                          capsize=3)
+        ax.bar(x, values, color=colors, **kwargs)
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=6)
+        ax.set_ylabel(ylabel, fontsize=8)
+        ax.grid(True, axis="y", alpha=0.3)
+        ax.tick_params(axis="y", labelsize=7)
+        ax.text(-0.16, 1.03, panel_label, transform=ax.transAxes,
+                fontsize=8, fontweight="bold", va="bottom")
+        if metric == "P_D":
+            ax.set_ylim(0.35, 0.95)
+        elif metric == "T_mean_ms":
+            ax.set_yscale("log")
+        else:
+            ax.set_ylim(0.0, 1.05)
+    fig.tight_layout()
+    fig.savefig(out, dpi=300, bbox_inches="tight")
+    fig.savefig(out.with_suffix(".svg"), bbox_inches="tight")
+    fig.savefig(out.with_suffix(".png"), dpi=600, bbox_inches="tight")
+    plt.close(fig)
+    return True
+
+
+def build_fig6(out: Path, results_root: Path) -> bool:
     """Four-panel robustness figure, one panel per axis."""
     axes_spec = [
         ("comm_model", "condition_value", "Communication error model", False),
@@ -87,7 +149,7 @@ def build_fig6(out: Path) -> bool:
     ]
     data = {}
     for axis, xkey, xlabel, numeric in axes_spec:
-        rs = rows(ROOT / "results" / f"robustness_{axis}" / "robustness" /
+        rs = rows(results_root / f"robustness_{axis}" / "robustness" /
                   "robustness.csv")
         if rs:
             data[axis] = (rs, xkey, xlabel, numeric)
@@ -138,6 +200,8 @@ def build_fig6(out: Path) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--results", type=Path, default=ROOT / "results_release",
+                    help="validated rerun root (default: results_release)")
     args = ap.parse_args()
 
     if not PAPER_FIGS.exists():
@@ -151,12 +215,17 @@ def main() -> int:
             shutil.copy2(p, backup / p.name)
         print(f"backed up previous figures -> {backup.relative_to(ROOT)}")
 
+    results_root = args.results.resolve()
+    main_dst = PAPER_FIGS / "fig2_main_comparison.pdf"
+    if args.dry_run:
+        print(f"  would write {main_dst.name} from main/main/main.csv")
+    elif build_fig2(main_dst, results_root):
+        print(f"  wrote {main_dst.name}  <- main/main/main.csv")
+
     jobs = [
-        (ROOT / "results" / "main" / "main" / "figs" / "main_paper.png",
-         PAPER_FIGS / "fig2_main_comparison.pdf"),
-        (ROOT / "results" / "lambda-sweep" / "lambda-sweep" / "figs" / "lambda_paper.png",
+        (results_root / "lambda-sweep" / "lambda-sweep" / "figs" / "lambda_paper.png",
          PAPER_FIGS / "fig3_lambda_tradeoff.pdf"),
-        (ROOT / "results" / "comm-sweep" / "comm-sweep" / "figs" / "comm_sweep_paper.png",
+        (results_root / "comm-sweep" / "comm-sweep" / "figs" / "comm_sweep_paper.png",
          PAPER_FIGS / "fig5_comm_sweep.pdf"),
     ]
     for src, dst in jobs:
@@ -169,7 +238,7 @@ def main() -> int:
     dst6 = PAPER_FIGS / "fig6_robustness.pdf"
     if args.dry_run:
         print(f"  would build {dst6.name} from the four robustness axes")
-    elif build_fig6(dst6):
+    elif build_fig6(dst6, results_root):
         print(f"  wrote {dst6.name}  <- 4 robustness axes")
 
     # The old vertical robustness variant is superseded.

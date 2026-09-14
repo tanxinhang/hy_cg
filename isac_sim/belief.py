@@ -90,18 +90,71 @@ def belief_geometry(cfg: Config, geom_truth: Geometry, rng: np.random.Generator)
     return belief.as_geometry(geom_truth)
 
 
+def belief_dd_std_bins(
+    cfg: Config,
+    geom_belief: Geometry,
+    belief: BeliefState,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Propagate ``P`` to bistatic delay/Doppler standard deviations in bins.
+
+    A first-order Jacobian of the bistatic measurement model is used for each
+    ``(i,j,q)``.  This makes the DD search support depend on the tracker
+    covariance, rather than comparing two rounded bins for exact equality.
+    """
+    M, Q = cfg.scale.M, cfg.scale.Q
+    std_l = np.zeros((M, M, Q), dtype=float)
+    std_k = np.zeros((M, M, Q), dtype=float)
+    delay_scale = cfg.waveform.L * cfg.waveform.delta_f
+    doppler_scale = cfg.waveform.N * cfg.waveform.T
+    lam = cfg.waveform.c / cfg.waveform.fc
+    eye3 = np.eye(3)
+
+    for i in range(M):
+        for j in range(M):
+            if i == j:
+                continue
+            for q in range(Q):
+                p = geom_belief.p_tgt[q]
+                v = geom_belief.v_tgt[q]
+                ri = p - geom_belief.p_uav[i]
+                rj = p - geom_belief.p_uav[j]
+                di = max(float(np.linalg.norm(ri)), 1.0)
+                dj = max(float(np.linalg.norm(rj)), 1.0)
+                ui, uj = ri / di, rj / dj
+
+                g_tau = np.zeros(6, dtype=float)
+                g_tau[:3] = (ui + uj) / cfg.waveform.c
+
+                vi = v - geom_belief.v_uav[i]
+                vj = v - geom_belief.v_uav[j]
+                g_nu = np.zeros(6, dtype=float)
+                g_nu[:3] = (
+                    ((eye3 - np.outer(ui, ui)) @ vi) / di
+                    + ((eye3 - np.outer(uj, uj)) @ vj) / dj
+                ) / lam
+                g_nu[3:] = (ui + uj) / lam
+
+                Pq = belief.P[q]
+                var_tau = max(float(g_tau @ Pq @ g_tau), 0.0)
+                var_nu = max(float(g_nu @ Pq @ g_nu), 0.0)
+                std_l[i, j, q] = delay_scale * np.sqrt(var_tau)
+                std_k[i, j, q] = doppler_scale * np.sqrt(var_nu)
+    return std_l, std_k
+
+
 def truth_captured_links(
     cfg: Config,
     base_truth: BaseGains,
     base_belief: BaseGains,
     selected: Dict[int, List[Link]],
+    dd_std_bins: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> Dict[int, List[Link]]:
     """Restrict ``selected`` to links whose belief-guided search captures the truth.
 
-    A selected sensing link only yields target evidence when (a) the true DD bin
-    is valid and (b) the belief predicted exactly the bin the true echo occupies.
-    Links that miss the bin are dropped from the detection fusion -- they carry
-    no target information, which is the whole point of a mismatched prior.
+    A selected sensing link yields target evidence when the true continuous DD
+    coordinate falls inside the covariance-derived search gate around the
+    predicted coordinate.  Half a bin accounts for quantisation; the remaining
+    width is ``prior.search_gate_sigma`` times the propagated standard deviation.
     """
     out: Dict[int, List[Link]] = {}
     for q, links in selected.items():
@@ -109,9 +162,18 @@ def truth_captured_links(
         for (i, j) in links:
             if cfg.dd.use_otfs_bin_validity and not base_truth.valid_dd[i, j, q]:
                 continue
-            if base_belief.delay_bin[i, j, q] != base_truth.delay_bin[i, j, q]:
+            if dd_std_bins is None:
+                std_l = std_k = 0.0
+            else:
+                std_l = float(dd_std_bins[0][i, j, q])
+                std_k = float(dd_std_bins[1][i, j, q])
+            dl = abs(base_truth.tau[i, j, q] - base_belief.tau[i, j, q]) \
+                * cfg.waveform.L * cfg.waveform.delta_f
+            dk = abs(base_truth.doppler[i, j, q] - base_belief.doppler[i, j, q]) \
+                * cfg.waveform.N * cfg.waveform.T
+            if dl > 0.5 + cfg.prior.search_gate_sigma * std_l:
                 continue
-            if base_belief.doppler_bin[i, j, q] != base_truth.doppler_bin[i, j, q]:
+            if dk > 0.5 + cfg.prior.search_gate_sigma * std_k:
                 continue
             kept.append((i, j))
         out[q] = kept
@@ -123,6 +185,7 @@ def belief_capture_rate(
     base_truth: BaseGains,
     base_belief: BaseGains,
     selected: Dict[int, List[Link]],
+    dd_std_bins: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> float:
     """Fraction of selected links whose belief window captures the true bin."""
     total = 0
@@ -130,9 +193,10 @@ def belief_capture_rate(
     for q, links in selected.items():
         for (i, j) in links:
             total += 1
-            if base_truth.valid_dd[i, j, q] and \
-               base_belief.delay_bin[i, j, q] == base_truth.delay_bin[i, j, q] and \
-               base_belief.doppler_bin[i, j, q] == base_truth.doppler_bin[i, j, q]:
+            captured = truth_captured_links(
+                cfg, base_truth, base_belief, {q: [(i, j)]}, dd_std_bins
+            ).get(q, [])
+            if captured:
                 hit += 1
     return hit / max(total, 1)
 

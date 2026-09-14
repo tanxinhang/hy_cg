@@ -249,15 +249,18 @@ def generate_geometry(cfg: Config, rng: np.random.Generator) -> Geometry:
 # Geometry-dependent gains and OTFS delay-Doppler bins
 # ==========================================================================
 def build_base_gains(
-    cfg: Config, geom: Geometry, rng: np.random.Generator, channel: BaseGains | None = None
+    cfg: Config,
+    geom: Geometry,
+    rng: np.random.Generator,
+    channel: BaseGains | None = None,
+    rcs_view: str = "realized",
 ) -> BaseGains:
     """Build the base gains for a geometry.
 
-    ``channel``, when given, supplies the *physical* realisation to reuse: the
-    UAV-UAV fading (``direct_gain`` / ``d_uu`` / ``edge_mask``) and the target
-    RCS fluctuation.  This lets the scheduler's *belief* geometry share the same
-    physical channel as the *truth* geometry -- the channel is not redrawn just
-    because the tracker's estimate differs from reality.
+    ``channel``, when given, supplies the UAV-UAV physical realisation to reuse.
+    With ``rcs_view="realized"`` it also supplies target RCS (legacy behavior).
+    With ``rcs_view="mean"`` the target gain uses the configured mean RCS, so a
+    scheduler cannot observe the current-CPI RCS realization before sensing.
     """
     M, Q = cfg.scale.M, cfg.scale.Q
     d = cfg.detect
@@ -302,6 +305,8 @@ def build_base_gains(
     rcs_shared: np.ndarray | None = None
     if channel is None and d.rcs_model == "swerling1":
         rcs_shared = rng.exponential(scale=d.target_rcs, size=Q)
+    elif channel is None and d.rcs_model == "mean":
+        rcs_shared = np.full(Q, d.target_rcs, dtype=float)
 
     for i in range(M):
         for j in range(M):
@@ -348,7 +353,11 @@ def build_base_gains(
                 sin_angle = float(np.linalg.norm(np.cross(a, b)))
                 geom_factor[i, j, q] = 0.1 + 0.9 * min(max(sin_angle, 0.0), 1.0)
 
-                if channel is not None:
+                if rcs_view == "mean":
+                    rcs_fluct[i, j, q] = float(d.target_rcs)
+                    if d.rcs_aspect_enable:
+                        rcs_fluct[i, j, q] *= 0.2 + 0.8 * min(max(sin_angle, 0.0), 1.0)
+                elif channel is not None:
                     rcs_fluct[i, j, q] = float(channel.rcs_fluct[i, j, q])
                 elif rcs_shared is not None:
                     rcs_fluct[i, j, q] = float(rcs_shared[q])
@@ -442,7 +451,9 @@ def compute_link_tables(
     is ``"active_set"`` only those UAVs contribute to the communication
     interference term, so a smaller selected link set sees less interference.
     ``None`` (the default, and the ``"full_concurrent"`` model) keeps the
-    original worst-case behaviour where every UAV contributes.
+    original worst-case behaviour where every UAV contributes.  Under
+    ``interference_model="orthogonal"`` report payload interference is zero,
+    while continuous sensing-waveform leakage remains in the denominator.
 
     ``reuse_from`` is a performance fast path for the ``active_set`` model.
     Under the default ``sensing_only`` (or ``joint_waveform``) power model the
@@ -468,12 +479,13 @@ def compute_link_tables(
         reuse_from is not None
         and dd_gain is None
         and r.isac_power_model != "reliable_comm_assisted"
-        # Under the coupled model the sensing interference is normally
-        # schedule-independent (illumination is continuous), so the fast path
-        # stays valid; gating it by the active set breaks that property.
+        # Under active-set coupling the sensing denominator contains the active
+        # report payloads and must be rebuilt.  Orthogonal reporting contains no
+        # payload term during the sensing observation, so its sensing block is
+        # schedule-independent and remains reusable.
         and not (
             cfg.interference.coupling == "shared_spectrum"
-            and cfg.interference.sense_gate_by_active_tx
+            and active_tx_mask is not None
         )
     )
 
@@ -501,19 +513,21 @@ def compute_link_tables(
         )
     if shared:
         ic = cfg.interference
-        # One illumination premise: the joint ISAC waveform is radiated
-        # *continuously* (otherwise the illuminator of a selected triplet would
-        # not radiate, and there would be no echo to sense), while only the
-        # report payload is scheduled.  Hence
-        #     radiated power of k   P^tx_k   = P^s_k + 1{k in A} P^c_k
-        # and the sensing-waveform leakage into a communication receiver is
-        # *not* gated by A.  This is the only premise consistent with
-        # ``active_tx_mask`` marking just the reporting ends.
-        #   ``sense_gate_by_active_tx`` optionally forces the sensing receiver to
-        #   follow the scheduled set as well; it is an ablation, not the default.
-        sense_gate = active_tx_mask if (ic.sense_gate_by_active_tx and active_tx_mask is not None) else None
-        P_rad_sense = P_sense + (P_comm if sense_gate is None else P_comm * sense_gate)
-        P_rad_pay = P_comm if active_tx_mask is None else P_comm * active_tx_mask
+        # Every UAV continuously radiates its sensing component.  Payload power
+        # follows the actual reporting MAC: all nodes in full-concurrent mode,
+        # selected reporters in active-set mode, and no payload during the
+        # sensing observation in the conference release's orthogonal phase.
+        if c.interference_model == "orthogonal":
+            P_rad_sense = P_sense
+            P_rad_pay = np.zeros_like(P_comm)
+        elif active_tx_mask is not None:
+            P_rad_sense = P_sense + P_comm * active_tx_mask
+            P_rad_pay = P_comm * active_tx_mask
+        else:
+            P_rad_sense = P_sense + P_comm
+            P_rad_pay = P_comm
+        if ic.sense_gate_by_active_tx and active_tx_mask is not None:
+            P_rad_sense = (P_sense + P_comm) * active_tx_mask
         P_leak = P_sense                                  # always radiated
         I_sense_field = P_rad_sense @ base.direct_gain      # (M,) direct-path field at j
         I_pay_field = P_rad_pay @ base.direct_gain          # (M,) report-payload field at j

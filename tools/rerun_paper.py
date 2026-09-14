@@ -32,32 +32,24 @@ from typing import List, Tuple
 ROOT = Path(__file__).resolve().parent.parent
 RUN = ROOT / "run_isac_sim.py"
 
-# Paper Table I kinematic values (the only fields that differ from the
-# package defaults), plus the corrected communication model:
-#   * reporting reliability uses the j -> i direction (the soft statistic is
-#     produced at the receiving UAV j and reported back to the transmitter i);
-#   * the deflection denominator includes the between-group variance term
-#     chi*(1-chi)*mu^2 of the Bernoulli drop-out mixture;
-#   * interference is built from the *active* concurrent set, so a method that
-#     selects fewer links sees less interference;
-#   * the SINR guard is noise-relative and the sensing interference is the same
-#     field the communication receiver sees (both are package defaults now; the
-#     frozen pre-correction model remains reachable via the ``legacy`` preset).
-PAPER_SET = [
-    "geometry.uav_speed_min=30",
-    "geometry.target_speed_min=50",
-    "geometry.target_speed_max=90",
-    "comm.interference_model=active_set",
+PAPER_METHODS = [
+    "proposed_c2f",
+    "global_topk_deflection",
+    "cost_aware_greedy",
+    "exact_marginal_greedy",
+    "sense_sinr",
+    "all_neighbor",
 ]
 
 # (mode, extra argv, output subdirectory).  Every mode uses the same paper
 # parameter set + MC.  Robustness is run per axis, each into its own
 # subdirectory, so the axes don't overwrite each other's CSV.
 MODES: List[Tuple[str, List[str], str]] = [
-    ("main", [], "main"),
+    ("main", ["--methods", *PAPER_METHODS], "main"),
     # Control run under the conservative full-concurrent interference model,
     # so the gain from the active-set model is visible in the summary.
-    ("main", ["--set", "comm.interference_model=full_concurrent"], "main_full_concurrent"),
+    ("main", ["--set", "comm.interference_model=full_concurrent",
+              "--methods", *PAPER_METHODS], "main_full_concurrent"),
     ("c2f", [], "c2f"),
     ("dd-ablation", [], "dd-ablation"),
     ("fair-ablation", [], "fair-ablation"),
@@ -79,18 +71,20 @@ MODES: List[Tuple[str, List[str], str]] = [
 ]
 
 
-def run_one(mode: str, extra: List[str], mc: int, out: Path, seed: int) -> float:
+def run_one(
+    mode: str, extra: List[str], mc: int, out: Path, seed: int, workers: int
+) -> float:
     cmd = [
         sys.executable,
         str(RUN),
         "--mode", mode,
         "--mc", str(mc),
         "--seed", str(seed),
+        "--workers", str(workers),
         "--out", str(out),
+        "--preset", "paper-canonical",
         "--quiet",
     ]
-    for s in PAPER_SET:
-        cmd += ["--set", s]
     cmd += extra
     t0 = time.time()
     print(f"\n===== {mode} {' '.join(extra)} =====", flush=True)
@@ -107,6 +101,8 @@ def main() -> int:
     parser.add_argument("--mc", type=int, default=1000)
     parser.add_argument("--out", type=Path, default=ROOT / "results")
     parser.add_argument("--seed", type=int, default=2026)
+    parser.add_argument("--workers", type=int, default=1,
+                        help="parallel Monte-Carlo worker processes")
     parser.add_argument("--only", nargs="+", default=None, metavar="SUBDIR",
                         help="run only these output subdirectories (e.g. --only "
                              "lambda-sweep robustness_comm_model); the rest are "
@@ -128,7 +124,7 @@ def main() -> int:
     t_start = time.time()
     for mode, extra, subdir in selected:
         mode_out = out / subdir
-        run_one(mode, extra, args.mc, mode_out, args.seed)
+        run_one(mode, extra, args.mc, mode_out, args.seed, args.workers)
 
     print(f"\nAll modes finished in {(time.time() - t_start) / 60:.1f} min; "
           f"output in {out}", flush=True)

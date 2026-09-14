@@ -18,14 +18,24 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from .config import Config, apply_overrides, default_config, iter_leaf_paths
+from .config import (
+    PRESETS,
+    Config,
+    apply_overrides,
+    apply_preset,
+    default_config,
+    iter_leaf_paths,
+    validate_config,
+)
 from .experiments import EXPERIMENTS, EXPERIMENT_NAMES, VALUE_MODES, prior_sweep, robustness
 from .plotting import PLOTTERS, plot_main_comparison
 from .report import print_summary, write_csv, write_main_summary_latex, write_rows_csv
 from .simulate import run_simulation
+from .selection import METHODS
 
 DESCRIPTIONS: Dict[str, str] = {
     "main": "single-run comparison of the proposed selector against all baselines",
@@ -43,7 +53,7 @@ DESCRIPTIONS: Dict[str, str] = {
     "belief-mismatch": "P_D degradation under tracker belief vs truth mismatch",
     "fbl-sweep": "finite-blocklength reliability-latency trade-off of the reporting links",
     "correlation-ablation": "correlation-aware vs independence-assuming fusion",
-    "submodularity": "diminishing-returns audit, curvature and greedy guarantee",
+    "submodularity": "finite-instance diminishing-returns and curvature audit",
     "same-objective-gap": "greedy-vs-oracle gap on the identical task objective",
     "interference-consistency": "communication/sensing interference coupling and direct-path cancellation sweep",
 }
@@ -74,18 +84,26 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     p.add_argument("--mc", "--num-mc", dest="mc", type=int, default=None,
                    help="number of Monte-Carlo trials")
     p.add_argument("--seed", type=int, default=None)
+    p.add_argument("--workers", type=int, default=None,
+                   help="parallel Monte-Carlo worker processes (default: 1)")
     p.add_argument("--out", type=Path, default=Path("runs"),
                    help="root output directory (default: ./runs)")
     p.add_argument("--set", dest="overrides", action="append", default=[], metavar="KEY=VALUE",
                    help="override any configuration field by dotted path; repeatable")
     p.add_argument("--config", type=Path, default=None,
                    help="JSON file with configuration overrides (nested or dotted keys)")
+    p.add_argument("--preset", choices=sorted(PRESETS), default=None,
+                   help="coherent named model bundle applied before --config/--set")
     p.add_argument("--values", type=float, nargs="+", default=None,
                    help="override the sweep grid of the selected experiment")
     p.add_argument("--axis", choices=ROBUSTNESS_AXES, default="comm_model",
                    help="robustness axis (only used with --mode robustness)")
     p.add_argument("--no-plots", action="store_true", help="skip figure generation")
     p.add_argument("--quiet", action="store_true", help="only print the final summary")
+    p.add_argument("--methods", nargs="+", choices=METHODS, default=None,
+                   help="method subset for --mode main")
+    p.add_argument("--paired-reference", choices=METHODS, default=None,
+                   help="method used as the paired P_D contrast reference in --mode main")
     p.add_argument("--list-modes", action="store_true", help="list available modes and exit")
     return p.parse_args(argv)
 
@@ -116,6 +134,8 @@ def parse_overrides(pairs: List[str]) -> Dict[str, Any]:
 
 def build_config(args: argparse.Namespace) -> Config:
     cfg = default_config()
+    if args.preset is not None:
+        cfg = apply_preset(cfg, args.preset)
 
     overrides: Dict[str, Any] = {}
     if args.config is not None:
@@ -126,10 +146,14 @@ def build_config(args: argparse.Namespace) -> Config:
         overrides["run.num_mc"] = args.mc
     if args.seed is not None:
         overrides["run.seed"] = args.seed
+    if args.workers is not None:
+        overrides["run.workers"] = args.workers
     if args.quiet:
         overrides["run.verbose"] = False
 
-    return apply_overrides(cfg, overrides) if overrides else cfg
+    cfg = apply_overrides(cfg, overrides) if overrides else cfg
+    validate_config(cfg)
+    return cfg
 
 
 def diff_from_default(cfg: Config) -> List[Tuple[str, Any]]:
@@ -153,6 +177,10 @@ def main(argv: List[str] | None = None) -> None:
     cfg = build_config(args)
     out_dir = Path(args.out) / args.mode
     fig_dir = out_dir / "figs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "config.json").write_text(
+        json.dumps(asdict(cfg), indent=2, sort_keys=True), encoding="utf-8"
+    )
 
     print(f"mode: {args.mode}  |  MC: {cfg.run.num_mc}  |  seed: {cfg.run.seed}")
     changed = diff_from_default(cfg)
@@ -161,7 +189,9 @@ def main(argv: List[str] | None = None) -> None:
     print(f"output: {out_dir}")
 
     if args.mode == "main":
-        summary = run_simulation(cfg)
+        summary = run_simulation(
+            cfg, methods=args.methods, paired_reference=args.paired_reference
+        )
         print_summary(summary)
         write_csv(summary, out_dir / "main.csv")
         write_main_summary_latex(summary, out_dir / "main_summary.tex")

@@ -191,14 +191,14 @@ def correlation_aware_weights(
 
     Sigma = covariance_matrix(cfg, links, sigma, base=base, q=q)
     w = solve_psd(Sigma, delta)
-    # A negative weight can appear when a link is *more* correlated with the
-    # rest than it is informative; clamping keeps the fused statistic a
-    # convex combination, which is what the Monte-Carlo detector assumes.
-    w = np.maximum(w, 0.0)
-    total = float(np.sum(w))
-    if total <= EPS:
+    # Signed weights are part of the unconstrained deflection optimum.  The
+    # Monte-Carlo fusion is linear and does not require a convex combination;
+    # clipping negative entries would invalidate w propto Sigma^{-1} delta and
+    # the corresponding closed-form deflection claim.
+    scale = float(np.sum(np.abs(w)))
+    if scale <= EPS:
         return np.full(n, 1.0 / n)
-    return w / total
+    return w / scale
 
 
 def correlated_deflection(

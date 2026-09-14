@@ -1,59 +1,26 @@
-
 \section{Conclusion}
 \label{sec:conclusion}
 
-This paper investigated communication-constrained cooperative sensing in a
-multi-UAV OTFS-ISAC network. We developed a communication-error-calibrated and
-C2F DD-aware Lagrangian link-selection method that jointly accounts for
-marginal deflection gain, reporting reliability, exchange delay, and
-DD-domain energy-capture loss. By calibrating exchanged soft statistics
-according to reporting reliability, the proposed method reduces the impact of
-unreliable reports on the fused statistic. The C2F DD-aware design further
-applies local DD-grid refinement only to shortlisted candidates, thereby
-recovering useful DD-domain energy while avoiding unnecessary fine-grid
-evaluations.
+This paper presented target-local fusion V1 for prior-assisted multi-UAV
+OTFS-ISAC sensing. The outer planner assigns each target to the UAV nearest its
+predicted position, while the existing communication-calibrated adaptive C2F
+selector performs detector-aligned greedy replay. The formulation therefore
+changes where reports meet without changing the inner marginal-gain objective,
+packet size, blocklength, or resource caps.
 
-Simulation results showed that the proposed method retains most of the
-all-neighbor detection gain with much lower signaling overhead and exchange
-delay. Under the same per-target selected-link budget, it achieves higher
-detection probability than Sensing-SINR-based selection and provides detection
-performance comparable to the Top-K Deflection baseline with lower delay.
-Ablation and robustness results further support the benefits of
-communication-error calibration, target-priority weighting, delay-aware
-Lagrangian pricing, and C2F DD refinement.
+In 1000 paired trials, V1 achieved $P_D=0.9734$ and worst-target
+$P_D=0.968$ with 11.993 reports, 7.676~kbit, and 12.793~ms of serial
+reporting. At identical resources, its paired gains over exact-marginal greedy
+and Sensing-SINR were 0.0067 and 0.0085, respectively. A controlled fusion-rule
+ablation showed that target-local planning disperses targets across fusion UAVs
+and exposes shorter, more reliable reporting edges to the inner selector. The
+evidence therefore supports a joint architectural conclusion---target-related
+fusion planning plus adaptive two-stage selection---rather than attributing the
+full improvement to a new greedy criterion.
 
-Future work will extend the current geometry-driven soft-information
-abstraction toward waveform-level OTFS-ISAC receiver modeling, more realistic
-inter-UAV reporting protocols, and joint detection-tracking design for dynamic
-multi-target UAV sensing networks.
-
-
-
-
-%
-%\section{Conclusion}
-%\label{sec:conclusion}
-%
-%This paper studied communication-constrained cooperative sensing in a
-%multi-UAV OTFS-ISAC network. A communication-error-calibrated and C2F
-%DD-aware Lagrangian link-selection method was developed to jointly account for
-%marginal deflection gain, reporting reliability, exchange delay, and fractional
-%DD-domain mismatch. By calibrating exchanged soft statistics according to
-%reporting reliability, the proposed method suppresses unreliable links before
-%fusion. The C2F DD-aware design further applies local DD-grid refinement only
-%to shortlisted candidates, preserving DD-domain energy recovery while reducing
-%unnecessary fine-grid evaluations.
-%
-%Simulation results show that the proposed method approaches the all-neighbor
-%detection reference with much lower signaling overhead and exchange delay.
-%Under the same per-target selected-link budget, it outperforms
-%Sensing-SINR-based selection and achieves comparable detection to the strong
-%Top-K Deflection baseline with lower delay. Ablation and robustness results
-%verify the benefits of communication-error calibration, target-priority
-%weighting, delay-aware Lagrangian pricing, and C2F DD refinement.
-%
-%Future work will extend the current geometry-driven soft-information
-%abstraction toward waveform-level OTFS-ISAC receiver modeling, more realistic
-%inter-UAV communication protocols, and joint detection-tracking design for
-%dynamic multi-target UAV sensing networks.
-%
+V1 is a stable nominal version, not a universal endpoint. Large prediction
+errors, strict rate thresholds, and sparse deployments remain its principal
+boundaries. Future work will validate the main ablations with multiple seeds and
+1000-trial paired tests, model obstruction and correlated reports, compare the
+1536- and 2048-use operating points, and turn the observed conflict-slot
+reduction into an interference- and finite-blocklength-aware parallel scheduler.

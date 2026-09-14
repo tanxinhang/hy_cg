@@ -41,6 +41,15 @@ MethodName = Literal[
     "raw_sense_sinr",
     "sense_sinr",
     "single_best",
+    "topk_deflection",
+    "global_topk_deflection",
+    "cost_aware_greedy",
+    "exact_marginal_greedy",
+    "proposed_c2f",
+    "proposed_c2f_adaptive",
+    "proposed_c2f_adaptive_pd",
+    "proposed_c2f_pd",
+    "proposed_c2f_full",
 ]
 
 CommErrorModel = Literal["erasure", "flip", "biased"]
@@ -137,10 +146,15 @@ class CommCfg:
     # How the communication interference term is built.
     # "full_concurrent": every UAV is assumed to transmit at full comm power.
     #     Conservative worst case; independent of which links are selected.
-    # "active_set": only UAVs that actually act as the *transmitting* end of a
-    #     selected reporting link contribute interference.  A method that
-    #     selects fewer links therefore sees less interference, a higher rate
-    #     and a lower delay -- which is the physically correct behaviour.
+    # "active_set": post-selection sensitivity model.  Only transmitters in the
+    #     selected reporting set contribute payload interference during final
+    #     evaluation.  Candidate selection still starts from the conservative
+    #     table, so this is deliberately labelled an ablation rather than a
+    #     self-consistent endogenous-interference optimizer.
+    # "orthogonal": report payloads are strictly time/frequency orthogonal, so
+    #     no other report payload interferes with a reporting leg.  Continuous
+    #     sensing-waveform leakage remains present.  This is the self-consistent
+    #     companion of ``mac_model="serial"`` used by the conference release.
     interference_model: str = "full_concurrent"
 
     # --- Reporting reliability model -------------------------------------
@@ -259,7 +273,9 @@ class Fusion:
     ``rule`` picks the fusion UAV when ``mode="explicit"``:
     ``"max_in_rate"`` (largest total incoming rate from the candidate
     receivers), ``"max_min_rate"`` (max-min fairness) or
-    ``"nearest_centroid"`` (closest to the target centroid).
+    ``"nearest_target"`` (closest to the predicted target position).
+    ``"nearest_centroid"`` is retained as a backward-compatible alias for
+    ``"nearest_target"``.
     """
 
     mode: str = "tx"
@@ -343,6 +359,10 @@ class Detect:
     #               every pair -- the physically correct latent-target reading.
     #               An optional bistatic aspect factor g(theta_i, theta_j)
     #               is applied on top.
+    # "mean":       use the mean RCS in the link budget.  This is the correct
+    #               companion of the local Swerling-I LLR, whose H1 energy
+    #               distribution already marginalizes the RCS fluctuation;
+    #               drawing RCS here as well would count it twice.
     rcs_model: str = "iid"
     rcs_aspect_enable: bool = False
 
@@ -382,6 +402,14 @@ class Prior:
     # to a perfect tracker.
     belief_sigma_pos_m: float = 150.0
     belief_sigma_vel_mps: float = 15.0
+    # Ellipsoidal DD search gate derived from the predicted covariance.  A
+    # selected link captures the truth when its delay and Doppler residuals are
+    # within this many standard deviations (plus half a quantisation bin).
+    search_gate_sigma: float = 3.0
+    # What the scheduler knows about target RCS.  ``"realized"`` is the legacy
+    # oracle-like path; ``"mean"`` uses E[sigma_q] and prevents a current-CPI
+    # RCS realization from leaking into pre-sensing scheduling decisions.
+    scheduler_rcs: str = "realized"
 
 
 @dataclass
@@ -452,6 +480,16 @@ class Selector:
     softmin_tau: float = 0.10
     alpha_floor: float = 0.0
     alpha_cap: float = 10.0
+    # ``first_order`` reproduces the historical alpha_q * DeltaD rule.
+    # ``exact_utility`` evaluates the actual fair utility increment and is the
+    # paper-canonical rule; its greedy and exhaustive oracle share one objective.
+    # ``detector_pd`` is an experimental matched-budget rule that evaluates the
+    # post-report H0/H1 moments and the implemented CF-corrected threshold.
+    score_mode: str = "first_order"
+    # Historical early exit at D_min is retained for legacy reproduction.  It
+    # is disabled in the canonical release because it can stop while the stated
+    # utility still has a positive feasible marginal gain.
+    stop_at_D_min: bool = True
     # Ablation switches.
     use_target_priority: bool = True
     use_delay_price: bool = True
@@ -470,6 +508,10 @@ class Run:
     num_mc: int = 200
     seed: int = 2026
     verbose: bool = True
+    # Independent trials can be evaluated in separate processes. Results are
+    # consumed in trial-index order, so changing this value does not change the
+    # random streams or numerical output.
+    workers: int = 1
 
 
 # --------------------------------------------------------------------------
@@ -523,7 +565,8 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         "interference.coupling": "legacy",
         "radio.eps_mode": "legacy",
     },
-    # The corrected model is the default; this preset pins it explicitly, which
+    # The corrected coupled model with the historical post-selection active-set
+    # sensitivity path.  It is not the paper-canonical MAC.
     # is what an experiment that must be immune to future default changes should
     # use.  ``comm.interference_model`` is set to the paper's active-set form.
     "isac-consistent": {
@@ -541,6 +584,42 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         "comm.reliability_model": "fbl",
         "fusion.mode": "explicit",
     },
+    # Single source of truth for paper figures/tables.  The reporting packets
+    # are orthogonal, while the sensing waveform remains continuously radiated;
+    # this preserves the defining ISAC coupling without an endogenous active-set
+    # fixed point.  Legacy/active-set variants remain available as ablations.
+    "paper-canonical": {
+        "geometry.uav_speed_min": 30.0,
+        "geometry.uav_speed_max": 60.0,
+        "geometry.target_speed_min": 50.0,
+        "geometry.target_speed_max": 90.0,
+        "interference.coupling": "shared_spectrum",
+        "radio.eps_mode": "noise_relative",
+        "comm.interference_model": "orthogonal",
+        "comm.mac_model": "serial",
+        "comm.reliability_model": "fbl",
+        "comm.latency_model": "blocklength",
+        "comm.enforce_chi_min": True,
+        "fusion.mode": "explicit",
+        "detect.soft_stat_model": "llr",
+        "detect.rcs_model": "mean",
+        "prior.belief_mode": True,
+        "prior.scheduler_rcs": "mean",
+        "refine.enable": True,
+        "refine.mode": "window",
+        "selector.score_mode": "exact_utility",
+        "selector.stop_at_D_min": False,
+    },
+}
+
+# Frozen V1 candidate.  It deliberately inherits every physical, detector,
+# refinement and selector setting from the paper release and changes only the
+# target-specific fusion destination rule.  Keeping this relationship
+# executable prevents future paper-preset edits from creating an accidental,
+# undocumented second experimental protocol.
+PRESETS["target-local-v1"] = {
+    **PRESETS["paper-canonical"],
+    "fusion.rule": "nearest_target",
 }
 
 
@@ -552,6 +631,52 @@ def apply_preset(cfg: Config, name: str) -> Config:
     if name not in PRESETS:
         raise KeyError(f"unknown preset {name!r}; available: {sorted(PRESETS)}")
     return apply_overrides(cfg, PRESETS[name])
+
+
+def validate_config(cfg: Config) -> None:
+    """Reject internally inconsistent physical-model combinations.
+
+    Historical presets remain runnable, but new configurations fail loudly
+    when their MAC and payload-interference assumptions describe different
+    systems.
+    """
+    interference_model = cfg.comm.interference_model.lower()
+    mac_model = cfg.comm.mac_model.lower()
+    if interference_model not in {"full_concurrent", "active_set", "orthogonal"}:
+        raise ValueError(
+            f"Unknown comm.interference_model={cfg.comm.interference_model!r}; "
+            "expected 'full_concurrent', 'active_set', or 'orthogonal'"
+        )
+    if mac_model not in {"serial", "parallel", "slot"}:
+        raise ValueError(
+            f"Unknown comm.mac_model={cfg.comm.mac_model!r}; "
+            "expected 'serial', 'parallel', or 'slot'"
+        )
+    if interference_model == "orthogonal" and mac_model != "serial":
+        raise ValueError(
+            "comm.interference_model='orthogonal' requires comm.mac_model='serial'"
+        )
+    if cfg.prior.scheduler_rcs.lower() not in {"realized", "mean"}:
+        raise ValueError(
+            f"Unknown prior.scheduler_rcs={cfg.prior.scheduler_rcs!r}; "
+            "expected 'realized' or 'mean'"
+        )
+    if cfg.selector.score_mode.lower() not in {"first_order", "exact_utility", "detector_pd"}:
+        raise ValueError(
+            f"Unknown selector.score_mode={cfg.selector.score_mode!r}; "
+            "expected 'first_order', 'exact_utility', or 'detector_pd'"
+        )
+    if cfg.fusion.rule.lower() not in {
+        "max_in_rate", "max_min_rate", "nearest_target", "nearest_centroid"
+    }:
+        raise ValueError(
+            f"Unknown fusion.rule={cfg.fusion.rule!r}; expected 'max_in_rate', "
+            "'max_min_rate', or 'nearest_target'"
+        )
+    if cfg.prior.search_gate_sigma < 0:
+        raise ValueError("prior.search_gate_sigma must be non-negative")
+    if cfg.run.workers < 1:
+        raise ValueError("run.workers must be at least one")
 
 
 # --------------------------------------------------------------------------
