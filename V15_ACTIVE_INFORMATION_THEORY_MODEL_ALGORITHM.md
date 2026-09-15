@@ -137,7 +137,7 @@ Each observation now carries its own mode-specific `gamma_a` and `L_a`. For scen
 +\frac{\gamma_{a,s}}{1+\gamma_{a,s}}X_a,
 \]
 
-where `X_a|H0 ~ Gamma(L_a,1)` and `X_a|H1 ~ Gamma(L_a,1+gamma_a,s)`. The fusion statistic is `Lambda_q=sum_a E_a ell_a`, with observed Bernoulli erasures. H0 calibration and independent H0/H1 evaluation use deterministic streams keyed by target, fusion, scenario, physical link and physical mode parameters. The strict decision `Lambda > threshold` matches V1.4 and correctly handles the erasure atom at zero.
+where `X_a|H0 ~ Gamma(L_a,1)` and `X_a|H1 ~ Gamma(L_a,1+gamma_a,s)`. The fusion statistic is `Lambda_q=sum_a E_a ell_a`, with observed Bernoulli erasures. H0 calibration and independent H0/H1 evaluation use separate deterministic physical-statistic and erasure streams keyed by target, scenario, physical link and physical mode parameters. Fusion is deliberately excluded: changing a routing destination must not resample the echo. The strict decision `Lambda > threshold` matches V1.4 and correctly handles the erasure atom at zero.
 
 ## Power and computation coupling
 
@@ -184,7 +184,7 @@ The information gain had `P10/P50/P90 = 0/0.5389/8.0569`, mean `Delta log(1+I)=0
 
 The factorial diagnostic showed that the improvement cannot be attributed to DD refinement in this preset: nominal already uses refinement, so refinement-only exactly matched fixed nominal. Power-only and looks-only both had positive information and `P_D` mean-gain confidence intervals. Looks-only achieved the largest mean information gain (6.0599), while the joint declared mode set achieved 4.6456 because it does not contain every Cartesian power–look–refinement combination. Thus the present claim is joint discrete mode selection, not an isolated causal superiority of any one component.
 
-The fleet-level run `results_active_system_v15/run_8386b9d8389f` used nine three-UAV/two-target system instances and 234 generated columns per instance. Column selection used 16,384 evaluation samples per scenario, whereas all reported detection values came from an independent 32,768-sample holdout replay. Under shared UAV energy, CPU, report and load caps, active columns raised heldout mean-target `P_D` from 0.24779 to 0.26496. The paired gain was 0.01717 with a cluster-bootstrap 95% CI of [0.00360, 0.03571]. Heldout worst-target `P_D` increased from 0.13877 to 0.15158, but its paired CI [-0.00066, 0.03345] included zero; this endpoint is therefore inconclusive. Mean scenario PFA remained near target (0.05021 versus 0.04957). This is system-level support for mean detection on a small diagnostic, not a worst-target or full-scale promotion result.
+The historical fleet-level run `results_active_system_v15/run_8386b9d8389f` used nine three-UAV/two-target system instances, but its detector random-stream key included the fusion destination. It therefore resampled the physical echo when comparing otherwise identical routing choices and is superseded for fusion-sensitive system claims. After removing fusion from the separate physical-statistic and erasure stream keys, a high-sample 15-UAV/10-target diagnostic in `results_active_system_15uav_10target_fusion_crn_fix_screen/run_9bff0f79a4ab` produced held-out mean-target `P_D` values of 0.78951 and 0.77596 for active modes and fixed nominal, respectively; both had worst-target `P_D=0.20776`, with mean scenario PFA near 0.05. This single instance verifies the corrected execution path but is not statistical system-level evidence. A multi-seed rerun is required.
 
 ## Claim–evidence map
 
@@ -198,8 +198,8 @@ The fleet-level run `results_active_system_v15/run_8386b9d8389f` used nine three
 | mixed-mode detector controls scenario PFA | independent calibrated/evaluation Monte Carlo | supported at mean PFA near 0.05 |
 | active modes improve robust received information | 90 paired targets, nine clusters | supported for the declared preset |
 | information gain has a positive average detection consequence | paired worst-`P_D` cluster-bootstrap CI excludes zero | supported, not pointwise guaranteed |
-| global active columns improve heldout mean-target detection | nine small-system paired instances; CI excludes zero | preliminary system-level support |
-| global active columns improve heldout worst-target detection | nine small-system paired instances; CI crosses zero | inconclusive |
+| global active columns improve heldout mean-target detection | pre-fix multi-seed evidence is superseded; one corrected diagnostic exists | needs corrected multi-seed evidence |
+| global active columns improve heldout worst-target detection | one corrected diagnostic showed no gain | unsupported at system level |
 
 ## Assumptions and missing evidence
 

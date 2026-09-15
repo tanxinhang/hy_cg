@@ -18,7 +18,7 @@ In resource-constrained multi-UAV OTFS-ISAC, we formulate cooperative sensing as
 
 ### Abstract
 
-Cooperative sensing is commonly formulated as selecting and fusing observations that already exist, although a multi-UAV integrated sensing and communication network can also control how those observations are acquired. This separation obscures the coupling between sensing power, delay–Doppler refinement, independent looks, report reliability, fusion placement, and shared computation and energy resources. We formulate the system as **active evidence acquisition**: the network chooses which bistatic view to create, how to acquire it, where to fuse it, and whether its resource cost is justified by its detection value. Starting from the exact local log-likelihood ratio (LLR), we derive forward Kullback–Leibler (KL) and Jeffreys information, prove their scaling under observed hypothesis-independent report erasures, and exploit their additivity under conditionally independent observations. Path-dependent aspect scenarios convert robust sensing from uniform signal attenuation into multi-view information complementarity. A certified branch-and-bound oracle prices link–mode bundles, while a fleet-level mixed-integer master selects active columns subject to transmitter energy and load, receiver capacity, report, fusion, and computation constraints. Information guides candidate generation, whereas calibrated worst-scenario detection probability at the target false-alarm probability, (P_D@P_{FA}), determines the operational schedule. Across 90 paired target instances from nine geometry clusters, active modes increased worst-scenario (P_D) by 0.03025 on average (95% cluster-bootstrap CI, 0.01998–0.04006). In nine small fleet instances, the held-out mean-target gain was 0.01717 (0.00360–0.03571), while the held-out worst-target interval included zero. These results close the information-to-detection loop for the tested single-interval finite-scenario setting, but do not yet establish a full fleet-wide certificate, sequential belief adaptation, or trajectory control.
+Cooperative sensing is commonly formulated as selecting and fusing observations that already exist, although a multi-UAV integrated sensing and communication network can also control how those observations are acquired. This separation obscures the coupling between sensing power, delay–Doppler refinement, independent looks, report reliability, fusion placement, and shared computation and energy resources. We formulate the system as **active evidence acquisition**: the network chooses which bistatic view to create, how to acquire it, where to fuse it, and whether its resource cost is justified by its detection value. Starting from the exact local log-likelihood ratio (LLR), we derive forward Kullback–Leibler (KL) and Jeffreys information, prove their scaling under observed hypothesis-independent report erasures, and exploit their additivity under conditionally independent observations. Path-dependent aspect scenarios convert robust sensing from uniform signal attenuation into multi-view information complementarity. A certified branch-and-bound oracle prices link–mode bundles, while a fleet-level mixed-integer master selects active columns subject to transmitter energy and load, receiver capacity, report, fusion, and computation constraints. Information guides candidate generation, whereas calibrated worst-scenario detection probability at the target false-alarm probability, (P_D@P_{FA}), determines the operational schedule. Across 90 paired target instances from nine geometry clusters, active modes increased worst-scenario (P_D) by 0.03025 on average (95% cluster-bootstrap CI, 0.01998–0.04006). Physical-statistic and erasure streams now use common random numbers across fusion destinations; the previous fusion-sensitive fleet experiment is superseded and requires a corrected multi-seed rerun. Current evidence closes the pair-level information-to-detection loop for the tested single-interval finite-scenario setting, but does not yet establish a fleet-wide detection gain, full action-space certificate, sequential belief adaptation, or trajectory control.
 
 ## Unified problem formulation
 
@@ -167,7 +167,7 @@ The implemented integrated pipeline is:
 5. Expand retained links into feasible mixed-mode active columns.
 6. Re-evaluate each column using the exact mixed-mode LLR, observed true erasures, and the full-load interference envelope.
 7. Solve the fleet-level lexicographic master under all declared shared budgets.
-8. Re-evaluate the selected schedule with independent hold-out detector samples before reporting (P_D@P_{FA}).
+8. Re-evaluate the selected schedule with independent hold-out detector samples before reporting (P_D@P_{FA}). Physical-statistic and erasure streams use common random numbers across fusion destinations, so fusion comparisons change routing reliability without resampling the echo.
 
 The public implementation entry point is `solve_active_evidence_acquisition`. Its result includes a machine-readable scope declaration. The current certificate hierarchy is:
 
@@ -197,14 +197,7 @@ Mean scenario (P_{FA}) was 0.05024 for active modes and 0.05000 for fixed nomina
 
 ### Fleet level
 
-The fleet diagnostic used nine systems with three UAVs, two targets, and 234 generated columns per instance. Selection used 16,384 detector samples per scenario and reporting used an independent 32,768-sample hold-out replay.
-
-| Held-out endpoint | Fixed nominal | Active modes | Paired gain | 95% cluster-bootstrap CI |
-|---|---:|---:|---:|---:|
-| Mean-target (P_D) | 0.24779 | 0.26496 | 0.01717 | [0.00360, 0.03571] |
-| Worst-target (P_D) | 0.13877 | 0.15158 | 0.01282 | [−0.00066, 0.03345] |
-
-Mean scenario (P_{FA}) remained near 0.05. The first endpoint supports a preliminary system-level mean-detection gain; the second is inconclusive.
+The previous nine-system fleet diagnostic is superseded because its random-stream key included the fusion destination and therefore resampled physical evidence across routing choices. A corrected high-sample 15-UAV/10-target diagnostic generated 5,850 columns and obtained held-out mean-target (P_D) values of 0.78951 and 0.77596 for active modes and fixed nominal; both methods had worst-target (P_D=0.20776), and mean scenario (P_{FA}) remained near 0.05. This single instance verifies the repaired execution path but does not support a population-level fleet claim.
 
 ## Claim–evidence map
 
@@ -237,7 +230,7 @@ Mean scenario (P_{FA}) remained near 0.05. The first endpoint supports a prelimi
 - Information additivity assumes conditional independence; correlated joint likelihoods require a covariance-generating physical model.
 - Mode energy is normalized, not hardware-calibrated in joules or timing.
 - The full-load interference envelope is conservative and does not recover selected-load decision dependence exactly.
-- The global experiment contains only nine small systems and is insufficient for a promotion-level worst-target claim.
+- The corrected global experiment currently contains one 15-UAV/10-target system instance; a multi-seed rerun is required for any fleet-level claim.
 - The current system is single-interval and does not update a posterior belief or optimize trajectory.
 - A target venue, word limit, and required section format have not yet been specified.
 
@@ -257,4 +250,3 @@ Mean scenario (P_{FA}) remained near 0.05. The first endpoint supports a prelimi
 本稿把所有历史版本压缩为一条“问题深化链”，正文不再按版本号罗列功能。理论层从物理 SINR 依次推进到 LLR、KL/Jeffreys、多视角互补、决策相关信息和未来的 EIG；模型层用统一的主动动作 (a=(i,j,q,m,f_q)) 串起感知、上报、融合和资源约束；算法层严格区分局部候选池证书、生成列上的全局证书与尚未完成的全动作空间证书。
 
 当前可以稳定主张的是：已在有限方位场景、单个感知区间和保守满载干扰包络下闭合“信息增益 → 混合模式似然 → 全局调度 → (P_D/P_{FA})”链条。不能提前主张完整 branch-price-and-cut、贝叶斯序贯感知、轨迹控制或 worst-target 系统级提升。后续实验应优先扩大系统级样本、补齐强基线与模块消融，再扩展新理论。
-

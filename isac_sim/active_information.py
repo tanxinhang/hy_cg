@@ -285,8 +285,12 @@ def evaluate_active_detection(
 
     Every observation uses its own SINR and Gamma shape ``mode.looks``.  H0
     calibration, H0 evaluation, and H1 evaluation use disjoint deterministic
-    streams.  Stream keys include the physical link and mode, so common random
-    numbers remain stable when another method changes its selected bundle.
+    draws.  Physical-statistic and report-erasure streams are separated, and
+    neither is keyed by the fusion destination.  Consequently, changing only
+    the fusion UAV changes report success probability and locality without
+    resampling the underlying echo.  Stream keys include the physical link and
+    mode, so common random numbers remain stable when another method changes
+    its selected bundle.
     """
     validate_config(cfg)
     if cfg.detect.comm_error_model != "erasure":
@@ -338,16 +342,27 @@ def evaluate_active_detection(
                 f"{int(observation.mode.refined)}"
             )
             mode_key = zlib.crc32(physical_mode.encode("utf-8"))
-            rng = np.random.default_rng([
-                int(seed), int(q), int(fusion), int(scenario),
-                int(i), int(j), int(mode_key),
+            # Fusion is intentionally absent from both keys.  It is a routing
+            # decision, not part of the physical echo experiment.  Shared
+            # erasure uniforms also provide monotone common-random-number
+            # coupling when two destinations have different success
+            # probabilities; only ``chi`` changes between those evaluations.
+            statistic_rng = np.random.default_rng([
+                int(seed), int(q), int(scenario), int(i), int(j),
+                int(mode_key), 0x571A7157,
             ])
-            cal = offset + coefficient * rng.gamma(looks, 1.0, n_cal)
-            h0 = offset + coefficient * rng.gamma(looks, 1.0, n_eval)
-            h1 = offset + coefficient * rng.gamma(looks, 1.0 + gamma, n_eval)
-            h0_cal += np.where(rng.random(n_cal) < chi, cal, 0.0)
-            h0_eval += np.where(rng.random(n_eval) < chi, h0, 0.0)
-            h1_eval += np.where(rng.random(n_eval) < chi, h1, 0.0)
+            erasure_rng = np.random.default_rng([
+                int(seed), int(q), int(scenario), int(i), int(j),
+                int(mode_key), 0xE2A5E2A5,
+            ])
+            cal = offset + coefficient * statistic_rng.gamma(looks, 1.0, n_cal)
+            h0 = offset + coefficient * statistic_rng.gamma(looks, 1.0, n_eval)
+            h1 = offset + coefficient * statistic_rng.gamma(
+                looks, 1.0 + gamma, n_eval
+            )
+            h0_cal += np.where(erasure_rng.random(n_cal) < chi, cal, 0.0)
+            h0_eval += np.where(erasure_rng.random(n_eval) < chi, h0, 0.0)
+            h1_eval += np.where(erasure_rng.random(n_eval) < chi, h1, 0.0)
         threshold = float(np.quantile(
             h0_cal, 1.0 - cfg.detect.Pfa_target, method="higher"
         ))

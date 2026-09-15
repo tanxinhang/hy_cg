@@ -195,6 +195,32 @@ class ActiveObservationPricingTests(unittest.TestCase):
                             for value in result.scenario_pfa), 0.015)
         self.assertTrue(all(0.0 <= value <= 1.0 for value in result.scenario_pd))
 
+    def test_fusion_change_does_not_resample_identical_physical_evidence(self) -> None:
+        cfg, base, coarse, refined = self._problem()
+        cfg.detect.comm_error_model = "erasure"
+        cfg.detect.soft_stat_model = "llr"
+        # With chi=1 everywhere, changing only the fusion destination has no
+        # physical or reporting consequence and must therefore be bit-exact.
+        reliable_coarse = dataclasses.replace(
+            coarse, chi_comm=np.ones_like(coarse.chi_comm)
+        )
+        reliable_refined = dataclasses.replace(
+            refined, chi_comm=np.ones_like(refined.chi_comm)
+        )
+        observations = (
+            ActiveObservation((0, 1), SensingMode("short", 0.5, 3, False)),
+            ActiveObservation((1, 2), SensingMode("long", 1.0, 19, True)),
+        )
+        left = evaluate_active_detection(
+            cfg, base, reliable_coarse, reliable_refined, 0, 0, observations,
+            calibration_samples=2048, evaluation_samples=4096, seed=77,
+        )
+        right = evaluate_active_detection(
+            cfg, base, reliable_coarse, reliable_refined, 0, 2, observations,
+            calibration_samples=2048, evaluation_samples=4096, seed=77,
+        )
+        self.assertEqual(left, right)
+
     def test_invalid_active_mode_configuration_is_rejected(self) -> None:
         cfg = Config()
         cfg.active_sensing.looks = (8,)
