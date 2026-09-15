@@ -1,0 +1,84 @@
+\section{Active Evidence Acquisition}
+\label{sec:active-evidence}
+
+The proposed system is organized around a single question: under shared
+sensing, communication, computation, and energy constraints, which evidence
+should the UAV network actively acquire, transport, and fuse for detection?
+This formulation replaces a version-by-version accumulation of modules with a
+single progression from passive observation selection to active evidence
+acquisition.
+
+\subsection{Detector-consistent information}
+
+For $L$ independent complex samples, let
+\begin{equation}
+z_\ell|H_0\sim\mathcal{CN}(0,\sigma^2),\qquad
+z_\ell|H_1\sim\mathcal{CN}(0,(1+\gamma)\sigma^2).
+\end{equation}
+The forward and reverse KL divergences are
+\begin{align}
+D_{\rm KL}(P_1\Vert P_0)&=L[\gamma-\log(1+\gamma)],\\
+D_{\rm KL}(P_0\Vert P_1)&=L\left[\log(1+\gamma)-
+\frac{\gamma}{1+\gamma}\right].
+\end{align}
+Their sum,
+\begin{equation}
+J(P_1,P_0)=\frac{L\gamma^2}{1+\gamma},
+\end{equation}
+equals the centered exact-LLR mean gap. Hence, information is an optimization
+layer derived from the implemented detector rather than an unrelated
+surrogate. If an observed report-erasure variable is independent of the
+hypothesis and has success probability $\chi$, the received divergence is
+$\chi D_{\rm KL}$. Under conditional independence, received information is
+additive across observations.
+
+\subsection{Robust mixed-mode observations}
+
+An active action is $a=(i,j,q,m,f_q)$, where UAV $i$ illuminates target $q$,
+UAV $j$ receives the echo, $m$ selects sensing power, independent looks, and
+delay--Doppler refinement, and $f_q$ is the fusion UAV. For aspect scenario
+$s$, a bundle $B$ has
+\begin{equation}
+I_s(B)=\sum_{a\in B}I_{a,s},\qquad
+I^{\rm rob}(B)=\min_{s\in\mathcal S}I_s(B).
+\end{equation}
+Because scenario-dependent target responses may reverse view rankings, the
+candidate generator retains robust singletons, scenario-wise leaders, and
+complementary pairs. This construction targets multi-view information
+complementarity rather than uniform SNR diversity.
+
+Active power also changes interference at other receivers, so the complete
+model has $I_{a,s}=I_{a,s}(\mathbf{x})$. To preserve a linear global master,
+the current implementation evaluates every active column under a conservative
+full-load interference envelope. This exposes the power externality without
+claiming equivalence to selected-load interference coupling.
+
+\subsection{Integrated resource allocation}
+
+A branch-and-bound oracle prices target--fusion link--mode bundles using an
+optimistic scenario-information bound. Each resulting active column is then
+evaluated with the mixed-mode exact LLR and true report erasures. The global
+binary master selects one column per target and lexicographically minimizes
+the worst detection deficit, total detection deficit, energy, remote reports,
+and CPU cycles, subject to transmitter, receiver, fusion, reporting, and
+computation budgets. KL or Jeffreys information guides candidate generation;
+calibrated worst-scenario $P_D$ at the target $P_{FA}$ determines the
+operational schedule.
+
+The local oracle is exact over its declared candidate pool when untruncated,
+and the global MILP is exact over the generated columns. These certificates do
+not imply exactness over the complete fleet-wide active-action universe.
+
+\subsection{Evidence and boundary}
+
+Across 90 paired target instances from nine geometry clusters, active modes
+increased robust received information by $4.6456$ on average (95\% cluster-
+bootstrap CI: $[1.8370,8.8870]$) and worst-scenario $P_D$ by $0.03025$
+($[0.01998,0.04006]$). Mean scenario $P_{FA}$ remained near $0.05$. In nine
+small fleet instances, the held-out mean-target $P_D$ gain was $0.01717$
+($[0.00360,0.03571]$), whereas the held-out worst-target interval included
+zero. The current evidence therefore supports an average detection consequence
+in a finite-scenario, single-interval setting. Sequential posterior updates,
+trajectory control, correlated joint likelihoods, and a fleet-wide
+branch-price-and-cut certificate remain outside the present claim.
+

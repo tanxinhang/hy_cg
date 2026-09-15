@@ -372,7 +372,7 @@ class Corr:
 
 @dataclass
 class ActiveSensing:
-    """Discrete active-observation design for the V1.5 research path.
+    """Discrete active-observation design for active evidence acquisition.
 
     Each mode jointly declares a sensing-power multiplier, an absolute number
     of independent looks, and whether the refined DD receiver is used.  Energy

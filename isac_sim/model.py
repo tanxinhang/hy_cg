@@ -182,7 +182,7 @@ class BaseGains:
     target_gain: np.ndarray
     geom_factor: np.ndarray
     # Azimuth of the bistatic viewing bisector in the horizontal target frame.
-    # Used only by the opt-in V1.5 aspect-scenario model.
+    # Used only by the opt-in active-evidence aspect-scenario model.
     aspect_azimuth: np.ndarray
     # Per-(i,j,q) RCS realisation.  Stored so a second geometry (e.g. the
     # scheduler's *belief*) can reuse the exact same physical channel -- the

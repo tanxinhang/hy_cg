@@ -1,7 +1,6 @@
-"""Information-consistent active observation design for the V1.5 path.
+"""Detector-consistent information for active observation design.
 
-This module is deliberately separate from the frozen V1.4 detector path.  It
-turns a passive bistatic link ``(i,j,q)`` into an active observation
+This module turns a passive bistatic link ``(i,j,q)`` into an active observation
 ``(i,j,q,m)`` by attaching a discrete sensing mode ``m``.  Each mode controls
 power, independent looks and DD refinement.  A finite set of target-aspect
 scenarios changes the RCS of different bistatic views in different directions.

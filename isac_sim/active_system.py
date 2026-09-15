@@ -1,4 +1,4 @@
-"""Fleet-level V1.5-System master for mixed-mode active columns.
+"""Fleet-level resource master for mixed-mode active-evidence columns.
 
 Columns are evaluated by the mixed-mode exact-LLR detector under a full-load
 sensing-power envelope.  The envelope recomputes both desired echoes and

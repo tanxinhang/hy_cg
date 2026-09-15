@@ -16,6 +16,9 @@ single-responsibility modules:
     experiments  sweep / ablation definitions (data, not flags)
     report       console summary, CSV and LaTeX tables
     plotting     figures
+    evidence_acquisition
+                 detector-consistent active observation generation and
+                 fleet-wide resource scheduling
     cli          the unified command-line interface
     naming       display order and human-readable labels
 
@@ -86,6 +89,11 @@ from .active_system import (
     solve_global_active_master,
 )
 from .active_statistics import paired_cluster_summary
+from .evidence_acquisition import (
+    EvidenceAcquisitionResult,
+    EvidenceAcquisitionScope,
+    solve_active_evidence_acquisition,
+)
 from .active_information import (
     ActiveDetectionResult,
     ActiveObservation,
@@ -163,6 +171,9 @@ __all__ = [
     "generate_active_columns",
     "solve_global_active_master",
     "paired_cluster_summary",
+    "EvidenceAcquisitionResult",
+    "EvidenceAcquisitionScope",
+    "solve_active_evidence_acquisition",
 ]
 
 __version__ = "1.5.0"
