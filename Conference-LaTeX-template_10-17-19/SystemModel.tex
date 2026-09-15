@@ -219,14 +219,24 @@ The bistatic target gain is
 	\frac{\lambda^2\sigma_q}{(4\pi)^3d_{iq}^2d_{jq}^2},
 	\label{eq:bistatic_target_gain}
 \end{equation}
-where $\sigma_q$ denotes the target RCS. Combining bistatic gain, processing
-gain, DD-domain gain, and collision penalty gives
+where $\sigma_q$ denotes the target RCS. The desired-path radar hardware factor is
+\begin{equation}
+	G_{ij}^{\mathrm{hw}}
+	=
+	\frac{G_i^{\mathrm{tx}}G_j^{\mathrm{rx}}}{L_{ij}^{\mathrm{sys}}},
+	\label{eq:radar_hardware_gain}
+\end{equation}
+where $G_i^{\mathrm{tx}}$ and $G_j^{\mathrm{rx}}$ are the directional radar
+antenna gains and $L_{ij}^{\mathrm{sys}}\geq 1$ collects implementation losses.
+Thus, $\sigma_q$ remains an RCS in $\mathrm{m}^2$ rather than serving as an
+implicit antenna-gain parameter. Combining these terms gives
 \begin{equation}
 	\gamma_{ijq}^{\mathrm s}
 	=
 	\frac{
 		\widetilde P_i^{\mathrm s}
 		g_{ijq}^{\mathrm s}
+		G_{ij}^{\mathrm{hw}}
 		G_{\mathrm p}
 		\eta_{ijq}^{\mathrm{DD}}
 		\eta_{ijq}^{\mathrm{col}}
@@ -248,36 +258,35 @@ illuminator's direct path remains in $I_j^{\mathrm s}$, which makes
 \label{subsec:soft_fusion_model}
 
 Each feasible triplet produces a waveform-derived local log-likelihood ratio
-(LLR). After OTFS matched filtering, the delay-Doppler bin for target $q$ on link
-$i\rightarrow q\rightarrow j$ is a single complex sample under an independent
-fast-fluctuation, Swerling-II-like model. The normalised bin energy
-$x=|z|^2/\sigma_n^2$ is therefore
-exponential, $x\sim\mathsf{Exp}(1)$ under $\mathcal H_0$ and
-$x\sim\mathsf{Exp}(1+\gamma_{ijq}^{\mathrm s})$ under $\mathcal H_1$. The local
-log-likelihood ratio, centred under $\mathcal H_0$, is
+(LLR). After OTFS matched filtering, let $x_r=|z_r|^2/\sigma_n^2$ denote the
+normalised delay--Doppler-bin energy in look $r$ under an independent
+fast-fluctuation, Swerling-II-like model. Then
+$x_r\sim\mathsf{Exp}(1)$ under $\mathcal H_0$ and
+$x_r\sim\mathsf{Exp}(1+\gamma_{ijq}^{\mathrm s})$ under $\mathcal H_1$.
+For $K_{\rm look}=16$ incoherently integrated looks, define
+$X=\sum_{r=1}^{K_{\rm look}}x_r$. The local log-likelihood ratio, centred
+under $\mathcal H_0$, is
 \begin{equation}
 	\ell_{ijq}
 	=
 	\frac{\gamma_{ijq}^{\mathrm s}}{1+\gamma_{ijq}^{\mathrm s}}
-	\left(x-L\right),
+	\left(X-K_{\rm look}\right),
 	\label{eq:local_llr}
 \end{equation}
-where $L$ independent frames are incoherently integrated in one CPI, so their
-summed energy is Gamma distributed. Its
-moments are
+where $X$ is Gamma distributed. Its moments are
 \begin{equation}
 	\begin{aligned}
 		\delta_{ijq}
 		&= \mathbb E_1[\ell]-\mathbb E_0[\ell]
-		= \frac{L(\gamma_{ijq}^{\mathrm s})^2}{1+\gamma_{ijq}^{\mathrm s}}, \\[2pt]
+		= \frac{K_{\rm look}(\gamma_{ijq}^{\mathrm s})^2}{1+\gamma_{ijq}^{\mathrm s}}, \\[2pt]
 		\sigma_{ij,0}^2
 		&= \mathrm{Var}_0[\ell]
-		= \frac{L(\gamma_{ijq}^{\mathrm s})^2}{(1+\gamma_{ijq}^{\mathrm s})^2},
+		= \frac{K_{\rm look}(\gamma_{ijq}^{\mathrm s})^2}{(1+\gamma_{ijq}^{\mathrm s})^2},
 	\end{aligned}
 	\label{eq:llr_moments}
 \end{equation}
 The LLR carries no free scale parameter, and its single-link deflection
-$\delta_{ijq}^2/\sigma_{ij,0}^2=L(\gamma_{ijq}^{\mathrm s})^2$ follows directly
+$\delta_{ijq}^2/\sigma_{ij,0}^2=K_{\rm look}(\gamma_{ijq}^{\mathrm s})^2$ follows directly
 from this independent-look model.
 
 Communication-error calibration acts on the soft statistic through the

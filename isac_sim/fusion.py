@@ -324,9 +324,9 @@ def calibrated_fused_threshold(
                 if cfg.detect.enable_comm_error_pollution else 1.0
             )
             success = a * (rng.gamma(n_looks, 1.0, n_samples) - n_looks)
-            failure_v = cfg.detect.soft_error_sigma_scale ** 2 * local.v0
-            failure = rng.normal(0.0, np.sqrt(max(failure_v, 0.0)), n_samples)
-            received = np.where(rng.random(n_samples) < chi, success, failure)
+            # This branch is entered only for the true-erasure channel: a
+            # failed report contributes exactly zero to the fused statistic.
+            received = np.where(rng.random(n_samples) < chi, success, 0.0)
             fused += float(weights[link]) * received
         return float(np.quantile(fused, 1.0 - cfg.detect.Pfa_target, method="higher"))
 

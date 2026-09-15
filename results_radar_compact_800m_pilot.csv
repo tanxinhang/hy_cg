@@ -1,0 +1,4 @@
+preset,net_gain_db,fusion_rule,report_budget,mc,seed,P_D,P_D_weak,remote_reports,selected_observations,all_targets_satisfied_prob,actual_worst_target_P_D,selector_score_evaluations
+small-uav-compact-800m,0.0,local_only,0,30,2026,0.43666666666666665,0.43333333333333335,0.0,10.0,0.0,0.23333333333333334,770.0
+small-uav-compact-800m,0.0,pd_lookahead,2,30,2026,0.4633333333333333,0.26666666666666666,2.0,12.0,0.0,0.3,3757.4666666666667
+small-uav-compact-800m,0.0,nearest,2,30,2026,0.44666666666666666,0.26666666666666666,2.0,12.0,0.0,0.3,4410.266666666666

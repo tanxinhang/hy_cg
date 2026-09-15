@@ -21,6 +21,7 @@ from isac_sim.model import (  # noqa: E402
     denominator_guard,
     generate_geometry,
     noise_power,
+    radar_hardware_gain,
     wavelength,
 )
 
@@ -56,7 +57,7 @@ for t in range(20):
     field = (R.rho * P + (1 - R.rho) * P) @ base.direct_gain     # all UAVs radiate
     valid = base.valid_dd & base.edge_mask[..., None]
     i, j, q = np.argwhere(valid).T
-    echo = (R.rho * P)[i] * base.target_gain[i, j, q] * G_proc
+    echo = (R.rho * P)[i] * base.target_gain[i, j, q] * G_proc * radar_hardware_gain(cfg)
     inr.append(float(np.median(field[j] / n0)))
     field_over_echo.append(float(np.median(field[j] / echo)))
     echo_over_n0.append(float(np.median(echo / n0)))
@@ -73,11 +74,11 @@ print()
 print("=" * 78)
 print("B. Analytic scaling of the near-far ratio (is it a code artefact?)")
 print("=" * 78)
-print("  echo    ~ P^s * lambda^2 sigma /((4pi)^3 d_iq^2 d_jq^2) * G_p   (4th power in d)")
+print("  echo    ~ P^s * lambda^2 sigma /((4pi)^3 d_iq^2 d_jq^2) * G_hw * G_p   (4th power in d)")
 print("  direct  ~ P   * (lambda/4pi)^2 / d^2          summed over k      (2nd power in d)")
 print("  ratio   ~ 4pi * d_iq^2 d_jq^2 / (sigma * d_UU^2) / G_p * N_int * P/P^s")
 d_typ, sigma, n_int_typ = 1500.0, cfg.detect.target_rcs, cfg.scale.M - 1
-analytic = (4 * np.pi * d_typ**4 / (sigma * d_typ**2) / G_proc
+analytic = (4 * np.pi * d_typ**4 / (sigma * radar_hardware_gain(cfg) * d_typ**2) / G_proc
             * n_int_typ * R.P_default / P_sense)
 print(f"  with d={d_typ:.0f} m, sigma={sigma}, N_int={n_int_typ}, G_p={G_proc}:")
 print(f"    analytic near-far ratio    = {10*np.log10(analytic):+7.2f} dB")

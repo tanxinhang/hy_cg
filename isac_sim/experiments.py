@@ -26,9 +26,11 @@ from .simulate import run_simulation
 # --------------------------------------------------------------------------
 LAMBDA_VALUES: List[float] = [0.0005, 0.001, 0.003, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2]
 R_MIN_VALUES: List[float] = [1e5, 2e5, 5e5, 1e6, 2e6]
+LOCAL_PROCESSING_BUDGETS: List[int] = [0, 1, 2, -1]
+REMOTE_REPORT_BUDGETS: List[int] = [0, 1, 2, 4, 8]
 
 ROBUSTNESS_VALUES: Dict[str, List[Any]] = {
-    "comm_model": ["erasure", "biased", "flip"],
+    "comm_model": ["erasure", "gaussian_replacement", "biased", "flip"],
     "error_sigma": [1.0, 2.0, 3.0, 4.0],
     "residual_direct": [1e-5, 1e-4, 1e-3, 1e-2],
     "direct_cancellation": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
@@ -185,6 +187,197 @@ def fair_ablation(cfg: Config, budget: int = FAIR_MAX_TOTAL_LINKS) -> List[Dict[
                           ["proposed_lagrangian"], extra)
 
 
+def resource_budget_surface(cfg: Config) -> List[Dict[str, Any]]:
+    """Map detection against local-processing and remote-report budgets.
+
+    Every grid point is reported; no point is selected as a tuned operating
+    optimum.  The detector marginal ranks admissible observations while hard
+    budgets define feasibility, so the experiment is resource sensitivity,
+    not hyperparameter optimization.
+    """
+    rows: List[Dict[str, Any]] = []
+    for local_cap in LOCAL_PROCESSING_BUDGETS:
+        for remote_cap in REMOTE_REPORT_BUDGETS:
+            variant = apply_overrides(cfg, {
+                "selector.use_delay_price": False,
+                "selector.lambda_c": 0.0,
+                "selector.max_local_observations_per_target": int(local_cap),
+                "selector.max_remote_reports": int(remote_cap),
+            })
+            local_label = "unbounded" if local_cap < 0 else str(local_cap)
+            _banner(
+                "Running resource-budget point: "
+                f"local/target={local_label}, remote={remote_cap}"
+            )
+            summary = run_simulation(
+                variant, methods=["proposed_c2f_adaptive_pd"]
+            )
+            rows.append(scalar_summary_row(
+                summary,
+                "proposed_c2f_adaptive_pd",
+                {
+                    "experiment": "resource_budget_surface",
+                    "local_processing_budget_per_target": int(local_cap),
+                    "local_processing_budget_label": local_label,
+                    "remote_report_budget": int(remote_cap),
+                    "weak_pd_requirement": float(cfg.detect.weak_pd_required),
+                    "uses_scalar_price": False,
+                },
+            ))
+    lookup = {
+        (int(row["local_processing_budget_per_target"]), int(row["remote_report_budget"])): row
+        for row in rows
+    }
+    local_order = [0, 1, 2, -1]
+    for local_cap in local_order:
+        qualifying = [
+            remote for remote in REMOTE_REPORT_BUDGETS
+            if float(lookup[(local_cap, remote)]["P_D_weak"])
+            >= cfg.detect.weak_pd_required
+        ]
+        k_min = min(qualifying) if qualifying else -1
+        for remote_index, remote_cap in enumerate(REMOTE_REPORT_BUDGETS):
+            row = lookup[(local_cap, remote_cap)]
+            row["K_remote_min_for_weak_requirement"] = k_min
+            remote_marginal = float("nan")
+            if remote_index > 0:
+                previous_remote = REMOTE_REPORT_BUDGETS[remote_index - 1]
+                remote_marginal = (
+                    float(row["P_D_weak"])
+                    - float(lookup[(local_cap, previous_remote)]["P_D_weak"])
+                ) / (remote_cap - previous_remote)
+            local_marginal = float("nan")
+            if local_cap in {1, 2}:
+                previous_local = local_cap - 1
+                local_marginal = (
+                    float(row["P_D_weak"])
+                    - float(lookup[(previous_local, remote_cap)]["P_D_weak"])
+                )
+            row["weak_pd_marginal_per_remote_report"] = remote_marginal
+            row["weak_pd_marginal_per_local_observation"] = local_marginal
+            row["remote_to_local_marginal_ratio"] = (
+                remote_marginal / local_marginal
+                if np.isfinite(remote_marginal)
+                and np.isfinite(local_marginal)
+                and abs(local_marginal) > 1e-12
+                else float("nan")
+            )
+    return rows
+
+
+def _paired_cluster_interval(values: np.ndarray, seed: int) -> tuple[float, float]:
+    """Trial-cluster bootstrap interval for a paired endpoint."""
+    values = np.asarray(values, dtype=float)
+    if values.size <= 1:
+        point = float(np.mean(values)) if values.size else 0.0
+        return point, point
+    rng = np.random.default_rng(seed)
+    boot = np.empty(5000, dtype=float)
+    for start in range(0, boot.size, 250):
+        stop = min(start + 250, boot.size)
+        idx = rng.integers(0, values.size, size=(stop - start, values.size))
+        boot[start:stop] = np.mean(values[idx], axis=1)
+    low, high = np.percentile(boot, [2.5, 97.5])
+    return float(low), float(high)
+
+
+def v11_factorial(cfg: Config) -> List[Dict[str, Any]]:
+    """Run the preregistered 2x2 fusion-by-selection comparison.
+
+    All cells use common random numbers and identical exogenous budgets.  The
+    mode refuses unbounded capacity fields so a nominally "capacitated"
+    headline experiment cannot silently run with inactive constraints.
+    """
+    required = {
+        "selector.max_local_observations_per_target": cfg.selector.max_local_observations_per_target,
+        "selector.max_remote_reports": cfg.selector.max_remote_reports,
+        "selector.max_observations_per_receiver": cfg.selector.max_observations_per_receiver,
+        "selector.max_observations_per_fusion_uav": cfg.selector.max_observations_per_fusion_uav,
+        "fusion.max_targets_per_uav": cfg.fusion.max_targets_per_uav,
+    }
+    bad = [name for name, value in required.items() if int(value) < 0]
+    if bad:
+        raise ValueError(
+            "v11-factorial requires finite preregistered budgets: " + ", ".join(bad)
+        )
+
+    cells = [
+        ("NS", "nearest_target_capacitated", "sense_sinr_budgeted", "Sensing-SINR"),
+        ("ND", "nearest_target_capacitated", "proposed_c2f_adaptive_pd", "Detector-aligned"),
+        ("CS", "capacitated_value", "sense_sinr_budgeted", "Sensing-SINR"),
+        ("CD", "capacitated_value", "proposed_c2f_adaptive_pd", "Detector-aligned"),
+    ]
+    summaries: Dict[str, Dict[str, Any]] = {}
+    records: Dict[str, List[Dict[str, Any]]] = {}
+    rows: List[Dict[str, Any]] = []
+    for cell, fusion_rule, method, selection_label in cells:
+        variant = apply_overrides(cfg, {"fusion.rule": fusion_rule})
+        trial_rows: List[Dict[str, Any]] = []
+        _banner(f"Running V1.1 factorial cell {cell}: {fusion_rule} x {selection_label}")
+        summary = run_simulation(variant, methods=[method], trial_records=trial_rows)
+        summaries[cell] = summary[method]
+        records[cell] = trial_rows
+        rows.append(scalar_summary_row(summary, method, {
+            "experiment": "v11_factorial",
+            "cell": cell,
+            "fusion_rule": fusion_rule,
+            "selection_rule": selection_label,
+            "pd_requirement": float(cfg.detect.pd_required),
+            "weak_pd_requirement": float(cfg.detect.weak_pd_required),
+        }))
+
+    local_cfg = apply_overrides(cfg, {
+        "fusion.rule": "capacitated_value",
+        "selector.max_remote_reports": 0,
+    })
+    local_records: List[Dict[str, Any]] = []
+    run_simulation(
+        local_cfg,
+        methods=["proposed_c2f_adaptive_pd"],
+        trial_records=local_records,
+    )
+
+    def vector(cell: str, key: str) -> np.ndarray:
+        ordered = sorted(records[cell], key=lambda row: int(row["trial"]))
+        return np.asarray([float(row[key]) for row in ordered], dtype=float)
+
+    cd_mean = vector("CD", "detected_fraction")
+    cd_weak = vector("CD", "weak_target_detected")
+    local_weak = np.asarray([
+        float(row["weak_target_detected"])
+        for row in sorted(local_records, key=lambda row: int(row["trial"]))
+    ])
+    missed = local_weak == 0
+    rescue_rate = float(np.mean(cd_weak[missed])) if np.any(missed) else 0.0
+
+    interaction_mean = (
+        (vector("CD", "detected_fraction") - vector("CS", "detected_fraction"))
+        - (vector("ND", "detected_fraction") - vector("NS", "detected_fraction"))
+    )
+    interaction_weak = (
+        (vector("CD", "weak_target_detected") - vector("CS", "weak_target_detected"))
+        - (vector("ND", "weak_target_detected") - vector("NS", "weak_target_detected"))
+    )
+    for row in rows:
+        cell = str(row["cell"])
+        mean_delta = cd_mean - vector(cell, "detected_fraction")
+        weak_delta = cd_weak - vector(cell, "weak_target_detected")
+        mean_low, mean_high = _paired_cluster_interval(mean_delta, cfg.run.seed + 8101)
+        weak_low, weak_high = _paired_cluster_interval(weak_delta, cfg.run.seed + 8103)
+        row.update({
+            "CD_minus_cell_P_D": float(np.mean(mean_delta)),
+            "CD_minus_cell_P_D_ci95_low": mean_low,
+            "CD_minus_cell_P_D_ci95_high": mean_high,
+            "CD_minus_cell_P_D_weak": float(np.mean(weak_delta)),
+            "CD_minus_cell_P_D_weak_ci95_low": weak_low,
+            "CD_minus_cell_P_D_weak_ci95_high": weak_high,
+            "weak_target_rescue_rate_vs_local_only": rescue_rate if cell == "CD" else "",
+            "factorial_interaction_P_D": float(np.mean(interaction_mean)),
+            "factorial_interaction_P_D_weak": float(np.mean(interaction_weak)),
+        })
+    return rows
+
+
 def dd_ablation(cfg: Config) -> List[Dict[str, Any]]:
     """Measure the contribution of each OTFS delay-Doppler mechanism."""
 
@@ -230,7 +423,8 @@ def comm_sweep(cfg: Config, values: List[float] | None = None) -> List[Dict[str,
 def robustness(cfg: Config, axis: str = "comm_model", values: List[Any] | None = None) -> List[Dict[str, Any]]:
     """Sweep one robustness axis.
 
-    Supported axes: ``comm_model`` (erasure/biased/flip), ``error_sigma``
+    Supported axes: ``comm_model`` (true erasure/Gaussian replacement/biased/
+    flip), ``error_sigma``
     (``detect.soft_error_sigma_scale``), ``residual_direct``
     (``radio.residual_direct_factor``, legacy model only) and
     ``direct_cancellation`` (``interference.direct_cancellation_db``; implies
@@ -866,7 +1060,7 @@ def _interference_diagnostics(cfg: Config, n_trials: int = 20) -> Dict[str, floa
       whether an ISAC design can exist.
     """
     from .model import (build_base_gains, compute_link_tables, denominator_guard,
-                        generate_geometry, noise_power)
+                        generate_geometry, noise_power, radar_hardware_gain)
 
     M = cfg.scale.M
     R = cfg.radio
@@ -898,7 +1092,7 @@ def _interference_diagnostics(cfg: Config, n_trials: int = 20) -> Dict[str, floa
         i, j, q = np.argwhere(valid).T
         if len(i) == 0:
             continue
-        echo = P_sense[i] * base.target_gain[i, j, q] * G_proc
+        echo = P_sense[i] * base.target_gain[i, j, q] * G_proc * radar_hardware_gain(cfg)
         field_j = field[j]
         comm_i = pay_field[j] - pay[i] * base.direct_gain[i, j]
 
@@ -1143,6 +1337,8 @@ EXPERIMENTS: Dict[str, Callable[..., List[Dict[str, Any]]]] = {
     "lambda-sweep": lambda_sweep,
     "ablation": ablation,
     "fair-ablation": fair_ablation,
+    "resource-budget-surface": resource_budget_surface,
+    "v11-factorial": v11_factorial,
     "dd-ablation": dd_ablation,
     "comm-sweep": comm_sweep,
     "robustness": robustness,

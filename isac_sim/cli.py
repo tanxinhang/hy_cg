@@ -42,6 +42,8 @@ DESCRIPTIONS: Dict[str, str] = {
     "lambda-sweep": "sweep the communication price lambda_c of the proposed selector",
     "ablation": "ablate each mechanism of the proposed selector",
     "fair-ablation": "ablate the mechanisms under a shared global link budget",
+    "resource-budget-surface": "map detection over local-processing and remote-report budgets",
+    "v11-factorial": "2x2 nearest/capacitated fusion by SINR/detector selection",
     "dd-ablation": "measure each OTFS delay-Doppler mechanism's contribution",
     "comm-sweep": "sweep the minimum communication rate R_min",
     "robustness": "sweep one robustness axis (use --axis)",

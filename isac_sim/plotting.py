@@ -637,6 +637,106 @@ def plot_same_objective_gap(rows, out_dir: Path) -> None:
     _save(fig, out_dir, "same_objective_gap.png")
 
 
+def plot_resource_budget_surface(rows, out_dir: Path) -> None:
+    """Detection and report use over the declared physical-budget grid."""
+    if not rows:
+        return
+    plt = _pyplot()
+    local_values = [0, 1, 2, -1]
+    remote_values = sorted({int(r["remote_report_budget"]) for r in rows})
+    lookup = {
+        (int(r["local_processing_budget_per_target"]), int(r["remote_report_budget"])): r
+        for r in rows
+    }
+    pd = np.asarray([
+        [lookup[(local, remote)]["P_D"] for remote in remote_values]
+        for local in local_values
+    ], dtype=float)
+    weak_pd = np.asarray([
+        [lookup[(local, remote)]["P_D_weak"] for remote in remote_values]
+        for local in local_values
+    ], dtype=float)
+    reports = np.asarray([
+        [lookup[(local, remote)]["selected_links_mean"] for remote in remote_values]
+        for local in local_values
+    ], dtype=float)
+
+    fig, axes = plt.subplots(1, 3, figsize=(14.5, 3.8))
+    for ax, data, title, cbar_label in [
+        (axes[0], pd, "Detection response", r"$P_D$"),
+        (axes[1], weak_pd, "Weak-target response", r"$P_D^{weak}$"),
+        (axes[2], reports, "Remote-report use", "mean remote reports"),
+    ]:
+        im = ax.imshow(data, origin="lower", aspect="auto", cmap="viridis")
+        ax.set_xticks(range(len(remote_values)), labels=remote_values)
+        ax.set_yticks(range(len(local_values)), labels=["0", "1", "2", r"$\infty$"])
+        ax.set_xlabel("remote-report budget")
+        ax.set_ylabel("local observations per target")
+        ax.set_title(title)
+        fig.colorbar(im, ax=ax, label=cbar_label)
+    fig.tight_layout()
+    _save(fig, out_dir, "resource_budget_surface.png")
+
+    finite_locals = [0, 1, 2]
+    ratios = np.asarray([
+        [float(lookup[(local, remote)].get("remote_to_local_marginal_ratio", np.nan))
+         for remote in remote_values]
+        for local in finite_locals
+    ])
+    k_min = [int(lookup[(local, remote_values[0])]["K_remote_min_for_weak_requirement"])
+             for local in local_values]
+    fig2, axes2 = plt.subplots(1, 2, figsize=(9.5, 3.8))
+    masked = np.ma.masked_invalid(ratios)
+    im = axes2[0].imshow(masked, origin="lower", aspect="auto", cmap="coolwarm")
+    axes2[0].set_xticks(range(len(remote_values)), labels=remote_values)
+    axes2[0].set_yticks(range(len(finite_locals)), labels=finite_locals)
+    axes2[0].set_xlabel("remote-report budget")
+    axes2[0].set_ylabel("local observations per target")
+    axes2[0].set_title(r"Marginal ratio $\Delta_R/\Delta_L$")
+    fig2.colorbar(im, ax=axes2[0], label="remote/local marginal value")
+    display_k = [np.nan if value < 0 else value for value in k_min]
+    axes2[1].plot(range(len(local_values)), display_k, "-o", color="#3a7")
+    axes2[1].set_xticks(range(len(local_values)), labels=["0", "1", "2", r"$\infty$"])
+    axes2[1].set_yticks(remote_values)
+    axes2[1].set_xlabel("local observations per target")
+    weak_requirement = float(
+        lookup[(local_values[0], remote_values[0])].get("weak_pd_requirement", 0.8)
+    )
+    axes2[1].set_ylabel(
+        rf"minimum $K_r$ for $P_D^{{weak}}\geq {weak_requirement:g}$"
+    )
+    axes2[1].set_title("Resource phase boundary")
+    axes2[1].grid(True, alpha=0.3)
+    fig2.tight_layout()
+    _save(fig2, out_dir, "resource_marginal_phase.png")
+
+
+def plot_v11_factorial(rows, out_dir: Path) -> None:
+    """Plot the two primary endpoints for the four factorial cells."""
+    if not rows:
+        return
+    plt = _pyplot()
+    order = ["NS", "ND", "CS", "CD"]
+    lookup = {str(row["cell"]): row for row in rows}
+    x = np.arange(len(order))
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.8))
+    for ax, key, title, requirement_key, default_requirement in [
+        (axes[0], "P_D", "Mean-target reliability", "pd_requirement", 0.95),
+        (axes[1], "P_D_weak", "Predefined weak-target reliability", "weak_pd_requirement", 0.8),
+    ]:
+        values = [float(lookup[cell][key]) for cell in order]
+        ax.bar(x, values, color=["#9aa", "#69a", "#c98", "#3a7"])
+        requirement = float(lookup["CD"].get(requirement_key, default_requirement))
+        ax.axhline(requirement, color="#555", linestyle="--", linewidth=1)
+        ax.set_xticks(x, labels=order)
+        ax.set_ylim(0, 1.02)
+        ax.set_ylabel(key.replace("_", " "))
+        ax.set_title(title)
+        ax.grid(True, axis="y", alpha=0.3)
+    fig.tight_layout()
+    _save(fig, out_dir, "v11_factorial.png")
+
+
 def plot_interference_consistency(rows, out_dir: Path) -> None:
     """Near-far / INR bookkeeping and the direct-path cancellation requirement."""
     if not rows:
@@ -697,6 +797,8 @@ PLOTTERS = {
     "lambda-sweep": plot_lambda_sweep,
     "ablation": plot_ablation,
     "fair-ablation": plot_fair_ablation,
+    "resource-budget-surface": plot_resource_budget_surface,
+    "v11-factorial": plot_v11_factorial,
     "dd-ablation": plot_dd_ablation,
     "comm-sweep": plot_comm_sweep,
     "robustness": plot_robustness,

@@ -64,8 +64,11 @@ def received_moments(
     model = d.comm_error_model
 
     if model == "erasure":
-        # A lost report is replaced by zero-mean uncertainty carrying no target
-        # information under either hypothesis.
+        # True packet drop: the fusion input is exactly zero.
+        f0_m = f0_v = f1_m = f1_v = 0.0
+    elif model == "gaussian_replacement":
+        # Released V1 surrogate: a lost report is replaced by zero-mean
+        # uncertainty carrying no target information under either hypothesis.
         fv = d.soft_error_sigma_scale ** 2 * local.v0
         f0_m, f0_v, f1_m, f1_v = 0.0, fv, 0.0, fv
     elif model == "flip":
@@ -89,14 +92,15 @@ def received_h0_third_central(
 ) -> float:
     """Third H0 central moment of the received statistic.
 
-    The canonical erasure channel has zero conditional means, so the mixture
-    third moment is simply the packet-success probability times the centred-Gamma
-    LLR moment.  Other error models fall back to zero because their third-order
-    calibration is not used by the paper release.
+    The true-erasure and Gaussian-replacement channels have zero conditional
+    failure means, so the mixture third moment is the packet-success
+    probability times the centred-Gamma LLR moment. Other error models fall
+    back to zero because their third-order calibration is not used by the
+    paper release.
     """
     if cfg.detect.soft_stat_model.lower() != "llr":
         return 0.0
-    if cfg.detect.comm_error_model != "erasure":
+    if cfg.detect.comm_error_model not in {"erasure", "gaussian_replacement"}:
         return 0.0
     i, j = link
     gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
@@ -140,6 +144,8 @@ def draw_received_soft_stat(
 
     d = cfg.detect
     if d.comm_error_model == "erasure":
+        return 0.0
+    if d.comm_error_model == "gaussian_replacement":
         return float(rng.normal(0.0, d.soft_error_sigma_scale * math.sqrt(local.v0)))
     if d.comm_error_model == "flip":
         return -float(d.soft_error_flip_scale) * _draw_local(cfg, tables, link, q, rng, h1)

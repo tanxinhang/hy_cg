@@ -51,9 +51,11 @@ from .selection import (
     METHOD_RNG_OFFSETS,
     feasible_links_for_target,
     select_all_neighbor,
+    select_budget_ranked_baseline,
     select_c2f,
     select_c2f_adaptive,
     select_lagrangian,
+    sensing_only_links_for_target,
     select_topk_baseline,
 )
 
@@ -87,6 +89,16 @@ class MethodResult:
     selected_rate_satisfaction_ratio: float
     selected_chi_ge_min_ratio: float
     comm_feasible_edge_ratio: float
+    weak_target_index: int
+    weak_target_detected: int
+    receiver_capacity_max_utilization: float
+    receiver_capacity_binding: float
+    fusion_capacity_max_utilization: float
+    fusion_capacity_binding: float
+    report_capacity_utilization: float
+    report_capacity_binding: float
+    assignment_capacity_max_utilization: float
+    assignment_capacity_binding: float
     fine_eval_full: float = 0.0
     fine_eval_c2f: float = 0.0
     selector_score_evaluations: float = 0.0
@@ -380,6 +392,77 @@ def rng_for_detection(cfg: Config, trial_index: int) -> np.random.Generator:
     return np.random.default_rng([cfg.run.seed, 54321, trial_index])
 
 
+def weakest_belief_target(cfg: Config, base: BaseGains, tables: LinkTables) -> int:
+    """Identify the weakest target from the pre-scheduling belief view.
+
+    The difficulty score is each target's best DD-valid sensing SINR before a
+    fusion destination or observation set is chosen.  With belief-side inputs,
+    the label cannot use target truth, realized RCS, packet outcomes, or final
+    detector outcomes.
+    """
+    best = np.full(cfg.scale.Q, -np.inf, dtype=float)
+    for q in range(cfg.scale.Q):
+        links = sensing_only_links_for_target(cfg, base, q)
+        if links:
+            best[q] = max(float(tables.gamma_sense[i, j, q]) for i, j in links)
+    return int(np.argmin(best))
+
+
+def capacity_metrics_for_selection(
+    cfg: Config,
+    selected: Dict[int, List[Link]],
+    plan: "ReportingPlan | None",
+) -> Dict[str, float]:
+    """Compute utilization and binding indicators for every finite capacity."""
+    M = cfg.scale.M
+    receiver_counts = np.zeros(M, dtype=float)
+    fusion_counts = np.zeros(M, dtype=float)
+    for q, links in selected.items():
+        for link in links:
+            receiver_counts[link[1]] += 1.0
+            fusion_counts[report_dest(plan, link, q)] += 1.0
+
+    assignment_counts = np.zeros(M, dtype=float)
+    f_q = getattr(plan, "f_q", None)
+    if f_q is not None:
+        assignment_counts = np.bincount(
+            np.asarray(f_q, dtype=int), minlength=M
+        ).astype(float)
+
+    def utilization(used: float, cap: int) -> tuple[float, float]:
+        if cap <= 0:
+            return 0.0, 0.0
+        ratio = float(used / cap)
+        return ratio, float(ratio >= 0.99)
+
+    receiver_u, receiver_b = utilization(
+        float(np.max(receiver_counts, initial=0.0)),
+        cfg.selector.max_observations_per_receiver,
+    )
+    fusion_u, fusion_b = utilization(
+        float(np.max(fusion_counts, initial=0.0)),
+        cfg.selector.max_observations_per_fusion_uav,
+    )
+    report_u, report_b = utilization(
+        float(remote_report_count(selected, plan)),
+        cfg.selector.max_remote_reports,
+    )
+    assignment_u, assignment_b = utilization(
+        float(np.max(assignment_counts, initial=0.0)),
+        cfg.fusion.max_targets_per_uav,
+    )
+    return {
+        "receiver_capacity_max_utilization": receiver_u,
+        "receiver_capacity_binding": receiver_b,
+        "fusion_capacity_max_utilization": fusion_u,
+        "fusion_capacity_binding": fusion_b,
+        "report_capacity_utilization": report_u,
+        "report_capacity_binding": report_b,
+        "assignment_capacity_max_utilization": assignment_u,
+        "assignment_capacity_binding": assignment_b,
+    }
+
+
 def _build_plan(cfg: Config, base: BaseGains, tables: LinkTables, geom) -> "ReportingPlan | None":
     """Reporting plan for this trial (``None`` in the legacy architecture)."""
     if cfg.fusion.mode.lower() != "explicit":
@@ -454,6 +537,7 @@ def run_method_on_trial(
     cached_adaptive_pd: Optional[
         Tuple[Dict[int, List[Link]], np.ndarray, Dict[str, float]]
     ] = None,
+    weak_target_index: int = 0,
 ) -> MethodResult:
     """Run one method on one trial.
 
@@ -536,6 +620,13 @@ def run_method_on_trial(
         sel_tables = c2f_tables if c2f_tables is not None else tables
     elif method == "all_neighbor":
         selected, D = select_all_neighbor(cfg, base, tables, plan)
+        fine_eval_full = 0.0
+        fine_eval_c2f = 0.0
+        sel_tables = tables
+    elif method == "sense_sinr_budgeted":
+        selected, D = select_budget_ranked_baseline(
+            cfg, base, tables, method, plan
+        )
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
         sel_tables = tables
@@ -637,6 +728,7 @@ def run_method_on_trial(
     detected, total_targets, fa, total_false, fa_overall, total_false_overall, detected_per_target = detection
     feasible_targets, feasible_links = feasible_stats(cfg, base, tables, plan)
     comm_metrics = communication_metrics_for_selection(cfg, base, tables_eval, selected, plan)
+    capacity_metrics = capacity_metrics_for_selection(cfg, selected, plan)
 
     capture_rate = 1.0
     if belief_mode:
@@ -667,8 +759,11 @@ def run_method_on_trial(
         bid_rounds=bid_rounds,
         detection_runtime_s=detection_runtime_s,
         belief_capture_rate=capture_rate,
+        weak_target_index=int(weak_target_index),
+        weak_target_detected=int(detected_per_target[weak_target_index]),
         reporting_plan=plan,
         **comm_metrics,
+        **capacity_metrics,
     )
 
 
@@ -710,6 +805,7 @@ def run_one_trial(
         belief_dd_std = belief_dd_std_bins(cfg, geom_belief, belief)
 
         plan = _build_plan(cfg, base_belief, tables_belief, geom_belief)
+        weak_target_index = weakest_belief_target(cfg, base_belief, tables_belief)
 
         needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
         c2f_tables = None
@@ -742,6 +838,7 @@ def run_one_trial(
                 eval_base=base_truth, eval_tables=tables_truth,
                 belief_dd_std=belief_dd_std,
                 cached_adaptive_pd=reference_result,
+                weak_target_index=weak_target_index,
             )
             for method in method_roster
         }
@@ -751,6 +848,7 @@ def run_one_trial(
     tables = compute_link_tables(cfg, base)
 
     plan = _build_plan(cfg, base, tables, geom)
+    weak_target_index = weakest_belief_target(cfg, base, tables)
 
     needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
     c2f_tables = None
@@ -779,6 +877,7 @@ def run_one_trial(
             cfg, base, tables, method, trial_index, reference_counts,
             cached_lagrangian, c2f_tables, plan,
             cached_adaptive_pd=reference_result,
+            weak_target_index=weak_target_index,
         )
         for method in method_roster
     }
@@ -833,6 +932,16 @@ def run_simulation(
                     "D_mean": float(np.mean(res.D_fuse_per_target)),
                     "D_median": float(np.median(res.D_fuse_per_target)),
                     "belief_capture_rate": res.belief_capture_rate,
+                    "weak_target_index": res.weak_target_index,
+                    "weak_target_detected": res.weak_target_detected,
+                    "receiver_capacity_max_utilization": res.receiver_capacity_max_utilization,
+                    "receiver_capacity_binding": res.receiver_capacity_binding,
+                    "fusion_capacity_max_utilization": res.fusion_capacity_max_utilization,
+                    "fusion_capacity_binding": res.fusion_capacity_binding,
+                    "report_capacity_utilization": res.report_capacity_utilization,
+                    "report_capacity_binding": res.report_capacity_binding,
+                    "assignment_capacity_max_utilization": res.assignment_capacity_max_utilization,
+                    "assignment_capacity_binding": res.assignment_capacity_binding,
                     "selector_score_evaluations": res.selector_score_evaluations,
                     "coordination_messages": res.coordination_messages,
                     "bid_rounds": res.bid_rounds,
@@ -956,6 +1065,7 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     predicted_pd_arr = np.asarray(pd_from_deflection(cfg, D_arr), dtype=float)
     D_satisfied = predicted_pd_arr >= cfg.detect.pd_required
     detected_target_arr = np.vstack([r.detected_per_target for r in results])
+    weak_detected = np.asarray([r.weak_target_detected for r in results], dtype=float)
     P_D_per_target_actual = np.mean(detected_target_arr, axis=0)
     trial_pd = np.asarray([
         r.detected / max(r.total_targets, 1) for r in results
@@ -983,6 +1093,7 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     ], dtype=float)
     pfa_cluster_low, pfa_cluster_high = cluster_interval(trial_pfa, 712369)
     pfa_cluster_half = 0.5 * float(pfa_cluster_high - pfa_cluster_low)
+    weak_low, weak_high = cluster_interval(weak_detected, 712371)
 
     pd = total_detected / max(total_targets, 1)
     pfa = total_fa / max(total_false, 1)
@@ -1001,6 +1112,9 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "P_D_cluster_ci95_low": float(cluster_low),
         "P_D_cluster_ci95_high": float(cluster_high),
         "P_D_cluster_ci95_half_width": cluster_half,
+        "P_D_weak": float(np.mean(weak_detected)),
+        "P_D_weak_cluster_ci95_low": weak_low,
+        "P_D_weak_cluster_ci95_high": weak_high,
         "P_FA": pfa,
         "P_FA_ci95": pfa_ci[:2],
         "P_FA_ci95_low": pfa_ci[0],
@@ -1034,6 +1148,14 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "detection_runtime_mean_ms": float(np.mean(detection_runtime_s) * 1e3),
         "detection_runtime_p90_ms": float(np.percentile(detection_runtime_s, 90) * 1e3),
         "belief_capture_rate_mean": float(np.mean(belief_capture)),
+        "receiver_capacity_max_utilization_mean": float(np.mean(col("receiver_capacity_max_utilization"))),
+        "receiver_capacity_binding_rate": float(np.mean(col("receiver_capacity_binding"))),
+        "fusion_capacity_max_utilization_mean": float(np.mean(col("fusion_capacity_max_utilization"))),
+        "fusion_capacity_binding_rate": float(np.mean(col("fusion_capacity_binding"))),
+        "report_capacity_utilization_mean": float(np.mean(col("report_capacity_utilization"))),
+        "report_capacity_binding_rate": float(np.mean(col("report_capacity_binding"))),
+        "assignment_capacity_max_utilization_mean": float(np.mean(col("assignment_capacity_max_utilization"))),
+        "assignment_capacity_binding_rate": float(np.mean(col("assignment_capacity_binding"))),
         "comm_feasible_edge_ratio_mean": float(np.mean(feasible_edge_ratio)),
         "selected_rate_mean_mbps": finite_mean(selected_rate_mean),
         "selected_rate_min_mbps_mean": finite_mean(selected_rate_min),

@@ -38,6 +38,22 @@ def noise_power(cfg: Config) -> float:
     return psd_w_hz * bandwidth(cfg) * nf_linear
 
 
+def radar_hardware_gain(cfg: Config) -> float:
+    """Linear desired-echo gain from radar Tx/Rx gain and system loss.
+
+    ``target_gain`` deliberately remains the propagation/RCS term so that RCS
+    keeps its physical unit of square metres.  Hardware enters the received
+    echo separately and defaults to one for exact historical reproducibility.
+    """
+    r = cfg.radio
+    net_db = (
+        r.radar_net_gain_db
+        if r.radar_net_gain_db is not None
+        else r.radar_tx_gain_dbi + r.radar_rx_gain_dbi - r.radar_system_loss_db
+    )
+    return 10.0 ** (net_db / 10.0)
+
+
 def denominator_guard(cfg: Config, n0: float) -> float:
     """Additive guard for SINR denominators.
 
@@ -628,6 +644,7 @@ def compute_link_tables(
     sigma0 = np.full((M, M), d.soft_sigma0)
 
     G_proc = cfg.waveform.N * cfg.waveform.L if d.sensing_processing_gain is None else d.sensing_processing_gain
+    G_hw = radar_hardware_gain(cfg)
 
     for i in range(M):
         for j in range(M):
@@ -672,13 +689,13 @@ def compute_link_tables(
                     continue
 
                 # Keep the raw sensing-SINR baseline consistent with the selected ISAC power model.
-                raw_signal = effective_sensing_power * base.target_gain[i, j, q] * G_proc
+                raw_signal = effective_sensing_power * base.target_gain[i, j, q] * G_proc * G_hw
                 raw_gamma_sense[i, j, q] = raw_signal / (n0 + eps_den)
 
                 collision_penalty = 1.0 / (max(base.dd_collision_count[i, j, q], 1.0) ** cfg.dd.dd_collision_alpha)
                 dd_loss = dd_used[i, j, q] if cfg.dd.enable_dd_fractional_penalty else 1.0
 
-                signal = effective_sensing_power * base.target_gain[i, j, q] * G_proc * collision_penalty * dd_loss
+                signal = effective_sensing_power * base.target_gain[i, j, q] * G_proc * G_hw * collision_penalty * dd_loss
                 waveform_capture = 1.0
                 waveform_inr = 0.0
                 if cfg.waveform_impairments.enable:

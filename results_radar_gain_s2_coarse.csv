@@ -1,0 +1,9 @@
+preset,net_gain_db,fusion_rule,mc,seed,P_D,P_D_weak,remote_reports,selected_observations,all_targets_satisfied_prob,actual_worst_target_P_D,selector_score_evaluations
+small-uav-nominal-s2,0.0,pd_lookahead,20,2026,0.21,0.0,2.0,12.0,0.0,0.05,3714.15
+small-uav-nominal-s2,0.0,nearest,20,2026,0.18,0.1,2.0,12.0,0.0,0.05,4003.0
+small-uav-nominal-s2,10.0,pd_lookahead,20,2026,0.6,0.3,2.0,12.0,0.0,0.5,3074.85
+small-uav-nominal-s2,10.0,nearest,20,2026,0.62,0.35,2.0,12.0,0.0,0.5,4009.35
+small-uav-nominal-s2,20.0,pd_lookahead,20,2026,0.955,0.95,0.75,10.75,0.4,0.9,3615.85
+small-uav-nominal-s2,20.0,nearest,20,2026,0.975,0.95,0.85,10.85,0.45,0.9,4097.05
+small-uav-nominal-s2,30.0,pd_lookahead,20,2026,0.995,1.0,0.0,10.0,0.95,0.95,3343.85
+small-uav-nominal-s2,30.0,nearest,20,2026,0.995,1.0,0.0,10.0,0.95,0.95,3412.65

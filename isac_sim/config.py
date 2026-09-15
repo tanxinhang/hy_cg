@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, fields, is_dataclass
 from typing import Any, Dict, Iterator, Literal, Tuple
+import math
 
 # --------------------------------------------------------------------------
 # Type aliases shared across the package
@@ -40,6 +41,7 @@ MethodName = Literal[
     "shortest_bistatic",
     "raw_sense_sinr",
     "sense_sinr",
+    "sense_sinr_budgeted",
     "single_best",
     "topk_deflection",
     "global_topk_deflection",
@@ -56,7 +58,7 @@ MethodName = Literal[
     "proposed_c2f_full_pd",
 ]
 
-CommErrorModel = Literal["erasure", "flip", "biased"]
+CommErrorModel = Literal["erasure", "gaussian_replacement", "flip", "biased"]
 IsacPowerModel = Literal["sensing_only", "joint_waveform", "reliable_comm_assisted"]
 
 
@@ -139,6 +141,20 @@ class Radio:
     residual_direct_factor: float = 1e-4
     residual_multi_uav_factor: float = 1e-10
     rinr_sigma_factor: float = 0.15
+
+    # --- Radar hardware link budget -------------------------------------
+    # Directional gain on the desired bistatic echo path.  These quantities
+    # were historically absent, which forced target_rcs to absorb the entire
+    # antenna/system budget.  Values are in dB/dBi and are converted once as
+    # G_hw = 10**((G_tx + G_rx - L_sys)/10).  Zero defaults preserve every
+    # released result exactly.
+    radar_tx_gain_dbi: float = 0.0
+    radar_rx_gain_dbi: float = 0.0
+    radar_system_loss_db: float = 0.0
+    # Optional net-gain abstraction used only for preregistered sensitivity
+    # sweeps. When set, it overrides the component sum above. This avoids
+    # inventing a Tx/Rx split before an antenna platform has been specified.
+    radar_net_gain_db: float | None = None
 
     # --- SINR denominator guard ------------------------------------------
     # Every SINR is ``signal / (n0 + interference + guard)``.  The guard exists
@@ -298,13 +314,20 @@ class Fusion:
     ``rule`` picks the fusion UAV when ``mode="explicit"``:
     ``"max_in_rate"`` (largest total incoming rate from the candidate
     receivers), ``"max_min_rate"`` (max-min fairness) or
-    ``"nearest_target"`` (closest to the predicted target position).
+    ``"nearest_target"`` (closest to the predicted target position) or
+    ``"nearest_target_capacitated"`` (minimum-distance assignment under the
+    same per-UAV target capacity as the proposed outer problem).
     ``"nearest_centroid"`` is retained as a backward-compatible alias for
-    ``"nearest_target"``.
+    ``"nearest_target"``. ``"capacitated_value"`` maximizes a detector-
+    quality proxy over target--fusion pairs subject to a hard per-UAV target
+    capacity.  The capacity is a system budget, not a scalarization weight.
     """
 
     mode: str = "tx"
     rule: str = "max_in_rate"
+    # Maximum number of targets assigned to one fusion UAV. ``-1`` is
+    # unbounded and preserves all released V1 configurations.
+    max_targets_per_uav: int = -1
 
 
 @dataclass
@@ -340,9 +363,11 @@ class Detect:
 
     Pfa_target: float = 0.05
     D_min: float = 3.0
-    # Weak-target requirement used by the canonical fairness penalty.  D_min
-    # remains only for legacy early-stop reproduction.
+    # Per-target design point used by the selector and lexicographic oracle.
+    # This is distinct from the empirical weak-target operating requirement
+    # used to freeze a resource-surface budget.
     pd_required: float = 0.95
+    weak_pd_required: float = 0.80
     # --- Soft-statistic model --------------------------------------------
     # "gaussian": legacy ``mu = kappa_mu * log(1 + gamma)`` with a hand-set
     #     ``soft_mu_scale``.  There is no derivation for it -- it only encodes
@@ -372,7 +397,10 @@ class Detect:
     fused_calibration_samples: int = 8192
     # Environment-level pollution used by the Monte-Carlo detector.
     enable_comm_error_pollution: bool = True
-    comm_error_model: CommErrorModel = "erasure"
+    # ``gaussian_replacement`` is the released V1 surrogate: failed packets
+    # are replaced by zero-mean uncertainty.  ``erasure`` is a true drop and
+    # contributes an exact zero statistic.
+    comm_error_model: CommErrorModel = "gaussian_replacement"
     soft_error_flip_scale: float = 1.0
     soft_error_bias_scale: float = 0.5
     h0_error_bias_scale: float = 0.0
@@ -501,7 +529,10 @@ class Refine:
 
 @dataclass
 class Selector:
-    """Proposed Lagrangian link-selection rule and its behaviour switches.
+    """Detector-marginal observation selection and its behaviour switches.
+
+    Released V1 uses a scalar report price.  The V1.1 successor disables that
+    price and lets the hard resource budgets below define feasibility.
 
     The four ``use_*`` flags are *not* tuning knobs: each one disables exactly
     one mechanism and is only ever flipped by an ablation variant.  They live
@@ -530,6 +561,10 @@ class Selector:
     use_target_priority: bool = True
     use_delay_price: bool = True
     use_comm_error_calibration: bool = True
+    # Experimental structural constraint: admit one local observation for
+    # each serviceable target before allocating remote reports. This encodes
+    # "remote complements local" without a fitted scalar reward.
+    require_local_anchor: bool = False
     # Resource limits.
     max_links_per_target: int = 6
     max_total_links: int = 60
@@ -542,6 +577,11 @@ class Selector:
     # observation cap because local evidence consumes sensing/computation but
     # no reporting slot.  ``-1`` leaves the nominal selector unconstrained.
     max_remote_reports: int = -1
+    # Hard processing budgets.  Each selected (i,j,q) observation consumes one
+    # receiver-processing unit at j and one fusion-processing unit at f_q.
+    # ``-1`` leaves the corresponding resource unbounded.
+    max_observations_per_receiver: int = -1
+    max_observations_per_fusion_uav: int = -1
     candidate_topk_per_target: int = 40
     min_marginal_D: float = 0.0
 
@@ -671,6 +711,83 @@ PRESETS["target-local-v1"] = {
     "fusion.rule": "nearest_target",
 }
 
+# Budget-driven successor.  Numerical resource budgets are deliberately not
+# baked into the preset: experiments must state them as physical scenario
+# inputs instead of selecting a favourable point after a sweep.
+PRESETS["capacitated-target-fusion-v1.1"] = {
+    **PRESETS["target-local-v1"],
+    "fusion.rule": "capacitated_value",
+    "detect.comm_error_model": "erasure",
+    "selector.use_delay_price": False,
+    "selector.lambda_c": 0.0,
+}
+
+# Algebraic decomposition of the historical 50 m^2 default into a small-target
+# RCS and an explicit radar hardware budget.  This is a calibration bridge, not
+# an independently validated hardware design: 0.1 m^2 * 10^(27/10) = 50.12 m^2.
+PRESETS["small-uav-link-budget-bridge"] = {
+    **PRESETS["paper-canonical"],
+    "detect.target_rcs": 0.1,
+    "radio.radar_tx_gain_dbi": 16.0,
+    "radio.radar_rx_gain_dbi": 16.0,
+    "radio.radar_system_loss_db": 5.0,
+}
+
+# Three physically named small-UAV scenario scales.  They share the explicit
+# provisional 27 dB radar hardware budget above; only geometry, connectivity,
+# and target-class mean RCS change.  Aspect fluctuation remains disabled until
+# its angular law is calibrated against measurements.
+PRESETS["small-uav-dense-s1"] = {
+    **PRESETS["paper-canonical"],
+    "geometry.area_xy": 1000.0,
+    "geometry.h_uav_min": 200.0,
+    "geometry.h_uav_max": 500.0,
+    "geometry.h_target_min": 200.0,
+    "geometry.h_target_max": 500.0,
+    "geometry.comm_range": 1200.0,
+    "detect.target_rcs": 0.1,
+}
+
+# Compact nominal-RCS scenario requested for an 800 m horizontal deployment.
+# This is an area side length, not a hard or fixed bistatic leg distance.
+PRESETS["small-uav-compact-800m"] = {
+    **PRESETS["paper-canonical"],
+    "geometry.area_xy": 800.0,
+    "geometry.h_uav_min": 200.0,
+    "geometry.h_uav_max": 500.0,
+    "geometry.h_target_min": 200.0,
+    "geometry.h_target_max": 500.0,
+    "geometry.comm_range": 1000.0,
+    "detect.target_rcs": 0.05,
+}
+
+PRESETS["small-uav-nominal-s2"] = {
+    **PRESETS["paper-canonical"],
+    "geometry.area_xy": 2000.0,
+    "geometry.h_uav_min": 300.0,
+    "geometry.h_uav_max": 600.0,
+    "geometry.h_target_min": 200.0,
+    "geometry.h_target_max": 800.0,
+    "geometry.comm_range": 1800.0,
+    "detect.target_rcs": 0.05,
+}
+
+PRESETS["small-uav-sparse-s3"] = {
+    **PRESETS["paper-canonical"],
+    "geometry.area_xy": 4000.0,
+    "geometry.h_uav_min": 500.0,
+    "geometry.h_uav_max": 1200.0,
+    "geometry.h_target_min": 500.0,
+    "geometry.h_target_max": 1200.0,
+    "geometry.comm_range": 2500.0,
+    "detect.target_rcs": 0.02,
+}
+
+# The only manuscript/result identity currently allowed to carry headline
+# claims.  V1.1 remains a gated local successor until its preregistered tests
+# pass; scripts and audits can import this constant instead of guessing.
+HEADLINE_RELEASE_PRESET = "target-local-v1"
+
 # Isolated successor protocol for the first waveform-calibration phase.  It
 # deliberately inherits the frozen V1 operating point and changes only the
 # waveform-adapter switch and deterministic threshold-calibration resolution.
@@ -728,6 +845,22 @@ def validate_config(cfg: Config) -> None:
         )
     if not 0.0 < cfg.detect.pd_required <= 1.0:
         raise ValueError("detect.pd_required must lie in (0, 1]")
+    if not 0.0 < cfg.detect.weak_pd_required <= 1.0:
+        raise ValueError("detect.weak_pd_required must lie in (0, 1]")
+    if cfg.detect.target_rcs <= 0.0:
+        raise ValueError("detect.target_rcs must be positive and is measured in m^2")
+    radar_db_terms = (
+        cfg.radio.radar_tx_gain_dbi,
+        cfg.radio.radar_rx_gain_dbi,
+        cfg.radio.radar_system_loss_db,
+    )
+    if not all(math.isfinite(value) for value in radar_db_terms):
+        raise ValueError("radar antenna gains and system loss must be finite")
+    if cfg.radio.radar_system_loss_db < 0.0:
+        raise ValueError("radio.radar_system_loss_db must be non-negative")
+    if (cfg.radio.radar_net_gain_db is not None
+            and not math.isfinite(cfg.radio.radar_net_gain_db)):
+        raise ValueError("radio.radar_net_gain_db must be finite when specified")
     if cfg.detect.fused_calibration_samples < 512:
         raise ValueError("detect.fused_calibration_samples must be at least 512")
     impairment_values = (
@@ -738,12 +871,17 @@ def validate_config(cfg: Config) -> None:
     if any(value < 0.0 for value in impairment_values):
         raise ValueError("waveform impairment INR values must be non-negative")
     if cfg.fusion.rule.lower() not in {
-        "max_in_rate", "max_min_rate", "nearest_target", "nearest_centroid"
+        "max_in_rate", "max_min_rate", "nearest_target", "nearest_centroid",
+        "nearest_target_capacitated",
+        "capacitated_value", "capacitated_pd_lookahead",
     }:
         raise ValueError(
             f"Unknown fusion.rule={cfg.fusion.rule!r}; expected 'max_in_rate', "
-            "'max_min_rate', or 'nearest_target'"
+            "'max_min_rate', 'nearest_target', 'nearest_target_capacitated', "
+            "'capacitated_value', or 'capacitated_pd_lookahead'"
         )
+    if cfg.fusion.max_targets_per_uav < -1 or cfg.fusion.max_targets_per_uav == 0:
+        raise ValueError("fusion.max_targets_per_uav must be -1 or positive")
     if cfg.prior.search_gate_sigma < 0:
         raise ValueError("prior.search_gate_sigma must be non-negative")
     if not 0.0 < cfg.prior.robust_position_confidence < 1.0:
@@ -756,6 +894,14 @@ def validate_config(cfg: Config) -> None:
         )
     if cfg.selector.max_remote_reports < -1:
         raise ValueError("selector.max_remote_reports must be -1 or non-negative")
+    if cfg.selector.max_observations_per_receiver < -1:
+        raise ValueError(
+            "selector.max_observations_per_receiver must be -1 or non-negative"
+        )
+    if cfg.selector.max_observations_per_fusion_uav < -1:
+        raise ValueError(
+            "selector.max_observations_per_fusion_uav must be -1 or non-negative"
+        )
 
 
 # --------------------------------------------------------------------------

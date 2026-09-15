@@ -230,7 +230,7 @@ def waveform_llr_detection_check(
     post-matched-filter interference; complex Gaussian target coefficients and
     receiver noise are then drawn for every look.  Finally, a report succeeds
     with probability ``report_success`` or is replaced by the same zero-mean
-    Gaussian erasure surrogate used by the system simulator.
+    Gaussian-replacement failure surrogate used by the system simulator.
 
     The returned analytic prediction uses the current moment-matched detector,
     while ``empirical_*`` comes from the waveform-derived Monte Carlo samples.

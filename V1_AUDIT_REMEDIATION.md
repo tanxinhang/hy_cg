@@ -34,3 +34,11 @@ T_mean_ms   = selected_links_mean * 2048 / 1.92e6 * 1e3
 
 under the canonical serial fixed-blocklength MAC. Local observations contribute
 to detection but not to either communication quantity.
+
+## Packet-failure terminology correction
+
+The released failure channel historically labelled `erasure` draws zero-mean
+Gaussian replacement noise when a packet fails. Its canonical name is now
+`gaussian_replacement`; the frozen V1 numerical behavior is unchanged. In the
+V1.1 successor, `erasure` denotes a true packet drop whose fusion input is
+exactly zero.

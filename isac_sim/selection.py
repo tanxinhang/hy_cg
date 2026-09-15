@@ -1,4 +1,4 @@
-"""Link selection: the proposed Lagrangian rule and the baselines.
+"""Observation selection: detector-marginal rules and baselines.
 
 All selectors share one signature,
 
@@ -47,6 +47,7 @@ METHODS: List[MethodName] = [
     "shortest_bistatic",
     "raw_sense_sinr",
     "sense_sinr",
+    "sense_sinr_budgeted",
     "single_best",
     "topk_deflection",
     "global_topk_deflection",
@@ -99,6 +100,7 @@ METHOD_RNG_OFFSETS: Dict[str, int] = {
     "shortest_bistatic": 457,
     "raw_sense_sinr": 461,
     "sense_sinr": 503,
+    "sense_sinr_budgeted": 509,
     "single_best": 601,
     "topk_deflection": 641,
     "global_topk_deflection": 647,
@@ -213,6 +215,38 @@ def remote_cap_allows(
     return used < cap
 
 
+def processing_caps_allow(
+    cfg: Config,
+    selected: Dict[int, List[Link]],
+    link: Link,
+    q: int,
+    plan: "object | None",
+) -> bool:
+    """Whether adding an observation respects receiver and fusion capacities."""
+    rx_cap = int(cfg.selector.max_observations_per_receiver)
+    if rx_cap >= 0:
+        receiver = int(link[1])
+        rx_used = sum(
+            int(chosen[1]) == receiver
+            for links in selected.values()
+            for chosen in links
+        )
+        if rx_used >= rx_cap:
+            return False
+
+    fusion_cap = int(cfg.selector.max_observations_per_fusion_uav)
+    if fusion_cap >= 0:
+        destination = report_dest(plan, link, q)
+        fusion_used = sum(
+            report_dest(plan, chosen, qq) == destination
+            for qq, links in selected.items()
+            for chosen in links
+        )
+        if fusion_used >= fusion_cap:
+            return False
+    return True
+
+
 def topk_links_by_marginal(
     cfg: Config,
     tables: LinkTables,
@@ -277,7 +311,7 @@ def _greedy_lagrangian(
     distributed_bids: bool = False,
     audit: Dict[str, float] | None = None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray]:
-    """Inner greedy loop of the proposed selector.
+    """Inner greedy loop shared by priced V1 and hard-budget V1.1.
 
     ``candidates[q]`` is the per-target candidate list.  This is the *single*
     place that implements the marginal-gain commit rule, so the proposed
@@ -300,6 +334,50 @@ def _greedy_lagrangian(
     score_evaluations = 0
     bid_messages = 0
     bid_rounds = 0
+
+    if s.require_local_anchor and s.max_local_observations_per_target != 0:
+        # Seed one detector-best local observation per target. Under the V1.1
+        # target-assignment cap each target has a distinct fusion UAV, so this
+        # protects free local evidence before scarce receiver/fusion slots are
+        # consumed by remote reports. Generic capacity checks are retained for
+        # configurations without that one-to-one property.
+        anchors: list[tuple[float, int, Link, float, float]] = []
+        for q in active_candidate_targets:
+            best: tuple[float, Link, float, float] | None = None
+            for link in candidates[q]:
+                if not is_local_observation(plan, link, q):
+                    continue
+                new_D = deflection_for_links(
+                    cfg, tables, q, [link], weight_mode="deflection",
+                    plan=plan, base=base,
+                )
+                new_pd = predicted_pd_for_links(
+                    cfg, tables, q, [link], weight_mode="deflection",
+                    plan=plan, base=base,
+                )
+                score = new_pd if s.score_mode.lower() == "detector_pd" else new_D
+                if best is None or score > best[0]:
+                    best = (float(score), link, float(new_D), float(new_pd))
+            if best is not None:
+                anchors.append((best[0], q, best[1], best[2], best[3]))
+
+        # Hardest locally serviceable targets commit first if a generic
+        # receiver/fusion configuration makes not every anchor simultaneously
+        # feasible.
+        anchors.sort(key=lambda item: item[0])
+        for _, q, link, new_D, new_pd in anchors:
+            if total_links >= s.max_total_links:
+                break
+            if not local_cap_allows(cfg, selected[q], link, q, plan):
+                continue
+            if not processing_caps_allow(cfg, selected, link, q, plan):
+                continue
+            selected[q].append(link)
+            selected_sets[q].add(link)
+            D_fuse[q] = new_D
+            if s.score_mode.lower() == "detector_pd":
+                pd_pred[q] = new_pd
+            total_links += 1
 
     while total_links < s.max_total_links:
         alpha = target_alpha(cfg, D_fuse)
@@ -324,6 +402,8 @@ def _greedy_lagrangian(
                 if not local_cap_allows(cfg, selected[q], link, q, plan):
                     continue
                 if not remote_cap_allows(cfg, selected, link, q, plan):
+                    continue
+                if not processing_caps_allow(cfg, selected, link, q, plan):
                     continue
                 new_D = deflection_for_links(
                     cfg, tables, q, selected[q] + [link], weight_mode="deflection", plan=plan, base=base
@@ -662,6 +742,10 @@ def select_c2f_adaptive(
                     cfg, coarse_selected, link, q, plan
                 ):
                     continue
+                if not processing_caps_allow(
+                    cfg, coarse_selected, link, q, plan
+                ):
+                    continue
                 if detector_mode:
                     new_D, new_pd, valid = pd_value_cache[q][link]
                     score = coarse_score_from_value(
@@ -734,6 +818,31 @@ def select_c2f_adaptive(
             active = [q for q in range(Q) if all_candidates[q]]
             if active and np.all(D_coarse[active] >= cfg.detect.D_min):
                 break
+
+    if s.require_local_anchor:
+        # Guarantee that the fine replay can see a local anchor even when the
+        # coarse dynamic frontier filled its target-specific shortlist with
+        # stronger remote singleton candidates.
+        for q in range(Q):
+            local_links = [
+                link for link in all_candidates[q]
+                if is_local_observation(plan, link, q)
+            ]
+            if not local_links or any(
+                is_local_observation(plan, link, q) for link in shortlist[q]
+            ):
+                continue
+            best_local = max(
+                local_links,
+                key=lambda link: predicted_pd_for_links(
+                    cfg, tables_coarse, q, [link], weight_mode="deflection",
+                    plan=plan, base=base,
+                ),
+            )
+            if len(shortlist[q]) < per_target_fine_cap[q]:
+                shortlist[q].append(best_local)
+            elif shortlist[q]:
+                shortlist[q][-1] = best_local
 
     dd_gain = base.dd_frac_loss.copy()
     for q, links in shortlist.items():
@@ -851,6 +960,55 @@ def select_topk_baseline(
         weight_mode = fusion_weight_mode_for_method(method)
         D[q] = deflection_for_links(cfg, tables, q, chosen, weight_mode=weight_mode, plan=plan, base=base)
 
+    return selected, D
+
+
+def select_budget_ranked_baseline(
+    cfg: Config,
+    base: BaseGains,
+    tables: LinkTables,
+    method: str,
+    plan: "object | None" = None,
+) -> Tuple[Dict[int, List[Link]], np.ndarray]:
+    """Rank observations without reading a proposed-method link count.
+
+    The selector enforces the same exogenous local, receiver, fusion, report,
+    per-target, and total budgets as the proposed method.  It is therefore the
+    Sensing-SINR cell of the V1.1 factorial comparison, not the historical
+    matched-count mechanism control.
+    """
+    if method != "sense_sinr_budgeted":
+        raise ValueError(method)
+    Q = cfg.scale.Q
+    selected: Dict[int, List[Link]] = {q: [] for q in range(Q)}
+    ranked: List[Tuple[float, int, Link]] = []
+    for q in range(Q):
+        for link in feasible_links_for_target(cfg, base, tables, q, plan):
+            ranked.append((float(tables.gamma_sense[link[0], link[1], q]), q, link))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+
+    total = 0
+    for _, q, link in ranked:
+        if total >= cfg.selector.max_total_links:
+            break
+        if len(selected[q]) >= cfg.selector.max_links_per_target:
+            continue
+        if not local_cap_allows(cfg, selected[q], link, q, plan):
+            continue
+        if not remote_cap_allows(cfg, selected, link, q, plan):
+            continue
+        if not processing_caps_allow(cfg, selected, link, q, plan):
+            continue
+        selected[q].append(link)
+        total += 1
+
+    D = np.asarray([
+        deflection_for_links(
+            cfg, tables, q, selected[q], weight_mode="deflection",
+            plan=plan, base=base,
+        )
+        for q in range(Q)
+    ])
     return selected, D
 
 

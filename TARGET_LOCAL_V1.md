@@ -26,7 +26,9 @@ decomposition heuristic, not a jointly optimal assignment.
   reports only.
 - The independent Gamma-look detector is identified as a fast-fluctuation,
   Swerling-II-like model.
-- The weak-target deficit is defined at `P_D^req=0.95`; `D_min` is legacy-only.
+- The selector's target-wise deficit is defined at `P_D^req=0.95`;
+  `D_min` is legacy-only. The V1.1 resource-gate endpoint separately uses
+  `P_D^weak,req=0.80` and does not alter this selector design point.
 - With fixed blocklength, `lambda_c` is a per-remote-report price rather than a
   link-dependent delay optimizer.
 
@@ -78,3 +80,10 @@ The corrected V1 passes its local release gate. It remains bounded by its
 prediction-only fusion heuristic, analytical DD proxy, fixed blocklength,
 independent reports, and MC=100 diagnostic sweeps. A successor should add
 fusion capacity and sensing-acquisition cost before adding broader modules.
+
+The budget-driven successor is implemented separately as
+`capacitated-target-fusion-v1.1`; it does not modify the frozen V1 contract or
+its checked-in results. Its diagnostic promotion gate failed, so
+`target-local-v1` remains the unique headline release identity and no V1.1
+MC=1000 claim is made. See `CAPACITATED_TARGET_FUSION_V11.md` and
+`V11_GATE_REPORT.md`.

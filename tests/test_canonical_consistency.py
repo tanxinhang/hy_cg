@@ -47,6 +47,60 @@ from isac_sim.simulate import (
 
 
 class CanonicalConfigurationTests(unittest.TestCase):
+    def test_small_uav_scenario_presets_are_physically_named_and_valid(self) -> None:
+        expected = {
+            "small-uav-compact-800m": (800.0, 0.05),
+            "small-uav-dense-s1": (1000.0, 0.1),
+            "small-uav-nominal-s2": (2000.0, 0.05),
+            "small-uav-sparse-s3": (4000.0, 0.02),
+        }
+        for name, (area, rcs) in expected.items():
+            cfg = apply_preset(Config(), name)
+            validate_config(cfg)
+            self.assertEqual(cfg.geometry.area_xy, area)
+            self.assertEqual(cfg.detect.target_rcs, rcs)
+            self.assertEqual(
+                cfg.radio.radar_tx_gain_dbi + cfg.radio.radar_rx_gain_dbi
+                - cfg.radio.radar_system_loss_db,
+                0.0,
+            )
+
+    def test_net_radar_gain_sweep_override_has_no_invented_tx_rx_split(self) -> None:
+        from isac_sim.model import radar_hardware_gain
+
+        cfg = apply_preset(Config(), "small-uav-nominal-s2")
+        cfg.radio.radar_net_gain_db = 15.0
+        self.assertAlmostEqual(radar_hardware_gain(cfg), 10.0**1.5)
+        self.assertEqual(cfg.radio.radar_tx_gain_dbi, 0.0)
+        self.assertEqual(cfg.radio.radar_rx_gain_dbi, 0.0)
+
+    def test_explicit_radar_budget_preserves_equivalent_echo_scale(self) -> None:
+        historical = apply_preset(Config(), "paper-canonical")
+        bridge = apply_preset(Config(), "small-uav-link-budget-bridge")
+        for cfg in (historical, bridge):
+            cfg.scale.M, cfg.scale.Q = 4, 2
+            cfg.dd.use_otfs_bin_validity = False
+            cfg.detect.rcs_model = "mean"
+
+        rng = np.random.default_rng(905)
+        geom = generate_geometry(historical, rng)
+        base_h = build_base_gains(historical, geom, np.random.default_rng(906))
+        base_b = build_base_gains(bridge, geom, np.random.default_rng(906))
+        tab_h = compute_link_tables(historical, base_h)
+        tab_b = compute_link_tables(bridge, base_b)
+
+        # 0.1 m^2 with a 27 dB net radar budget is 50.1187 m^2 effective,
+        # only 0.0103 dB from the historical 50 m^2 implicit scale.
+        ratio = tab_b.raw_gamma_sense / np.maximum(tab_h.raw_gamma_sense, 1e-300)
+        active = tab_h.raw_gamma_sense > 0.0
+        np.testing.assert_allclose(ratio[active], 10.0 ** (27.0 / 10.0) / 500.0)
+
+    def test_invalid_radar_system_loss_is_rejected(self) -> None:
+        cfg = Config()
+        cfg.radio.radar_system_loss_db = -1.0
+        with self.assertRaisesRegex(ValueError, "system_loss"):
+            validate_config(cfg)
+
     def test_nearest_target_alias_is_backward_compatible(self) -> None:
         cfg = apply_preset(Config(), "paper-canonical")
         cfg.scale.M, cfg.scale.Q = 4, 2
@@ -514,6 +568,7 @@ class ObjectiveAndMomentTests(unittest.TestCase):
         self.assertAlmostEqual(float(h0.var()), expected.v0, delta=0.04 * max(expected.v0, 1.0))
         self.assertAlmostEqual(float(h1.mean()), expected.m1, delta=0.04 * max(abs(expected.m1), 1.0))
         self.assertAlmostEqual(float(h1.var()), expected.v1, delta=0.06 * max(expected.v1, 1.0))
+        self.assertAlmostEqual(float(np.mean(h0 == 0.0)), 1.0 - chi, delta=0.01)
 
     def test_signed_correlated_weights_recover_closed_form_deflection(self) -> None:
         cfg = Config()

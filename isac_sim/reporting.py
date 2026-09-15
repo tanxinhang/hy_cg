@@ -161,14 +161,16 @@ def assign_fusion_nodes(
 
     rule = cfg.fusion.rule.lower()
     supported_rules = {
-        "max_in_rate", "max_min_rate", "nearest_target", "nearest_centroid"
+        "max_in_rate", "max_min_rate", "nearest_target", "nearest_centroid",
+        "nearest_target_capacitated",
+        "capacitated_value", "capacitated_pd_lookahead",
     }
     if rule not in supported_rules:
         raise ValueError(
             f"Unknown fusion.rule={cfg.fusion.rule!r}; expected one of "
             f"{sorted(supported_rules)}"
         )
-    if rule in {"nearest_target", "nearest_centroid"}:
+    if rule in {"nearest_target", "nearest_centroid", "nearest_target_capacitated"}:
         if geom is None:
             raise ValueError(
                 f"fusion.rule={cfg.fusion.rule!r} requires predicted target geometry"
@@ -180,6 +182,18 @@ def assign_fusion_nodes(
             )
         if not np.all(np.isfinite(geom.p_uav)) or not np.all(np.isfinite(geom.p_tgt)):
             raise ValueError("predicted fusion-planning geometry must be finite")
+    if rule == "capacitated_value":
+        return _assign_capacitated_value(cfg, base, tables)
+    if rule == "capacitated_pd_lookahead":
+        return _assign_capacitated_pd_lookahead(cfg, base, tables)
+    if rule == "nearest_target_capacitated":
+        values = -np.linalg.norm(
+            geom.p_tgt[:, None, :] - geom.p_uav[None, :, :], axis=2
+        )
+        return ReportingPlan(
+            mode="explicit", f_q=_solve_capacity_assignment(cfg, values)
+        )
+
     f_q = np.full(Q, -1, dtype=int)
 
     for q in range(Q):
@@ -232,6 +246,267 @@ def assign_fusion_nodes(
         f_q[q] = best_m
 
     return ReportingPlan(mode="explicit", f_q=f_q)
+
+
+def _assign_capacitated_value(
+    cfg: Config,
+    base: BaseGains,
+    tables: LinkTables,
+) -> ReportingPlan:
+    """Solve the target--fusion assignment under a hard target capacity.
+
+    For each pair ``(q,f)``, the value is the sum of the strongest feasible
+    singleton deflections, capped by the per-target observation budget.  This
+    proxy accounts for local evidence, report feasibility, packet reliability,
+    and sensing quality without introducing a hand-tuned scalar price.  The
+    fixed-utility capacitated assignment subproblem is solved exactly by
+    expanding each UAV into identical capacity slots and applying linear-sum
+    assignment inside the optimal bottleneck tier. Observation selection
+    remains the fast inner problem, so this is a decomposition rather than an
+    exact solution of the joint sensing problem.
+    """
+    from .fusion import deflection_for_links
+
+    Q, M = cfg.scale.Q, cfg.scale.M
+    values = np.full((Q, M), -np.inf, dtype=float)
+    per_target_budget = max(int(cfg.selector.max_links_per_target), 0)
+    for q in range(Q):
+        for f in range(M):
+            plan = ReportingPlan(mode="explicit", f_q=np.full(Q, f, dtype=int))
+            candidates: List[Link] = []
+            for i in range(M):
+                for j in range(M):
+                    if i == j:
+                        continue
+                    if cfg.dd.use_otfs_bin_validity and not base.valid_dd[i, j, q]:
+                        continue
+                    if j != f and (
+                        not base.edge_mask[j, f]
+                        or not tables.feasible_comm[f, j]
+                    ):
+                        continue
+                    candidates.append((i, j))
+            if not candidates or per_target_budget == 0:
+                continue
+            singleton_values = sorted(
+                (
+                    deflection_for_links(
+                        cfg, tables, q, [link], weight_mode="deflection",
+                        plan=plan, base=base,
+                    ),
+                    link,
+                )
+                for link in candidates
+            )
+            chosen_values: List[float] = []
+            local_used = 0
+            local_cap = int(cfg.selector.max_local_observations_per_target)
+            fusion_cap = int(cfg.selector.max_observations_per_fusion_uav)
+            pair_budget = per_target_budget if fusion_cap < 0 else min(per_target_budget, fusion_cap)
+            if pair_budget <= 0:
+                continue
+            for singleton, link in reversed(singleton_values):
+                local = int(link[1]) == f
+                if local and local_cap >= 0 and local_used >= local_cap:
+                    continue
+                chosen_values.append(float(singleton))
+                local_used += int(local)
+                if len(chosen_values) >= pair_budget:
+                    break
+            if chosen_values:
+                values[q, f] = float(sum(chosen_values))
+
+    if np.any(~np.isfinite(np.max(values, axis=1))):
+        missing = np.flatnonzero(~np.isfinite(np.max(values, axis=1))).tolist()
+        raise ValueError(f"no feasible fusion destination for targets {missing}")
+
+    # Target-wise normalization prevents intrinsically easy targets with very
+    # large deflection scales from dominating the assignment.  The bottleneck
+    # stage first maximizes the weakest target's retained fraction of its best
+    # standalone fusion value; a sum-value assignment only breaks ties inside
+    # that optimal bottleneck tier.
+    row_max = np.max(values, axis=1)
+    relative_values = np.full_like(values, -np.inf)
+    positive_rows = row_max > 0.0
+    relative_values[positive_rows] = (
+        values[positive_rows] / row_max[positive_rows, None]
+    )
+    for q in np.flatnonzero(~positive_rows):
+        relative_values[q, np.isfinite(values[q])] = 1.0
+    return ReportingPlan(
+        mode="explicit",
+        f_q=_solve_bottleneck_capacity_assignment(cfg, relative_values),
+    )
+
+
+def _assign_capacitated_pd_lookahead(
+    cfg: Config,
+    base: BaseGains,
+    tables: LinkTables,
+) -> ReportingPlan:
+    """Assign fusion nodes using a detector-level selection lookahead.
+
+    For every fixed ``(target, fusion UAV)`` pair, this routine greedily
+    replays the downstream detector-PD marginal under the per-target local,
+    fusion-observation, receiver, and an equal-share remote-report allowance.
+    It then lexicographically maximizes the minimum and total predicted PD
+    across the fixed-utility capacitated assignment.  No communication price
+    or fitted scalar weight is introduced.
+
+    The equal-share allowance is ``ceil(K_remote / Q)``.  It is only a
+    tractable assignment lookahead; the subsequent global selector still
+    enforces the exact shared budgets and may allocate reports unevenly.
+    """
+    from .fusion import predicted_pd_for_links
+
+    Q, M = cfg.scale.Q, cfg.scale.M
+    per_target_cap = max(int(cfg.selector.max_links_per_target), 0)
+    fusion_cap = int(cfg.selector.max_observations_per_fusion_uav)
+    if fusion_cap >= 0:
+        per_target_cap = min(per_target_cap, fusion_cap)
+    remote_cap = int(cfg.selector.max_remote_reports)
+    remote_share = per_target_cap if remote_cap < 0 else int(np.ceil(remote_cap / max(Q, 1)))
+    local_cap = int(cfg.selector.max_local_observations_per_target)
+    rx_cap = int(cfg.selector.max_observations_per_receiver)
+    shortlist = max(int(cfg.selector.candidate_topk_per_target), per_target_cap, 1)
+    values = np.full((Q, M), -np.inf, dtype=float)
+
+    for q in range(Q):
+        for f in range(M):
+            plan = ReportingPlan(mode="explicit", f_q=np.full(Q, f, dtype=int))
+            local_scored: List[tuple[float, Link]] = []
+            remote_scored: List[tuple[float, Link]] = []
+            for i in range(M):
+                for j in range(M):
+                    if i == j:
+                        continue
+                    if cfg.dd.use_otfs_bin_validity and not base.valid_dd[i, j, q]:
+                        continue
+                    if j != f and (
+                        not base.edge_mask[j, f] or not tables.feasible_comm[f, j]
+                    ):
+                        continue
+                    link = (i, j)
+                    singleton_pd = predicted_pd_for_links(
+                        cfg,
+                        tables,
+                        q,
+                        [link],
+                        weight_mode="deflection",
+                        plan=plan,
+                        base=base,
+                    )
+                    bucket = local_scored if j == f else remote_scored
+                    bucket.append((float(singleton_pd), link))
+
+            # Preserve both evidence types in the shortlist. A global top-K
+            # could otherwise remove the local anchor before the replay.
+            local_scored.sort(reverse=True)
+            remote_scored.sort(reverse=True)
+            candidates = [link for _, link in local_scored[:shortlist]]
+            candidates.extend(link for _, link in remote_scored[:shortlist])
+            if not candidates or per_target_cap == 0:
+                continue
+
+            chosen: List[Link] = []
+            receiver_counts = np.zeros(M, dtype=int)
+            remote_used = 0
+            current_pd = 0.0
+            while len(chosen) < per_target_cap:
+                best_link: Link | None = None
+                best_pd = current_pd
+                for link in candidates:
+                    if link in chosen:
+                        continue
+                    is_local = int(link[1]) == f
+                    if is_local and local_cap >= 0:
+                        local_used = sum(int(existing[1]) == f for existing in chosen)
+                        if local_used >= local_cap:
+                            continue
+                    if not is_local and remote_used >= remote_share:
+                        continue
+                    if rx_cap >= 0 and receiver_counts[link[1]] >= rx_cap:
+                        continue
+                    pd = predicted_pd_for_links(
+                        cfg,
+                        tables,
+                        q,
+                        chosen + [link],
+                        weight_mode="deflection",
+                        plan=plan,
+                        base=base,
+                    )
+                    if pd > best_pd + EPS:
+                        best_pd = float(pd)
+                        best_link = link
+                if best_link is None:
+                    break
+                chosen.append(best_link)
+                receiver_counts[best_link[1]] += 1
+                remote_used += int(best_link[1] != f)
+                current_pd = best_pd
+            if chosen:
+                values[q, f] = current_pd
+
+    if np.any(~np.isfinite(np.max(values, axis=1))):
+        missing = np.flatnonzero(~np.isfinite(np.max(values, axis=1))).tolist()
+        raise ValueError(f"no feasible lookahead fusion destination for targets {missing}")
+    return ReportingPlan(
+        mode="explicit",
+        f_q=_solve_bottleneck_capacity_assignment(cfg, values),
+    )
+
+
+def _solve_capacity_assignment(cfg: Config, values: np.ndarray) -> np.ndarray:
+    """Maximize fixed target--UAV utilities under a per-UAV target cap."""
+    from scipy.optimize import linear_sum_assignment
+
+    Q, M = values.shape
+    cap = int(cfg.fusion.max_targets_per_uav)
+    if cap < 0:
+        cap = Q
+    if M * cap < Q:
+        raise ValueError(
+            "fusion target capacity is infeasible: "
+            f"M*max_targets_per_uav={M * cap} < Q={Q}"
+        )
+    if np.any(~np.isfinite(np.max(values, axis=1))):
+        missing = np.flatnonzero(~np.isfinite(np.max(values, axis=1))).tolist()
+        raise ValueError(f"no feasible fusion destination for targets {missing}")
+    slot_uavs = np.repeat(np.arange(M, dtype=int), cap)
+    slot_values = values[:, slot_uavs]
+    finite = np.isfinite(slot_values)
+    penalty = max(1.0, float(np.max(np.abs(slot_values[finite])))) * 1e9
+    cost = np.where(finite, -slot_values, penalty)
+    rows, cols = linear_sum_assignment(cost)
+    if len(rows) != Q or np.any(~finite[rows, cols]):
+        raise ValueError("no feasible capacitated target--fusion assignment")
+    f_q = np.full(Q, -1, dtype=int)
+    f_q[rows] = slot_uavs[cols]
+    return f_q
+
+
+def _solve_bottleneck_capacity_assignment(
+    cfg: Config,
+    values: np.ndarray,
+) -> np.ndarray:
+    """Lexicographically maximize minimum then total fixed assignment value."""
+    finite_values = np.unique(values[np.isfinite(values)])
+    if finite_values.size == 0:
+        raise ValueError("no finite target--fusion assignment utilities")
+    threshold_star: float | None = None
+    for threshold in finite_values[::-1]:
+        restricted = np.where(values >= threshold, values, -np.inf)
+        try:
+            _solve_capacity_assignment(cfg, restricted)
+        except ValueError:
+            continue
+        threshold_star = float(threshold)
+        break
+    if threshold_star is None:
+        raise ValueError("no feasible bottleneck target--fusion assignment")
+    restricted = np.where(values >= threshold_star, values, -np.inf)
+    return _solve_capacity_assignment(cfg, restricted)
 
 
 class ReportingView:

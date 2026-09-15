@@ -54,7 +54,7 @@ with
 
 Three things follow, and all three are what the paper needs:
 
-1. The single-link deflection is ``delta^2 / var0 = L * gamma^2`` -- Swerling's
+1. The single-link deflection is ``delta^2 / var0 = K_look * gamma^2`` -- Swerling's
    classical result for a square-law detector with a fluctuating target.  No
    free scale anywhere.
 2. The per-link *information gain* ``J`` is literally a Kullback-Leibler
@@ -64,7 +64,7 @@ Three things follow, and all three are what the paper needs:
    ``w propto delta / var0`` reduce to ``w propto (1 + gamma)`` -- a derived
    rule that replaces the hand-set ``beta`` ranking heuristic.
 
-``L`` (``detect.n_looks``) is a genuine physical parameter -- the number of
+``K_look`` (``detect.n_looks``) is a genuine physical parameter -- the number of
 OTFS frames integrated in one CPI -- not a tuning knob.
 """
 

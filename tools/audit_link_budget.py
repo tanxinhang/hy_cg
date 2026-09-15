@@ -25,6 +25,7 @@ from isac_sim.model import (
     compute_link_tables,
     generate_geometry,
     noise_power,
+    radar_hardware_gain,
     wavelength,
 )
 
@@ -48,7 +49,7 @@ def main():
     lam = wavelength(cfg)
 
     rows = {k: [] for k in
-            ["P_sense", "g_target", "G_proc", "eta_dd", "eta_col", "N0",
+            ["P_sense", "g_target", "G_hw", "G_proc", "eta_dd", "eta_col", "N0",
              "snr", "gamma", "d_iq", "d_jq", "rcs"]}
     for t in range(20):
         rng = np.random.default_rng([cfg.run.seed, t])
@@ -62,6 +63,7 @@ def main():
         i, j, q = idx[:, 0], idx[:, 1], idx[:, 2]
         rows["P_sense"].append(np.full(len(i), cfg.radio.rho * cfg.radio.P_default))
         rows["g_target"].append(base.target_gain[i, j, q])
+        rows["G_hw"].append(np.full(len(i), radar_hardware_gain(cfg)))
         rows["G_proc"].append(np.full(len(i), float(G_proc)))
         rows["eta_dd"].append(base.dd_frac_loss[i, j, q])
         rows["eta_col"].append(1.0 / np.maximum(base.dd_collision_count[i, j, q], 1.0))
@@ -90,12 +92,13 @@ def main():
     print()
     line("P_sense", db(agg["P_sense"]))
     line("bistatic gain g^s", db(agg["g_target"]))
+    line("radar hardware G_hw", db(agg["G_hw"]))
     line("processing gain", db(agg["G_proc"]))
     line("DD fractional eta", db(agg["eta_dd"]))
     line("DD collision eta", db(agg["eta_col"]))
     line("- noise N0", -db(agg["N0"]))
     print()
-    snr_db = (db(agg["P_sense"]) + db(agg["g_target"]) + db(agg["G_proc"])
+    snr_db = (db(agg["P_sense"]) + db(agg["g_target"]) + db(agg["G_hw"]) + db(agg["G_proc"])
               + db(agg["eta_dd"]) + db(agg["eta_col"]) - db(agg["N0"]))
     line("=> SNR (raw, no resid.)", snr_db)
     line("=> gamma^s (with resid.)", db(agg["gamma"]))
