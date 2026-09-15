@@ -289,7 +289,21 @@ def _selection_respects_hard_budgets(
     selected: Dict[int, List[Link]],
     plan: ReportingPlan,
 ) -> bool:
-    """Check the report, receiver, and fusion capacities of a complete plan."""
+    """Check every hard observation/report capacity of a complete plan.
+
+    This predicate is shared by the fixed-plan and joint oracles.  It must
+    therefore describe the same feasible set as the production selectors;
+    otherwise an oracle gap can silently compare two different problems.
+    """
+    local_cap = int(cfg.selector.max_local_observations_per_target)
+    if local_cap >= 0:
+        for q, links in selected.items():
+            local_count = sum(
+                is_local_observation(plan, link, q) for link in links
+            )
+            if local_count > local_cap:
+                return False
+
     remote = sum(
         not is_local_observation(plan, link, q)
         for q, links in selected.items() for link in links

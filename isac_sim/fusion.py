@@ -38,7 +38,12 @@ from .model import (
     threshold_from_pfa,
 )
 from .reporting import report_dest
-from .soft_channel import local_moments, received_h0_third_central, received_moments
+from .soft_channel import (
+    local_moments,
+    received_full_llr_moments,
+    received_h0_third_central,
+    received_moments,
+)
 
 
 # ==========================================================================
@@ -121,6 +126,8 @@ def compute_weights(
 
     if mode == "equal":
         return {link: 1.0 / len(links) for link in links}
+    if mode == "exact_llr_sum":
+        return {link: 1.0 for link in links}
 
     if mode == "deflection" and cfg.corr.enable and base is not None and len(links) > 1:
         from .corr import correlation_aware_weights
@@ -145,6 +152,8 @@ def compute_weights(
 
 def fusion_weight_mode_for_method(method: str) -> str:
     """Self-consistent fusion weights for each method."""
+    if method == "joint_bundle_cg_exact_llr":
+        return "exact_llr_sum"
     return "equal" if method == "raw_sense_sinr" else "deflection"
 
 
@@ -172,8 +181,13 @@ def deflection_for_links(
     mean_gap = 0.0
     var0 = 0.0
     for link, w in weights.items():
-        mean_gap += w * effective_h1_mean_for_link(cfg, tables, link, q, plan)
-        var0 += (w ** 2) * deflection_variance_for_link(cfg, tables, link, q, plan)
+        if weight_mode == "exact_llr_sum":
+            moments = received_full_llr_moments(cfg, tables, link, q, plan)
+            mean_gap += w * moments.gap
+            var0 += (w ** 2) * moments.v0
+        else:
+            mean_gap += w * effective_h1_mean_for_link(cfg, tables, link, q, plan)
+            var0 += (w ** 2) * deflection_variance_for_link(cfg, tables, link, q, plan)
 
     return float((max(mean_gap, 0.0) ** 2) / (var0 + EPS))
 
@@ -198,9 +212,17 @@ def predicted_pd_for_links(
         return 0.0
 
     weights = compute_weights(cfg, tables, q, links, mode=weight_mode, plan=plan, base=base)
-    moments = [received_moments(cfg, tables, link, q, plan) for link in links]
+    moments = [
+        received_full_llr_moments(cfg, tables, link, q, plan)
+        if weight_mode == "exact_llr_sum"
+        else received_moments(cfg, tables, link, q, plan)
+        for link in links
+    ]
     mean1 = float(sum(weights[link] * mom.m1 for link, mom in zip(links, moments)))
-    var0 = fused_h0_variance(cfg, tables, q, links, weights, plan=plan, base=base)
+    if weight_mode == "exact_llr_sum":
+        var0 = float(sum((weights[link] ** 2) * mom.v0 for link, mom in zip(links, moments)))
+    else:
+        var0 = fused_h0_variance(cfg, tables, q, links, weights, plan=plan, base=base)
 
     if cfg.corr.enable and base is not None and len(links) > 1:
         from .corr import covariance_matrix
@@ -214,10 +236,16 @@ def predicted_pd_for_links(
             (weights[link] ** 2) * mom.v1 for link, mom in zip(links, moments)
         ))
 
-    skew0 = fused_h0_skewness(cfg, tables, q, links, weights, plan=plan, base=base)
-    z0 = threshold_from_pfa(cfg)
-    z_cf = z0 + (skew0 / 6.0) * (z0 * z0 - 1.0)
-    threshold = z_cf * np.sqrt(max(var0, EPS))
+    if weight_mode == "exact_llr_sum":
+        threshold = calibrated_fused_threshold(
+            cfg, tables, q, links, weights, plan=plan, base=base,
+            statistic_mode="exact_llr_sum",
+        )
+    else:
+        skew0 = fused_h0_skewness(cfg, tables, q, links, weights, plan=plan, base=base)
+        z0 = threshold_from_pfa(cfg)
+        z_cf = z0 + (skew0 / 6.0) * (z0 * z0 - 1.0)
+        threshold = z_cf * np.sqrt(max(var0, EPS))
     return float(qfunc((threshold - mean1) / np.sqrt(max(var1, EPS))))
 
 
@@ -283,6 +311,7 @@ def calibrated_fused_threshold(
     weights: Dict[Link, float],
     plan: "object | None" = None,
     base: BaseGains | None = None,
+    statistic_mode: str = "centered",
 ) -> float:
     """Calibrated finite-look LLR-mixture threshold.
 
@@ -292,6 +321,29 @@ def calibrated_fused_threshold(
     established Cornish--Fisher rule because their joint higher-order law is
     not identified by the current correlation abstraction.
     """
+    if statistic_mode == "exact_llr_sum":
+        if cfg.corr.enable and len(links) > 1:
+            raise ValueError("exact LLR sum currently requires independent observations")
+        n_samples = int(cfg.detect.fused_calibration_samples)
+        n_looks = max(int(cfg.detect.n_looks), 1)
+        rng = np.random.default_rng(0xE11E57)
+        fused = np.zeros(n_samples, dtype=float)
+        from .reporting import report_chi
+        for link in links:
+            i, j = link
+            gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
+            a = gamma / (1.0 + gamma)
+            chi = (
+                float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
+                if cfg.detect.enable_comm_error_pollution else 1.0
+            )
+            exact = -n_looks * np.log1p(gamma) + a * rng.gamma(
+                n_looks, 1.0, n_samples
+            )
+            received = np.where(rng.random(n_samples) < chi, exact, 0.0)
+            fused += float(weights[link]) * received
+        return float(np.quantile(fused, 1.0 - cfg.detect.Pfa_target, method="higher"))
+
     var0 = fused_h0_variance(cfg, tables, q, links, weights, plan, base)
     z0 = threshold_from_pfa(cfg)
     skew0 = fused_h0_skewness(cfg, tables, q, links, weights, plan, base)
@@ -342,7 +394,10 @@ def calibrated_fused_threshold(
         float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
         if cfg.detect.enable_comm_error_pollution else 1.0
     )
-    failure_v = cfg.detect.soft_error_sigma_scale ** 2 * local.v0
+    # This branch is reached only for the true-erasure channel.  A failed
+    # singleton report is an atom at zero and has no Gaussian replacement
+    # variance.
+    failure_v = 0.0
     weight = float(weights[link])
 
     def erlang_sf(x: float) -> float:

@@ -23,10 +23,16 @@ from isac_sim.oracle import (
     lexicographic_gap_components,
     lexicographic_objective_vector,
 )
+from isac_sim.bundle_master import (
+    joint_bundle_column_generation,
+    joint_bundle_restricted_master,
+    rcs_robust_bundle_column_generation,
+)
 from isac_sim.report import scalar_summary_row
 from isac_sim.selection import DEFAULT_METHODS
 from isac_sim.simulate import run_simulation
-from isac_sim.simulate import run_one_trial
+from isac_sim.simulate import rng_for_observation, run_one_trial
+from isac_sim.soft_channel import draw_received_soft_vector
 
 
 class TargetLocalV1ContractTests(unittest.TestCase):
@@ -37,6 +43,10 @@ class TargetLocalV1ContractTests(unittest.TestCase):
         self.assertEqual(v1.fusion.rule, "nearest_target")
         self.assertTrue(v1.selector.use_delay_price)
         self.assertEqual(v11.fusion.rule, "capacitated_value")
+        v12 = apply_preset(Config(), "joint-bundle-v1.2")
+        self.assertEqual(v12.detect.comm_error_model, "erasure")
+        self.assertFalse(v12.selector.use_delay_price)
+        self.assertFalse(v12.selector.require_local_anchor)
         self.assertFalse(v11.selector.use_delay_price)
         self.assertEqual(v11.selector.lambda_c, 0.0)
         self.assertEqual(v11.detect.pd_required, 0.95)
@@ -283,6 +293,195 @@ class TargetLocalV1ContractTests(unittest.TestCase):
             all(value == 0.0 for key, value in gaps.items() if key.startswith("delta_"))
         )
 
+    def test_joint_oracle_enforces_per_target_local_observation_cap(self) -> None:
+        cfg = apply_preset(Config(), "capacitated-target-fusion-v1.1")
+        cfg.scale.M, cfg.scale.Q = 3, 1
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.selector.max_links_per_target = 3
+        cfg.selector.max_total_links = 3
+        cfg.selector.max_local_observations_per_target = 1
+        cfg.selector.max_remote_reports = 3
+        cfg.selector.max_observations_per_receiver = 3
+        cfg.selector.max_observations_per_fusion_uav = 3
+        rng = np.random.default_rng(113)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+
+        plan, selected, _ = joint_fusion_selection_oracle(cfg, base, tables)
+
+        for q, links in selected.items():
+            local_count = sum(link[1] == int(plan.f_q[q]) for link in links)
+            self.assertLessEqual(local_count, 1)
+
+    def test_restricted_bundle_master_matches_joint_oracle_on_full_small_pool(self) -> None:
+        cfg = apply_preset(Config(), "capacitated-target-fusion-v1.1")
+        cfg.scale.M, cfg.scale.Q = 3, 2
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.fusion.max_targets_per_uav = 1
+        cfg.selector.max_links_per_target = 2
+        cfg.selector.max_total_links = 3
+        cfg.selector.max_local_observations_per_target = 1
+        cfg.selector.max_remote_reports = 1
+        cfg.selector.max_observations_per_receiver = 2
+        cfg.selector.max_observations_per_fusion_uav = 2
+        rng = np.random.default_rng(117)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+
+        _, _, oracle = joint_fusion_selection_oracle(cfg, base, tables)
+        master = joint_bundle_restricted_master(
+            cfg, base, tables, shortlist_per_type=20
+        )
+
+        for name, value in oracle.items():
+            self.assertAlmostEqual(master.objective[name], value, places=8)
+
+    def test_column_generation_matches_oracle_with_exact_small_pricing(self) -> None:
+        cfg = apply_preset(Config(), "joint-bundle-v1.2")
+        cfg.scale.M, cfg.scale.Q = 3, 2
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.fusion.max_targets_per_uav = 1
+        cfg.selector.max_links_per_target = 2
+        cfg.selector.max_total_links = 3
+        cfg.selector.max_local_observations_per_target = 1
+        cfg.selector.max_remote_reports = 1
+        cfg.selector.max_observations_per_receiver = 2
+        cfg.selector.max_observations_per_fusion_uav = 2
+        cfg.selector.bundle_shortlist_per_type = 20
+        cfg.selector.bundle_exact_pricing_max_candidates = 20
+        rng = np.random.default_rng(117)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+
+        _, _, oracle = joint_fusion_selection_oracle(cfg, base, tables)
+        master = joint_bundle_column_generation(cfg, base, tables)
+
+        for name, value in oracle.items():
+            self.assertAlmostEqual(master.objective[name], value, places=8)
+        self.assertGreater(master.column_count, cfg.scale.M * cfg.scale.Q)
+        self.assertGreaterEqual(master.pricing_iterations, 1)
+
+    def test_rcs_robust_bundle_is_nominal_at_unit_lower_factor(self) -> None:
+        cfg = apply_preset(Config(), "joint-bundle-v1.2")
+        cfg.scale.M, cfg.scale.Q = 3, 2
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.fusion.max_targets_per_uav = 1
+        cfg.selector.max_links_per_target = 2
+        cfg.selector.max_total_links = 3
+        cfg.selector.max_local_observations_per_target = 1
+        cfg.selector.max_remote_reports = 1
+        cfg.selector.max_observations_per_receiver = 2
+        cfg.selector.max_observations_per_fusion_uav = 2
+        cfg.selector.bundle_shortlist_per_type = 20
+        cfg.selector.bundle_exact_pricing_max_candidates = 20
+        cfg.prior.rcs_lower_factor = 1.0
+        rng = np.random.default_rng(121)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng, rcs_view="mean")
+        tables = compute_link_tables(cfg, base)
+
+        nominal = joint_bundle_column_generation(cfg, base, tables)
+        robust = rcs_robust_bundle_column_generation(cfg, base, tables)
+
+        self.assertEqual(robust.plan.f_q.tolist(), nominal.plan.f_q.tolist())
+        self.assertEqual(robust.selected, nominal.selected)
+        self.assertEqual(robust.objective, nominal.objective)
+
+    def test_rcs_robust_column_generation_matches_full_lower_endpoint_pool(self) -> None:
+        from isac_sim.model import rescale_sensing_tables_for_rcs
+
+        cfg = apply_preset(Config(), "joint-bundle-v1.2")
+        cfg.scale.M, cfg.scale.Q = 3, 2
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.fusion.max_targets_per_uav = 1
+        cfg.selector.max_links_per_target = 2
+        cfg.selector.max_total_links = 3
+        cfg.selector.max_local_observations_per_target = 1
+        cfg.selector.max_remote_reports = 1
+        cfg.selector.max_observations_per_receiver = 2
+        cfg.selector.max_observations_per_fusion_uav = 2
+        cfg.selector.bundle_shortlist_per_type = 20
+        cfg.selector.bundle_exact_pricing_max_candidates = 20
+        cfg.prior.rcs_lower_factor = 0.5
+        rng = np.random.default_rng(123)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng, rcs_view="mean")
+        tables = compute_link_tables(cfg, base)
+        lower = rescale_sensing_tables_for_rcs(
+            cfg, tables, cfg.prior.rcs_lower_factor
+        )
+
+        full = joint_bundle_restricted_master(
+            cfg, base, lower, shortlist_per_type=20
+        )
+        robust = rcs_robust_bundle_column_generation(cfg, base, tables)
+
+        for name, value in full.objective.items():
+            self.assertAlmostEqual(robust.objective[name], value, places=8)
+
+    def test_joint_bundle_method_runs_with_its_own_feasible_plan(self) -> None:
+        cfg = apply_preset(Config(), "joint-bundle-v1.2")
+        cfg.scale.M, cfg.scale.Q = 4, 2
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.fusion.max_targets_per_uav = 1
+        cfg.selector.max_links_per_target = 2
+        cfg.selector.max_total_links = 3
+        cfg.selector.max_local_observations_per_target = 1
+        cfg.selector.max_remote_reports = 1
+        cfg.selector.max_observations_per_receiver = 2
+        cfg.selector.max_observations_per_fusion_uav = 2
+        cfg.detect.num_false_per_target = 2
+        cfg.refine.shortlist_size = 4
+
+        result = run_one_trial(
+            cfg, 0, methods=["joint_bundle_cg"]
+        )["joint_bundle_cg"]
+
+        self.assertEqual(len(result.reporting_plan.f_q), cfg.scale.Q)
+        self.assertEqual(len(set(result.reporting_plan.f_q.tolist())), cfg.scale.Q)
+        self.assertLessEqual(
+            sum(
+                link[1] != int(result.reporting_plan.f_q[q])
+                for q, links in result.selected_links.items() for link in links
+            ),
+            cfg.selector.max_remote_reports,
+        )
+        self.assertGreater(result.bundle_column_count, 0.0)
+
+    def test_joint_bundle_is_worker_count_deterministic(self) -> None:
+        cfg = apply_preset(Config(), "joint-bundle-v1.2")
+        cfg.scale.M, cfg.scale.Q = 4, 2
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.fusion.max_targets_per_uav = 1
+        cfg.selector.max_links_per_target = 2
+        cfg.selector.max_total_links = 3
+        cfg.selector.max_local_observations_per_target = 1
+        cfg.selector.max_remote_reports = 1
+        cfg.selector.max_observations_per_receiver = 2
+        cfg.selector.max_observations_per_fusion_uav = 2
+        cfg.detect.num_false_per_target = 2
+        cfg.refine.shortlist_size = 4
+        cfg.run.num_mc = 2
+        cfg.run.verbose = False
+
+        cfg.run.workers = 1
+        serial = run_simulation(cfg, methods=["joint_bundle_cg"])
+        cfg.run.workers = 2
+        parallel = run_simulation(cfg, methods=["joint_bundle_cg"])
+
+        def normalized(value: object) -> str:
+            return json.dumps(
+                value,
+                sort_keys=True,
+                default=lambda item: item.tolist()
+                if isinstance(item, np.ndarray) else float(item),
+            )
+
+        self.assertEqual(normalized(serial), normalized(parallel))
+
     def test_v1_is_worker_count_deterministic(self) -> None:
         cfg = apply_preset(Config(), "target-local-v1")
         cfg.scale.M, cfg.scale.Q = 4, 2
@@ -433,6 +632,40 @@ class TargetLocalV1ContractTests(unittest.TestCase):
             self.assertEqual(reference.selected_links, calibrated.selected_links)
             self.assertEqual(reference.overhead_bits, calibrated.overhead_bits)
             self.assertEqual(reference.overhead_delay_s, calibrated.overhead_delay_s)
+            self.assertEqual(reference.detected, calibrated.detected)
+            self.assertEqual(reference.false_alarm, calibrated.false_alarm)
+
+    def test_keyed_detector_draw_is_stable_when_selection_set_changes(self) -> None:
+        cfg = apply_preset(Config(), "capacitated-target-fusion-v1.1")
+        cfg.scale.M, cfg.scale.Q = 4, 1
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.corr.enable = False
+        rng = np.random.default_rng(1811)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = assign_fusion_nodes(cfg, base, tables, geom)
+        shared = (0, 1)
+        short = [shared]
+        long = [(2, 1), shared, (0, 3)]
+
+        def keyed(links):
+            return {
+                link: rng_for_observation(
+                    cfg, 7, 0, link, h1=False, draw_index=4
+                )
+                for link in links
+            }
+
+        short_draw = draw_received_soft_vector(
+            cfg, tables, short, 0, np.random.default_rng(1), False,
+            plan, base, rng_by_link=keyed(short),
+        )
+        long_draw = draw_received_soft_vector(
+            cfg, tables, long, 0, np.random.default_rng(2), False,
+            plan, base, rng_by_link=keyed(long),
+        )
+        self.assertEqual(short_draw[0], long_draw[long.index(shared)])
 
     def test_geometry_robust_view_is_conservative_and_non_mutating(self) -> None:
         cfg = apply_preset(Config(), "target-local-v1")

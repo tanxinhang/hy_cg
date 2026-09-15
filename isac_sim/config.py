@@ -34,6 +34,11 @@ import math
 Link = Tuple[int, int]
 
 MethodName = Literal[
+    "rcs_robust_bundle_cg",
+    "joint_bundle_cg",
+    "joint_bundle_cg_exact_llr",
+    "fixed_fusion_bundle",
+    "local_only_bundle",
     "proposed_lagrangian",
     "all_neighbor",
     "random",
@@ -328,6 +333,13 @@ class Fusion:
     # Maximum number of targets assigned to one fusion UAV. ``-1`` is
     # unbounded and preserves all released V1 configurations.
     max_targets_per_uav: int = -1
+    # Homogeneous per-UAV CPU model. A non-negative rate activates the budget
+    # C_f = F_f * T_proc; negative keeps released configurations unbounded.
+    cpu_rate_cycles_per_s: float = -1.0
+    processing_window_s: float = 0.01
+    cpu_fixed_cycles: float = 0.0
+    cpu_per_observation_cycles: float = 1.0
+    cpu_cubic_cycles: float = 0.0
 
 
 @dataclass
@@ -392,8 +404,8 @@ class Detect:
     soft_sigma0: float = 1.0
     soft_sigma_floor: float = 0.25
     soft_error_sigma_scale: float = 3.0
-    # Deterministic Monte-Carlo quadrature size used only by the experimental
-    # calibrated multi-report detector replay.  It does not affect V1 methods.
+    # Deterministic Monte-Carlo quadrature size used by the common calibrated
+    # multi-report detector under the true-erasure model.
     fused_calibration_samples: int = 8192
     # Environment-level pollution used by the Monte-Carlo detector.
     enable_comm_error_pollution: bool = True
@@ -474,6 +486,11 @@ class Prior:
     # oracle-like path; ``"mean"`` uses E[sigma_q] and prevents a current-CPI
     # RCS realization from leaking into pre-sensing scheduling decisions.
     scheduler_rcs: str = "realized"
+    # Lower endpoint of the target-class RCS uncertainty interval, expressed
+    # as a fraction of ``detect.target_rcs``.  The RCS-robust bundle method
+    # prices every column at this endpoint.  It is an epistemic design bound,
+    # not a current-CPI RCS observation or a tunable objective weight.
+    rcs_lower_factor: float = 0.5
 
 
 @dataclass
@@ -584,6 +601,11 @@ class Selector:
     max_observations_per_fusion_uav: int = -1
     candidate_topk_per_target: int = 40
     min_marginal_D: float = 0.0
+    # V1.2 target--fusion--bundle column generation controls.
+    bundle_shortlist_per_type: int = 4
+    bundle_cg_max_iterations: int = 8
+    bundle_pricing_tolerance: float = 1e-8
+    bundle_exact_pricing_max_candidates: int = 10
 
 
 @dataclass
@@ -722,6 +744,13 @@ PRESETS["capacitated-target-fusion-v1.1"] = {
     "selector.lambda_c": 0.0,
 }
 
+# Optimization-only successor: inherit the complete V1.1 physical/detector
+# model and remove the experimental mandatory-anchor restriction.
+PRESETS["joint-bundle-v1.2"] = {
+    **PRESETS["capacitated-target-fusion-v1.1"],
+    "selector.require_local_anchor": False,
+}
+
 # Algebraic decomposition of the historical 50 m^2 default into a small-target
 # RCS and an explicit radar hardware budget.  This is a calibration bridge, not
 # an independently validated hardware design: 0.1 m^2 * 10^(27/10) = 50.12 m^2.
@@ -838,6 +867,8 @@ def validate_config(cfg: Config) -> None:
             f"Unknown prior.scheduler_rcs={cfg.prior.scheduler_rcs!r}; "
             "expected 'realized' or 'mean'"
         )
+    if not 0.0 < cfg.prior.rcs_lower_factor <= 1.0:
+        raise ValueError("prior.rcs_lower_factor must lie in (0, 1]")
     if cfg.selector.score_mode.lower() not in {"first_order", "exact_utility", "detector_pd"}:
         raise ValueError(
             f"Unknown selector.score_mode={cfg.selector.score_mode!r}; "
@@ -882,6 +913,16 @@ def validate_config(cfg: Config) -> None:
         )
     if cfg.fusion.max_targets_per_uav < -1 or cfg.fusion.max_targets_per_uav == 0:
         raise ValueError("fusion.max_targets_per_uav must be -1 or positive")
+    if cfg.fusion.processing_window_s <= 0.0:
+        raise ValueError("fusion.processing_window_s must be positive")
+    if cfg.fusion.cpu_rate_cycles_per_s == 0.0:
+        raise ValueError("fusion.cpu_rate_cycles_per_s must be negative (off) or positive")
+    if min(
+        cfg.fusion.cpu_fixed_cycles,
+        cfg.fusion.cpu_per_observation_cycles,
+        cfg.fusion.cpu_cubic_cycles,
+    ) < 0.0:
+        raise ValueError("fusion CPU cost coefficients must be non-negative")
     if cfg.prior.search_gate_sigma < 0:
         raise ValueError("prior.search_gate_sigma must be non-negative")
     if not 0.0 < cfg.prior.robust_position_confidence < 1.0:
@@ -901,6 +942,16 @@ def validate_config(cfg: Config) -> None:
     if cfg.selector.max_observations_per_fusion_uav < -1:
         raise ValueError(
             "selector.max_observations_per_fusion_uav must be -1 or non-negative"
+        )
+    if cfg.selector.bundle_shortlist_per_type < 1:
+        raise ValueError("selector.bundle_shortlist_per_type must be positive")
+    if cfg.selector.bundle_cg_max_iterations < 1:
+        raise ValueError("selector.bundle_cg_max_iterations must be positive")
+    if cfg.selector.bundle_pricing_tolerance < 0.0:
+        raise ValueError("selector.bundle_pricing_tolerance must be non-negative")
+    if cfg.selector.bundle_exact_pricing_max_candidates < 0:
+        raise ValueError(
+            "selector.bundle_exact_pricing_max_candidates must be non-negative"
         )
 
 

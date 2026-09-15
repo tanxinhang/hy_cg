@@ -215,6 +215,52 @@ class LinkTables:
     var0_q: np.ndarray
 
 
+def rescale_sensing_tables_for_rcs(
+    cfg: Config,
+    tables: LinkTables,
+    factor: float | np.ndarray,
+) -> LinkTables:
+    """Return a non-mutating RCS-counterfactual sensing table.
+
+    For fixed geometry, power, interference, and waveform impairments, RCS is
+    linear in the desired echo power and therefore in sensing SINR. ``factor``
+    may be scalar or one positive multiplier per target. Communication fields
+    are unchanged. Soft-statistic moments are recomputed from the scaled SINR
+    rather than scaled directly, preserving the nonlinear LLR model.
+    """
+    factors = np.asarray(factor, dtype=float)
+    if factors.ndim == 0:
+        factors = np.full(cfg.scale.Q, float(factors), dtype=float)
+    if factors.shape != (cfg.scale.Q,):
+        raise ValueError(
+            f"RCS factor must be scalar or shape ({cfg.scale.Q},), got {factors.shape}"
+        )
+    if not np.all(np.isfinite(factors)) or np.any(factors <= 0.0):
+        raise ValueError("RCS factors must be finite and strictly positive")
+
+    scale = factors.reshape(1, 1, cfg.scale.Q)
+    raw_gamma = np.asarray(tables.raw_gamma_sense, dtype=float) * scale
+    gamma = np.asarray(tables.gamma_sense, dtype=float) * scale
+    mu_soft = np.asarray(_soft_mean(cfg, gamma), dtype=float)
+    pair_var0 = np.broadcast_to(
+        np.asarray(tables.sigma0, dtype=float)[:, :, None] ** 2,
+        gamma.shape,
+    )
+    var0_q = np.asarray(_soft_var0(cfg, gamma, pair_var0), dtype=float)
+    return LinkTables(
+        gamma_comm=tables.gamma_comm,
+        rate=tables.rate,
+        chi_comm=tables.chi_comm,
+        feasible_comm=tables.feasible_comm,
+        raw_gamma_sense=raw_gamma,
+        gamma_sense=gamma,
+        rinr=tables.rinr,
+        mu_soft=mu_soft,
+        sigma0=tables.sigma0,
+        var0_q=var0_q,
+    )
+
+
 # ==========================================================================
 # Geometry sampling
 # ==========================================================================

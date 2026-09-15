@@ -21,8 +21,6 @@ from .fusion import (
     calibrated_fused_threshold,
     compute_weights,
     deflection_for_links,
-    fused_h0_variance,
-    fused_h0_skewness,
     fusion_weight_mode_for_method,
     pd_from_deflection,
 )
@@ -34,7 +32,6 @@ from .model import (
     build_base_gains,
     compute_link_tables,
     generate_geometry,
-    threshold_from_pfa,
 )
 from .reporting import (
     ReportingPlan,
@@ -99,11 +96,16 @@ class MethodResult:
     report_capacity_binding: float
     assignment_capacity_max_utilization: float
     assignment_capacity_binding: float
+    cpu_capacity_max_utilization: float
+    cpu_capacity_binding: float
     fine_eval_full: float = 0.0
     fine_eval_c2f: float = 0.0
     selector_score_evaluations: float = 0.0
     coordination_messages: float = 0.0
     bid_rounds: float = 0.0
+    bundle_column_count: float = 0.0
+    bundle_pricing_iterations: float = 0.0
+    bundle_lp_worst_deficit_bound: float = math.nan
     # Wall-clock time spent only in final detector evaluation.  Selection and
     # table construction are excluded so threshold-calibration overhead can be
     # audited without changing the V1 decision path.
@@ -154,9 +156,17 @@ def evaluate_detection(
     method: str,
     plan: "ReportingPlan | None" = None,
     base: BaseGains | None = None,
+    *,
+    trial_index: int | None = None,
 ) -> Tuple[int, int, int, int, int, int, np.ndarray]:
-    """Evaluate detection and false alarms with two P_FA denominators."""
-    from .soft_channel import draw_received_soft_vector
+    """Evaluate detection and false alarms with two P_FA denominators.
+
+    When ``trial_index`` is supplied, every physical observation is sampled
+    from a keyed stream.  Consequently a shared ``(q, i, j)`` observation sees
+    identical packet and local-statistic primitives in every method, even when
+    the methods select different numbers or orders of observations.
+    """
+    from .soft_channel import draw_received_full_llr, draw_received_soft_vector
 
     d = cfg.detect
     detected = 0
@@ -166,8 +176,17 @@ def evaluate_detection(
     total_false_active = 0
     total_false_overall = cfg.scale.Q * d.num_false_per_target
 
-    base_thr = threshold_from_pfa(cfg)
     weight_mode = fusion_weight_mode_for_method(method)
+
+    def keyed_rngs(q: int, links: List[Link], h1: bool, draw_index: int):
+        if trial_index is None:
+            return None
+        return {
+            link: rng_for_observation(
+                cfg, trial_index, q, link, h1=h1, draw_index=draw_index
+            )
+            for link in links
+        }
 
     for q in range(cfg.scale.Q):
         links = selected.get(q, [])
@@ -176,30 +195,50 @@ def evaluate_detection(
 
         total_false_active += d.num_false_per_target
         weights = compute_weights(cfg, tables, q, links, mode=weight_mode, plan=plan, base=base)
-        var0 = fused_h0_variance(cfg, tables, q, links, weights, plan=plan, base=base)
-        skew0 = fused_h0_skewness(cfg, tables, q, links, weights, plan=plan, base=base)
-        if method == "proposed_c2f_adaptive_pd_calibrated":
-            thr = calibrated_fused_threshold(
-                cfg, tables, q, links, weights, plan=plan, base=base
-            )
-        else:
-            z_cf = base_thr + (skew0 / 6.0) * (base_thr * base_thr - 1.0)
-            thr = z_cf * math.sqrt(max(var0, EPS))
+        # Threshold calibration belongs to the detector and selected set, not
+        # to a proposed method label.  This gives every arm the same realised
+        # P_FA semantics under the true-erasure mixture.
+        thr = calibrated_fused_threshold(
+            cfg, tables, q, links, weights, plan=plan, base=base,
+            statistic_mode=weight_mode,
+        )
 
         ordered_links = list(weights)
         weight_vector = np.asarray([weights[link] for link in ordered_links])
-        h1_vector = draw_received_soft_vector(
-            cfg, tables, ordered_links, q, rng, True, plan, base
-        )
+        h1_rngs = keyed_rngs(q, ordered_links, True, 0)
+        if weight_mode == "exact_llr_sum":
+            h1_vector = np.asarray([
+                draw_received_full_llr(
+                    cfg, tables, link, q,
+                    h1_rngs[link] if h1_rngs is not None else rng,
+                    True, plan,
+                ) for link in ordered_links
+            ], dtype=float)
+        else:
+            h1_vector = draw_received_soft_vector(
+                cfg, tables, ordered_links, q, rng, True, plan, base,
+                rng_by_link=h1_rngs,
+            )
         F = float(weight_vector @ h1_vector)
         if F > thr:
             detected += 1
             detected_per_target[q] = 1
 
-        for _ in range(d.num_false_per_target):
-            h0_vector = draw_received_soft_vector(
-                cfg, tables, ordered_links, q, rng, False, plan, base
-            )
+        for false_index in range(d.num_false_per_target):
+            h0_rngs = keyed_rngs(q, ordered_links, False, false_index)
+            if weight_mode == "exact_llr_sum":
+                h0_vector = np.asarray([
+                    draw_received_full_llr(
+                        cfg, tables, link, q,
+                        h0_rngs[link] if h0_rngs is not None else rng,
+                        False, plan,
+                    ) for link in ordered_links
+                ], dtype=float)
+            else:
+                h0_vector = draw_received_soft_vector(
+                    cfg, tables, ordered_links, q, rng, False, plan, base,
+                    rng_by_link=h0_rngs,
+                )
             F0 = float(weight_vector @ h0_vector)
             if F0 > thr:
                 false_alarm_active += 1
@@ -392,6 +431,23 @@ def rng_for_detection(cfg: Config, trial_index: int) -> np.random.Generator:
     return np.random.default_rng([cfg.run.seed, 54321, trial_index])
 
 
+def rng_for_observation(
+    cfg: Config,
+    trial_index: int,
+    q: int,
+    link: Link,
+    *,
+    h1: bool,
+    draw_index: int,
+) -> np.random.Generator:
+    """Keyed detector stream for one physical observation and replicate."""
+    i, j = link
+    return np.random.default_rng([
+        int(cfg.run.seed), 54321, int(trial_index), int(q), int(i), int(j),
+        int(bool(h1)), int(draw_index),
+    ])
+
+
 def weakest_belief_target(cfg: Config, base: BaseGains, tables: LinkTables) -> int:
     """Identify the weakest target from the pre-scheduling belief view.
 
@@ -429,6 +485,18 @@ def capacity_metrics_for_selection(
             np.asarray(f_q, dtype=int), minlength=M
         ).astype(float)
 
+    cpu_cycles = np.zeros(M, dtype=float)
+    if f_q is not None:
+        for q, links in selected.items():
+            size = len(links)
+            if size == 0:
+                continue
+            cpu_cycles[int(f_q[q])] += (
+                cfg.fusion.cpu_fixed_cycles
+                + cfg.fusion.cpu_per_observation_cycles * size
+                + cfg.fusion.cpu_cubic_cycles * size ** 3
+            )
+
     def utilization(used: float, cap: int) -> tuple[float, float]:
         if cap <= 0:
             return 0.0, 0.0
@@ -451,6 +519,15 @@ def capacity_metrics_for_selection(
         float(np.max(assignment_counts, initial=0.0)),
         cfg.fusion.max_targets_per_uav,
     )
+    cpu_budget = (
+        cfg.fusion.cpu_rate_cycles_per_s * cfg.fusion.processing_window_s
+        if cfg.fusion.cpu_rate_cycles_per_s > 0.0 else -1.0
+    )
+    cpu_u, cpu_b = (
+        (float(np.max(cpu_cycles, initial=0.0) / cpu_budget),
+         float(np.max(cpu_cycles, initial=0.0) / cpu_budget >= 0.99))
+        if cpu_budget > 0.0 else (0.0, 0.0)
+    )
     return {
         "receiver_capacity_max_utilization": receiver_u,
         "receiver_capacity_binding": receiver_b,
@@ -460,6 +537,8 @@ def capacity_metrics_for_selection(
         "report_capacity_binding": report_b,
         "assignment_capacity_max_utilization": assignment_u,
         "assignment_capacity_binding": assignment_b,
+        "cpu_capacity_max_utilization": cpu_u,
+        "cpu_capacity_binding": cpu_b,
     }
 
 
@@ -554,8 +633,73 @@ def run_method_on_trial(
     selector_score_evaluations = 0.0
     coordination_messages = 0.0
     bid_rounds = 0.0
+    bundle_column_count = 0.0
+    bundle_pricing_iterations = 0.0
+    bundle_lp_worst_deficit_bound = math.nan
 
-    if method == "proposed_lagrangian":
+    if method in {
+        "rcs_robust_bundle_cg", "joint_bundle_cg", "joint_bundle_cg_exact_llr", "fixed_fusion_bundle",
+        "local_only_bundle"
+    }:
+        from .bundle_master import (
+            joint_bundle_column_generation,
+            rcs_robust_bundle_column_generation,
+        )
+
+        if method == "joint_bundle_cg_exact_llr":
+            if cfg.detect.soft_stat_model.lower() != "llr":
+                raise ValueError("joint_bundle_cg_exact_llr requires the LLR statistic")
+            if cfg.detect.comm_error_model != "erasure":
+                raise ValueError("joint_bundle_cg_exact_llr requires true erasures")
+            if cfg.corr.enable:
+                raise ValueError("joint_bundle_cg_exact_llr currently requires corr.enable=False")
+
+        bundle_cfg = cfg
+        allowed_fusions = None
+        if method == "local_only_bundle":
+            bundle_cfg = apply_overrides(
+                cfg, {"selector.max_remote_reports": 0}
+            )
+        elif method == "fixed_fusion_bundle":
+            if plan is None or getattr(plan, "f_q", None) is None:
+                raise ValueError(
+                    "fixed_fusion_bundle requires an explicit V1.1 fusion plan"
+                )
+            allowed_fusions = {
+                q: [int(plan.f_q[q])] for q in range(cfg.scale.Q)
+            }
+        bundle_solver = (
+            rcs_robust_bundle_column_generation
+            if method == "rcs_robust_bundle_cg"
+            else joint_bundle_column_generation
+        )
+        bundle_result = bundle_solver(
+            bundle_cfg,
+            base,
+            tables,
+            value_tables=c2f_tables,
+            allowed_fusions=allowed_fusions,
+        )
+        plan = bundle_result.plan
+        selected = bundle_result.selected
+        D = np.asarray([
+            deflection_for_links(
+                cfg, c2f_tables if c2f_tables is not None else tables,
+                q, selected.get(q, []),
+                weight_mode="deflection", plan=plan, base=base,
+            )
+            for q in range(cfg.scale.Q)
+        ], dtype=float)
+        fine_eval_full = 0.0
+        fine_eval_c2f = 0.0
+        sel_tables = tables
+        bundle_column_count = float(bundle_result.column_count)
+        bundle_pricing_iterations = float(bundle_result.pricing_iterations)
+        bundle_lp_worst_deficit_bound = float(
+            bundle_result.lp_worst_deficit_bound
+        )
+        selector_score_evaluations = bundle_column_count
+    elif method == "proposed_lagrangian":
         selected, D = cached_lagrangian if cached_lagrangian is not None else select_lagrangian(cfg, base, tables, plan)
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
@@ -720,7 +864,8 @@ def run_method_on_trial(
 
     detection_start = time.perf_counter() if cfg.run.record_runtime else 0.0
     detection = evaluate_detection(
-        cfg, tables_eval, selected_eval, detector_rng, method, plan, det_base
+        cfg, tables_eval, selected_eval, detector_rng, method, plan, det_base,
+        trial_index=trial_index,
     )
     detection_runtime_s = (
         time.perf_counter() - detection_start if cfg.run.record_runtime else 0.0
@@ -757,6 +902,9 @@ def run_method_on_trial(
         selector_score_evaluations=selector_score_evaluations,
         coordination_messages=coordination_messages,
         bid_rounds=bid_rounds,
+        bundle_column_count=bundle_column_count,
+        bundle_pricing_iterations=bundle_pricing_iterations,
+        bundle_lp_worst_deficit_bound=bundle_lp_worst_deficit_bound,
         detection_runtime_s=detection_runtime_s,
         belief_capture_rate=capture_rate,
         weak_target_index=int(weak_target_index),
@@ -942,6 +1090,8 @@ def run_simulation(
                     "report_capacity_binding": res.report_capacity_binding,
                     "assignment_capacity_max_utilization": res.assignment_capacity_max_utilization,
                     "assignment_capacity_binding": res.assignment_capacity_binding,
+                    "cpu_capacity_max_utilization": res.cpu_capacity_max_utilization,
+                    "cpu_capacity_binding": res.cpu_capacity_binding,
                     "selector_score_evaluations": res.selector_score_evaluations,
                     "coordination_messages": res.coordination_messages,
                     "bid_rounds": res.bid_rounds,
@@ -1056,6 +1206,9 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     selector_score_evaluations = col("selector_score_evaluations")
     coordination_messages = col("coordination_messages")
     bid_rounds = col("bid_rounds")
+    bundle_column_count = col("bundle_column_count")
+    bundle_pricing_iterations = col("bundle_pricing_iterations")
+    bundle_lp_bound = col("bundle_lp_worst_deficit_bound")
     detection_runtime_s = col("detection_runtime_s")
 
     def finite_mean(values: np.ndarray, default: float = 0.0) -> float:
@@ -1145,6 +1298,9 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "selector_score_evaluations_mean": float(np.mean(selector_score_evaluations)),
         "coordination_messages_mean": float(np.mean(coordination_messages)),
         "bid_rounds_mean": float(np.mean(bid_rounds)),
+        "bundle_column_count_mean": float(np.mean(bundle_column_count)),
+        "bundle_pricing_iterations_mean": float(np.mean(bundle_pricing_iterations)),
+        "bundle_lp_worst_deficit_bound_mean": finite_mean(bundle_lp_bound, math.nan),
         "detection_runtime_mean_ms": float(np.mean(detection_runtime_s) * 1e3),
         "detection_runtime_p90_ms": float(np.percentile(detection_runtime_s, 90) * 1e3),
         "belief_capture_rate_mean": float(np.mean(belief_capture)),
@@ -1156,6 +1312,8 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "report_capacity_binding_rate": float(np.mean(col("report_capacity_binding"))),
         "assignment_capacity_max_utilization_mean": float(np.mean(col("assignment_capacity_max_utilization"))),
         "assignment_capacity_binding_rate": float(np.mean(col("assignment_capacity_binding"))),
+        "cpu_capacity_max_utilization_mean": float(np.mean(col("cpu_capacity_max_utilization"))),
+        "cpu_capacity_binding_rate": float(np.mean(col("cpu_capacity_binding"))),
         "comm_feasible_edge_ratio_mean": float(np.mean(feasible_edge_ratio)),
         "selected_rate_mean_mbps": finite_mean(selected_rate_mean),
         "selected_rate_min_mbps_mean": finite_mean(selected_rate_min),

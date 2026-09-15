@@ -11,6 +11,11 @@ from typing import Dict, List
 # Canonical display order: proposed first, then resource-constrained baselines,
 # then the upper-resource reference last.
 METHOD_ORDER: List[str] = [
+    "rcs_robust_bundle_cg",
+    "joint_bundle_cg",
+    "joint_bundle_cg_exact_llr",
+    "fixed_fusion_bundle",
+    "local_only_bundle",
     "proposed_c2f",
     "proposed_c2f_adaptive",
     "proposed_c2f_adaptive_pd",
@@ -36,6 +41,11 @@ METHOD_ORDER: List[str] = [
 
 LABELS: Dict[str, str] = {
     # Methods
+    "rcs_robust_bundle_cg": "RCS-robust joint bundle CG",
+    "joint_bundle_cg": "Joint bundle column generation",
+    "joint_bundle_cg_exact_llr": "Joint bundle CG + exact LLR sum",
+    "fixed_fusion_bundle": "Fixed fusion + joint bundle",
+    "local_only_bundle": "Local-only joint bundle",
     "proposed_lagrangian": "Proposed",
     "proposed_c2f": "Proposed C2F",
     "proposed_c2f_adaptive": "Proposed adaptive C2F",

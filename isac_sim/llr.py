@@ -108,6 +108,19 @@ def llr_kld(gamma: np.ndarray | float, n_looks: int) -> np.ndarray | float:
     return float(out) if np.ndim(gamma) == 0 else out
 
 
+def llr_h0_offset(gamma: np.ndarray | float, n_looks: int) -> np.ndarray | float:
+    r"""Constant that converts the centred statistic into the exact LLR.
+
+    ``ell = ell_tilde + L * (gamma/(1+gamma) - log(1+gamma))``.
+    The term must be included once for every *successfully received* report;
+    with true erasures it cannot be absorbed into one fixed threshold because
+    the received-report set is random.
+    """
+    g = np.asarray(np.maximum(gamma, 0.0), dtype=float)
+    out = float(n_looks) * (g / (1.0 + g) - np.log1p(g))
+    return float(out) if np.ndim(gamma) == 0 else out
+
+
 def llr_deflection(gamma: np.ndarray | float, n_looks: int) -> np.ndarray | float:
     """Single-link deflection ``delta^2 / var0 = L * gamma^2``."""
     g = np.asarray(np.maximum(gamma, 0.0), dtype=float)

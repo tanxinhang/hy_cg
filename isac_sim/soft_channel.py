@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .config import Config, Link
-from .llr import draw_llr, llr_var1
+from .llr import draw_llr, llr_h0_offset, llr_var1
 from .reporting import report_chi
 
 
@@ -87,6 +87,27 @@ def received_moments(
     return BinaryMoments(m0, v0, m1, v1)
 
 
+def received_full_llr_moments(
+    cfg: Config, tables, link: Link, q: int, plan: "object | None" = None
+) -> BinaryMoments:
+    """Moments of the exact local LLR after a hypothesis-independent erasure."""
+    if cfg.detect.soft_stat_model.lower() != "llr":
+        raise ValueError("exact LLR fusion requires detect.soft_stat_model='llr'")
+    if cfg.detect.comm_error_model != "erasure":
+        raise ValueError("exact LLR fusion requires a true-erasure report channel")
+    local = local_moments(cfg, tables, link, q)
+    i, j = link
+    gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
+    offset = float(llr_h0_offset(gamma, cfg.detect.n_looks))
+    chi = (
+        float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
+        if cfg.detect.enable_comm_error_pollution else 1.0
+    )
+    m0, v0 = _mix(chi, offset, local.v0, 0.0, 0.0)
+    m1, v1 = _mix(chi, offset + local.m1, local.v1, 0.0, 0.0)
+    return BinaryMoments(m0, v0, m1, v1)
+
+
 def received_h0_third_central(
     cfg: Config, tables, link: Link, q: int, plan: "object | None" = None
 ) -> float:
@@ -158,6 +179,34 @@ def draw_received_soft_stat(
     raise ValueError(d.comm_error_model)
 
 
+def draw_received_full_llr(
+    cfg: Config,
+    tables,
+    link: Link,
+    q: int,
+    rng: np.random.Generator,
+    h1: bool,
+    plan: "object | None" = None,
+) -> float:
+    """Draw one exact local LLR, or zero when its packet is erased."""
+    if cfg.detect.soft_stat_model.lower() != "llr":
+        raise ValueError("exact LLR fusion requires detect.soft_stat_model='llr'")
+    if cfg.detect.comm_error_model != "erasure":
+        raise ValueError("exact LLR fusion requires a true-erasure report channel")
+    chi = (
+        float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
+        if cfg.detect.enable_comm_error_pollution else 1.0
+    )
+    if cfg.detect.enable_comm_error_pollution and rng.random() >= chi:
+        return 0.0
+    i, j = link
+    gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
+    return float(
+        _draw_local(cfg, tables, link, q, rng, h1)
+        + llr_h0_offset(gamma, cfg.detect.n_looks)
+    )
+
+
 def draw_received_soft_vector(
     cfg: Config,
     tables,
@@ -167,6 +216,7 @@ def draw_received_soft_vector(
     h1: bool,
     plan: "object | None" = None,
     base: "object | None" = None,
+    rng_by_link: dict[Link, np.random.Generator] | None = None,
 ) -> np.ndarray:
     """Draw one internally consistent vector of received soft statistics.
 
@@ -187,7 +237,11 @@ def draw_received_soft_vector(
         return np.zeros(0, dtype=float)
     if (not cfg.corr.enable) or len(links) == 1:
         return np.asarray([
-            draw_received_soft_stat(cfg, tables, link, q, rng, h1, plan)
+            draw_received_soft_stat(
+                cfg, tables, link, q,
+                rng_by_link[link] if rng_by_link is not None else rng,
+                h1, plan,
+            )
             for link in links
         ], dtype=float)
 
@@ -202,7 +256,22 @@ def draw_received_soft_vector(
         for moment in moments
     ], dtype=float)
     covariance = covariance_matrix(cfg, links, sigma, base=base, q=q)
-    return np.asarray(
-        rng.multivariate_normal(mean, covariance, check_valid="raise"),
-        dtype=float,
-    )
+    if rng_by_link is None:
+        return np.asarray(
+            rng.multivariate_normal(mean, covariance, check_valid="raise"),
+            dtype=float,
+        )
+
+    # Use one keyed primitive innovation per physical observation.  The
+    # symmetric covariance square root is permutation-equivariant, so merely
+    # reordering a selected set cannot change its draw.  Adding/removing a
+    # correlated observation may change the covariance transform, as it must,
+    # but the underlying per-link innovations remain paired across methods.
+    eigenvalues, eigenvectors = np.linalg.eigh(covariance)
+    covariance_sqrt = (
+        eigenvectors * np.sqrt(np.maximum(eigenvalues, 0.0))
+    ) @ eigenvectors.T
+    innovations = np.asarray([
+        rng_by_link[link].standard_normal() for link in links
+    ], dtype=float)
+    return np.asarray(mean + covariance_sqrt @ innovations, dtype=float)

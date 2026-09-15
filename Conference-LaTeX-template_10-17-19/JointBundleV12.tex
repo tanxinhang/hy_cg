@@ -1,0 +1,126 @@
+% V1.2 candidate method section. This file is intentionally not included in
+% the frozen headline manuscript until the independent Monte Carlo gate passes.
+\section{Joint Fusion--Bundle Optimization}\label{sec:v12-method}
+
+\subsection{Target--Fusion--Observation Bundles}
+Let $\mathcal M$ and $\mathcal Q$ denote the UAV and target sets.  A bistatic
+observation $e=(i,j)\in\mathcal E_q$ is produced by transmitter $i$ and
+receiver $j$ for target $q$.  Target $q$ is assigned to one fusion UAV
+$f\in\mathcal M$.  The observation is local if $j=f$; otherwise, it consumes
+one inter-UAV report from $j$ to $f$.  For each target--fusion pair $(q,f)$,
+we define a bundle $b\in\mathcal B_{qf}$ as a feasible subset of
+$\mathcal E_q$.  Its scheduler-side predicted detection probability, remote
+report load, receiver-$j$ load, and fusion-processing load are denoted by
+$p_{qfb}$, $r_{qfb}$, $a_{qfbj}$, and $c_{qfb}=|b|$, respectively.
+
+The physical and detector models are unchanged from the true-erasure V1.1
+system, but we make the RCS dependence explicit here.  For scheduler-side
+target RCS $\sigma_q$, wavelength $\lambda$, and bistatic ranges $d_{iq}$ and
+$d_{jq}$, the propagation gain and sensing SINR are
+\begin{align}
+g^{\rm s}_{ijq}(\sigma_q)
+  &=\frac{\lambda^2\sigma_q}
+  {(4\pi)^3d_{iq}^2d_{jq}^2},\\
+\gamma^{\rm s}_{ijq}(\sigma_q)
+  &=\frac{\widetilde P_i^{\rm s}G^{\rm hw}_{ij}G_p
+  \eta^{\rm DD}_{ijq}\eta^{\rm col}_{ijq}\eta^{\rm wf}_{ijq}
+  g^{\rm s}_{ijq}(\sigma_q)}
+  {(N_0+I_j^{\rm s})(1+{\rm INR}^{\rm wf}_{ijq})}.
+\label{eq:v12-rcs-sinr}
+\end{align}
+Here $G^{\rm hw}_{ij}=G_i^{\rm tx}G_j^{\rm rx}/L_{ij}^{\rm sys}$ is kept
+separate from RCS.  The scheduler uses the declared mean RCS
+$\sigma_q=\bar\sigma_q$ rather than a current-CPI realization.  Hence RCS is
+an exogenous physical parameter that changes the precomputed utility
+$p_{qfb}(\sigma_q)$; it is not a decision variable of the bundle master.
+
+In particular, a failed remote packet contributes an exact zero soft
+statistic.  All compared methods use the same finite-look mixture-calibrated
+threshold in final Monte Carlo evaluation.  The bundle utility $p_{qfb}$ is a
+moment-matched scheduling surrogate; it is not identified with empirical
+$P_D$.
+
+\subsection{Lexicographic Master Problem}
+Let $u_{qfb}\in\{0,1\}$ indicate the selected bundle and let $d_q\geq0$ be
+the deficit from the required detection probability $P_D^{\rm req}$.  We solve
+\begin{equation}
+\operatorname{lexmin}\left(
+d_{\max},\ \sum_q d_q,\ \sum_{qfb}r_{qfb}u_{qfb},\
+\sum_{qfb}c_{qfb}u_{qfb}\right),
+\label{eq:v12-lex-objective}
+\end{equation}
+subject to
+\begin{align}
+\sum_{f,b}u_{qfb}&=1, &&\forall q,\label{eq:v12-one-bundle}\\
+d_q&\geq P_D^{\rm req}-\sum_{f,b}p_{qfb}u_{qfb}, &&\forall q,\\
+d_{\max}&\geq d_q, &&\forall q,\\
+\sum_{q,b}u_{qfb}&\leq C_f^{\rm target}, &&\forall f,\\
+\sum_{q,f,b}a_{qfbj}u_{qfb}&\leq C_j^{\rm rx}, &&\forall j,\\
+\sum_{q,b}c_{qfb}u_{qfb}&\leq C_f^{\rm fusion}, &&\forall f,\\
+\sum_{q,f,b}r_{qfb}u_{qfb}&\leq K_{\rm report},\\
+\sum_{q,f,b}c_{qfb}u_{qfb}&\leq K_{\rm total}.
+\end{align}
+Per-target total- and local-observation limits are enforced during bundle
+generation.  The empty bundle is retained because target assignment and
+sensing-resource expenditure are distinct decisions.
+
+When $\mathcal B_{qf}$ contains every feasible observation subset, this
+formulation is equivalent to the original joint assignment--selection problem:
+each original solution maps to one bundle per target, and each selected bundle
+uniquely recovers the fusion destination and observation variables while
+preserving every resource load.  We solve the four objectives in
+\eqref{eq:v12-lex-objective} sequentially and lock each attained optimum before
+optimizing the next tier.  The resulting integer solution is therefore
+lexicographically optimal over the generated column set, within solver
+tolerance, without a manually selected scalar resource price.
+
+This formulation is conditional on the declared RCS scenario.  An uncertain-
+RCS extension would replace $p_{qfb}$ by scenario coefficients
+$p^{(s)}_{qfb}=p_{qfb}(\sigma_q^{(s)})$ and introduce scenario-wise deficits;
+the expectation, worst-case, or CVaR aggregation must then be specified
+explicitly.  Such a robust extension is not claimed in V1.2.
+
+\subsection{Detector-Aligned Coarse-to-Fine Pricing}
+Enumerating all bundles is combinatorial.  We first rank local and remote
+observations separately using coarse delay--Doppler predictions, thereby
+preventing either evidence family from disappearing from the candidate pool.
+Generated bundles are then valued with the refined delay--Doppler table.  The
+initial restricted master problem (RMP) contains an empty bundle, greedy
+detector-marginal prefixes, and a singleton from each available local/remote
+family for every admissible $(q,f)$ pair.
+
+We relax bundle integrality and generate columns in lexicographic order.  The
+worst-deficit LP is closed first; its optimum is then locked before pricing the
+total-deficit LP.  Let $\beta_q$, $\pi_f^{\rm target}$,
+$\pi_j^{\rm rx}$, $\pi_f^{\rm fusion}$, $\pi^{\rm report}$, and
+$\pi^{\rm total}$ denote the corresponding nonnegative scarcity prices, and
+let $\nu_q$ be the assignment dual.  The reduced cost of a candidate bundle is
+\begin{align}
+\bar c_{qfb}={}&-\nu_q-\beta_qp_{qfb}+\pi_f^{\rm target}
++\sum_j\pi_j^{\rm rx}a_{qfbj}\nonumber\\
+&+\pi_f^{\rm fusion}c_{qfb}+\pi^{\rm report}r_{qfb}
++\pi^{\rm total}c_{qfb}.
+\label{eq:v12-reduced-cost}
+\end{align}
+A bundle with $\bar c_{qfb}<0$ improves the current relaxed tier.  These
+coefficients are dual variables of hard constraints rather than user-tuned
+trade-off weights.
+
+For a small shortlist, the pricing oracle enumerates every subset up to the
+per-target cap.  For larger instances, it applies multi-start marginal pricing
+from the empty, local-singleton, and remote-singleton states.  Exact pricing
+certifies convergence only within the shortlisted column space.  Greedy
+pricing is a scalable heuristic and carries no global-optimality claim.  After
+pricing terminates, the accumulated RMP is solved as the exact four-tier mixed
+integer problem.
+
+\subsection{Validation Protocol}
+Optimization correctness is evaluated for $M\in\{3,4\}$ and
+$Q\in\{2,3\}$ by comparing all four lexicographic components against exhaustive
+joint enumeration under identical local, receiver, fusion, assignment,
+report, and total-observation constraints.  The full-scale study compares the
+joint method with local-only bundles, fixed V1.1 fusion plus joint bundle
+selection, V1.1 detector-aware sequential selection, and budgeted sensing-SINR
+selection.  All methods share keyed primitive detector draws and report both
+active-target $P_{FA}$ and its trial-cluster interval.  Large-scale performance
+claims remain conditional on the preregistered independent Monte Carlo gate.

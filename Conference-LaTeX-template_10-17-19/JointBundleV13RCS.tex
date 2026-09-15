@@ -1,0 +1,50 @@
+% Candidate V1.3 extension. Do not include in the frozen headline manuscript
+% until its paired robustness and nominal-noninferiority gates pass.
+\section{RCS-Robust Joint Fusion--Bundle Optimization}
+\label{sec:v13-rcs-robust}
+
+Let $\bar\sigma_q$ be the scheduler-side nominal RCS and assume the declared
+target-class interval
+\begin{equation}
+\mathcal U_q=[\underline\sigma_q,\bar\sigma_q],\qquad
+\underline\sigma_q=\zeta_q\bar\sigma_q,quad 0<\zeta_q\leq1.
+\end{equation}
+For fixed geometry, power, interference, and waveform impairments, the
+bistatic model gives
+\begin{equation}
+\gamma^{\rm s}_{ijq}(\sigma_q)=C_{ijq}\sigma_q,
+\qquad C_{ijq}\geq0.
+\end{equation}
+The finite-look LLR mean gap
+$L\gamma^2/(1+\gamma)$ and deflection $L\gamma^2$ are nondecreasing in
+$\gamma\geq0$.  Because report success is determined by the inter-UAV link,
+the fixed-bundle detector surrogate $p_{qfb}(\sigma_q)$ is nondecreasing in
+$\sigma_q$.  Therefore
+\begin{equation}
+\min_{\sigma_q\in\mathcal U_q}p_{qfb}(\sigma_q)
+=p_{qfb}(\underline\sigma_q)\equiv p^{\rm R}_{qfb}.
+\label{eq:v13-endpoint}
+\end{equation}
+
+We replace the nominal reliability coefficients in the V1.2 bundle master by
+$p^{\rm R}_{qfb}$ and solve
+\begin{equation}
+\operatorname{lexmin}\left(d^{\rm R}_{\max},\sum_qd^{\rm R}_q,
+\sum_{qfb}r_{qfb}u_{qfb},\sum_{qfb}c_{qfb}u_{qfb}\right),
+\end{equation}
+subject to the original assignment and hard resource constraints and
+\begin{align}
+d^{\rm R}_q&\geq P_D^{\rm req}-\sum_{f,b}p^{\rm R}_{qfb}u_{qfb},\\
+d^{\rm R}_{\max}&\geq d^{\rm R}_q.
+\end{align}
+Equation~\eqref{eq:v13-endpoint} makes this an exact interval-robust reduction,
+not a weighted RCS heuristic.  Operationally, we scale each target's sensing
+SINR by $\zeta_q$, recompute the nonlinear LLR moments, and run the unchanged
+dual-guided coarse-to-fine pricing algorithm on these lower-endpoint tables.
+The method has the same master dimension as V1.2 and reduces exactly to it when
+$\zeta_q=1$.
+
+The interval describes slow target-class uncertainty, not an observable RCS
+realization from the current CPI.  The endpoint reduction does not cover uncertain
+aspect responses that reorder bistatic paths; such uncertainty requires
+scenario-specific bundle coefficients and a multi-scenario master.

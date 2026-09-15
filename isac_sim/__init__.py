@@ -50,11 +50,23 @@ from .model import (
     compute_link_tables,
     denominator_guard,
     generate_geometry,
+    rescale_sensing_tables_for_rcs,
 )
 from .oracle import greedy_objective, oracle_exhaustive
 from .prior import perturbed_geometry, predicted_geometry
 from .reporting import ReportingPlan, assign_fusion_nodes
 from .selection import C2F_METHODS, METHODS
+from .bundle_master import (
+    BundleMasterResult,
+    ObservationBundle,
+    generate_restricted_bundles,
+    joint_bundle_column_generation,
+    joint_bundle_restricted_master,
+    rcs_robust_bundle_column_generation,
+    solve_restricted_bundle_master,
+    bundle_cpu_cycles,
+)
+from .fusion_headroom import FusionHeadroom, fusion_headroom_diagnostic
 from .simulate import run_one_trial, run_simulation, summarize
 from .theory import (
     curvature_reference_bound,
@@ -80,10 +92,21 @@ __all__ = [
     "build_base_gains",
     "compute_link_tables",
     "denominator_guard",
+    "rescale_sensing_tables_for_rcs",
     "BaseGains",
     "LinkTables",
     "METHODS",
     "C2F_METHODS",
+    "ObservationBundle",
+    "BundleMasterResult",
+    "generate_restricted_bundles",
+    "joint_bundle_column_generation",
+    "rcs_robust_bundle_column_generation",
+    "solve_restricted_bundle_master",
+    "joint_bundle_restricted_master",
+    "bundle_cpu_cycles",
+    "FusionHeadroom",
+    "fusion_headroom_diagnostic",
     "EXPERIMENTS",
     "ABLATION_VARIANTS",
     "DD_VARIANTS",
@@ -104,4 +127,4 @@ __all__ = [
     "sweep_compare_analytic_vs_psf",
 ]
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"

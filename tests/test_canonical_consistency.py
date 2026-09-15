@@ -17,7 +17,12 @@ from isac_sim.fusion import (
     target_alpha,
 )
 from isac_sim.llr import llr_delta, llr_var0
-from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry
+from isac_sim.model import (
+    build_base_gains,
+    compute_link_tables,
+    generate_geometry,
+    rescale_sensing_tables_for_rcs,
+)
 from isac_sim.packetization import packetization_audit
 from isac_sim.reporting import ReportingPlan
 from isac_sim.reporting import assign_fusion_nodes, is_local_observation
@@ -94,6 +99,61 @@ class CanonicalConfigurationTests(unittest.TestCase):
         ratio = tab_b.raw_gamma_sense / np.maximum(tab_h.raw_gamma_sense, 1e-300)
         active = tab_h.raw_gamma_sense > 0.0
         np.testing.assert_allclose(ratio[active], 10.0 ** (27.0 / 10.0) / 500.0)
+
+    def test_mean_rcs_scales_bistatic_gain_and_sensing_sinr_linearly(self) -> None:
+        low = apply_preset(Config(), "small-uav-compact-800m")
+        low.scale.M, low.scale.Q = 4, 2
+        low.dd.use_otfs_bin_validity = False
+        low.detect.rcs_model = "mean"
+        low.detect.rcs_aspect_enable = False
+        low.detect.target_rcs = 0.05
+        high = copy.deepcopy(low)
+        high.detect.target_rcs = 0.10
+
+        geom = generate_geometry(low, np.random.default_rng(1905))
+        base_low = build_base_gains(
+            low, geom, np.random.default_rng(1906), rcs_view="mean"
+        )
+        base_high = build_base_gains(
+            high,
+            geom,
+            np.random.default_rng(1907),
+            channel=base_low,
+            rcs_view="mean",
+        )
+        tab_low = compute_link_tables(low, base_low)
+        tab_high = compute_link_tables(high, base_high)
+
+        active = base_low.target_gain > 0.0
+        np.testing.assert_allclose(
+            base_high.target_gain[active] / base_low.target_gain[active], 2.0
+        )
+        np.testing.assert_allclose(
+            tab_high.gamma_sense[active] / tab_low.gamma_sense[active], 2.0
+        )
+
+    def test_rcs_counterfactual_recomputes_llr_moments_without_mutation(self) -> None:
+        cfg = apply_preset(Config(), "small-uav-compact-800m")
+        cfg.scale.M, cfg.scale.Q = 4, 2
+        cfg.dd.use_otfs_bin_validity = False
+        geom = generate_geometry(cfg, np.random.default_rng(1910))
+        base = build_base_gains(
+            cfg, geom, np.random.default_rng(1911), rcs_view="mean"
+        )
+        tables = compute_link_tables(cfg, base)
+        original_gamma = tables.gamma_sense.copy()
+
+        lower = rescale_sensing_tables_for_rcs(cfg, tables, np.array([0.5, 0.8]))
+
+        np.testing.assert_array_equal(tables.gamma_sense, original_gamma)
+        np.testing.assert_allclose(lower.gamma_sense[:, :, 0], original_gamma[:, :, 0] * 0.5)
+        np.testing.assert_allclose(lower.gamma_sense[:, :, 1], original_gamma[:, :, 1] * 0.8)
+        np.testing.assert_allclose(
+            lower.mu_soft, llr_delta(lower.gamma_sense, cfg.detect.n_looks)
+        )
+        np.testing.assert_allclose(
+            lower.var0_q, llr_var0(lower.gamma_sense, cfg.detect.n_looks)
+        )
 
     def test_invalid_radar_system_loss_is_rejected(self) -> None:
         cfg = Config()
@@ -456,6 +516,32 @@ class ObjectiveAndMomentTests(unittest.TestCase):
             for _ in range(12_000)
         ])
         self.assertLess(abs(float(np.mean(samples > threshold)) - 0.05), 0.012)
+
+    def test_singleton_true_erasure_threshold_uses_zero_failure_atom(self) -> None:
+        cfg = apply_preset(Config(), "capacitated-target-fusion-v1.1")
+        cfg.scale.M, cfg.scale.Q = 3, 1
+        cfg.dd.use_otfs_bin_validity = False
+        rng = np.random.default_rng(1911)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = ReportingPlan(mode="explicit", f_q=np.array([2]))
+        link = (0, 1)
+        tables.chi_comm[1, 2] = 0.6
+        weights = compute_weights(
+            cfg, tables, 0, [link], plan=plan, base=base
+        )
+        threshold = calibrated_fused_threshold(
+            cfg, tables, 0, [link], weights, plan=plan, base=base
+        )
+        samples = np.asarray([
+            weights[link] * draw_received_soft_stat(
+                cfg, tables, link, 0, rng, False, plan
+            )
+            for _ in range(30_000)
+        ])
+        self.assertGreater(float(np.mean(samples == 0.0)), 0.38)
+        self.assertLess(abs(float(np.mean(samples > threshold)) - 0.05), 0.008)
 
     def test_correlated_joint_sampler_matches_declared_h0_model(self) -> None:
         cfg = apply_preset(Config(), "target-local-v1")

@@ -31,6 +31,11 @@ from .model import BaseGains, EPS, LinkTables, compute_link_tables
 from .reporting import is_local_observation, report_dest, report_rate
 
 METHODS: List[MethodName] = [
+    "rcs_robust_bundle_cg",
+    "joint_bundle_cg",
+    "joint_bundle_cg_exact_llr",
+    "fixed_fusion_bundle",
+    "local_only_bundle",
     "proposed_lagrangian",
     "proposed_c2f",
     "proposed_c2f_adaptive",
@@ -58,6 +63,11 @@ METHODS: List[MethodName] = [
 # Candidate capabilities remain CLI-selectable without silently changing the
 # frozen default experiment roster or paper reproduction path.
 EXPERIMENTAL_METHODS: set[str] = {
+    "rcs_robust_bundle_cg",
+    "joint_bundle_cg",
+    "joint_bundle_cg_exact_llr",
+    "fixed_fusion_bundle",
+    "local_only_bundle",
     "proposed_c2f_adaptive_pd_distributed",
     "proposed_c2f_adaptive_pd_robust",
     "proposed_c2f_adaptive_pd_calibrated",
@@ -70,6 +80,11 @@ DEFAULT_METHODS: List[MethodName] = [
 # Static entries map to the ``apply_to_all`` flag used by :func:`select_c2f`;
 # the adaptive entry is dispatched to :func:`select_c2f_adaptive` separately.
 C2F_METHODS: Dict[str, bool] = {
+    "rcs_robust_bundle_cg": False,
+    "joint_bundle_cg": False,
+    "joint_bundle_cg_exact_llr": False,
+    "fixed_fusion_bundle": False,
+    "local_only_bundle": False,
     "proposed_c2f": False,
     "proposed_c2f_adaptive": False,
     "proposed_c2f_adaptive_pd": False,
@@ -84,6 +99,11 @@ C2F_METHODS: Dict[str, bool] = {
 # Distinct RNG streams per method, so baselines that randomise do not share the
 # proposed method's draws.
 METHOD_RNG_OFFSETS: Dict[str, int] = {
+    "rcs_robust_bundle_cg": 96,
+    "joint_bundle_cg": 97,
+    "joint_bundle_cg_exact_llr": 95,
+    "fixed_fusion_bundle": 98,
+    "local_only_bundle": 99,
     "proposed_lagrangian": 101,
     "proposed_c2f": 131,
     "proposed_c2f_adaptive": 133,
