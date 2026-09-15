@@ -25,6 +25,7 @@ reproducible; only the *organisation* changed.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields, is_dataclass
+from numbers import Integral
 from typing import Any, Dict, Iterator, Literal, Tuple
 import math
 
@@ -370,6 +371,32 @@ class Corr:
 
 
 @dataclass
+class ActiveSensing:
+    """Discrete active-observation design for the V1.5 research path.
+
+    Each mode jointly declares a sensing-power multiplier, an absolute number
+    of independent looks, and whether the refined DD receiver is used.  Energy
+    is measured in normalized look-power units.  Aspect angles define a finite,
+    predeclared uncertainty set; they are not fitted to trial outcomes.
+    """
+
+    enable: bool = False
+    mode_names: tuple[str, ...] = ("eco", "nominal", "intensive")
+    power_scales: tuple[float, ...] = (0.5, 1.0, 1.25)
+    looks: tuple[int, ...] = (8, 16, 32)
+    refined: tuple[bool, ...] = (False, True, True)
+    energy_budget_per_target: float = 64.0
+    max_candidates_per_pair: int = 8
+    branch_node_limit: int = 200_000
+    information_metric: str = "forward_kl"
+    energy_price: float = 0.0
+    report_price: float = 0.0
+    aspect_enable: bool = True
+    aspect_angles_deg: tuple[float, ...] = (0.0, 45.0, 90.0, 135.0)
+    aspect_floor: float = 0.20
+
+
+@dataclass
 class Detect:
     """Sensing-side detection model and soft-information statistics."""
 
@@ -643,6 +670,7 @@ class Config:
     run: Run = field(default_factory=Run)
     fusion: Fusion = field(default_factory=Fusion)
     corr: Corr = field(default_factory=Corr)
+    active_sensing: ActiveSensing = field(default_factory=ActiveSensing)
     interference: Interference = field(default_factory=Interference)
 
     # Backward-compatible aliases used by the model code, so the math reads the
@@ -866,6 +894,46 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("correlation coefficients must be finite and non-negative")
     if sum(corr_values) > 1.0 + 1e-12:
         raise ValueError("correlation coefficients must sum to at most one")
+    active = cfg.active_sensing
+    mode_lengths = {
+        len(active.mode_names), len(active.power_scales),
+        len(active.looks), len(active.refined),
+    }
+    if len(mode_lengths) != 1 or not active.mode_names:
+        raise ValueError("active sensing mode fields must have equal non-zero lengths")
+    if not all(isinstance(name, str) and name.strip() for name in active.mode_names):
+        raise ValueError("active sensing mode names must be non-empty strings")
+    if len(set(active.mode_names)) != len(active.mode_names):
+        raise ValueError("active sensing mode names must be unique")
+    if not all(math.isfinite(value) and value > 0.0 for value in active.power_scales):
+        raise ValueError("active sensing power scales must be finite and positive")
+    if not all(
+        isinstance(value, Integral) and not isinstance(value, bool) and value >= 1
+        for value in active.looks
+    ):
+        raise ValueError("active sensing look counts must be positive integers")
+    if not all(isinstance(value, bool) for value in active.refined):
+        raise ValueError("active sensing refinement flags must be Boolean")
+    if (
+        not math.isfinite(active.energy_budget_per_target)
+        or active.energy_budget_per_target <= 0.0
+    ):
+        raise ValueError("active sensing energy budget must be finite and positive")
+    if active.max_candidates_per_pair < 1 or active.branch_node_limit < 1:
+        raise ValueError("active sensing search limits must be positive")
+    if active.information_metric not in {"forward_kl", "jeffreys"}:
+        raise ValueError("active sensing information metric must be 'forward_kl' or 'jeffreys'")
+    if not all(
+        math.isfinite(value) and value >= 0.0
+        for value in (active.energy_price, active.report_price)
+    ):
+        raise ValueError("active sensing prices must be finite and non-negative")
+    if not active.aspect_angles_deg or not all(
+        math.isfinite(value) for value in active.aspect_angles_deg
+    ):
+        raise ValueError("active sensing aspect angles must be finite and non-empty")
+    if not math.isfinite(active.aspect_floor) or not 0.0 < active.aspect_floor <= 1.0:
+        raise ValueError("active sensing aspect floor must lie in (0, 1]")
 
     interference_model = cfg.comm.interference_model.lower()
     mac_model = cfg.comm.mac_model.lower()

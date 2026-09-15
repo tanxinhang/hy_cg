@@ -108,6 +108,24 @@ def llr_kld(gamma: np.ndarray | float, n_looks: int) -> np.ndarray | float:
     return float(out) if np.ndim(gamma) == 0 else out
 
 
+def llr_reverse_kld(gamma: np.ndarray | float, n_looks: int) -> np.ndarray | float:
+    r"""Reverse information ``D_KL(p0 || p1)`` for the Gamma hypotheses."""
+    g = np.asarray(np.maximum(gamma, 0.0), dtype=float)
+    out = float(n_looks) * (np.log1p(g) - g / (1.0 + g))
+    return float(out) if np.ndim(gamma) == 0 else out
+
+
+def llr_jeffreys(gamma: np.ndarray | float, n_looks: int) -> np.ndarray | float:
+    r"""Jeffreys divergence ``D_KL(p1||p0)+D_KL(p0||p1)``.
+
+    The result is exactly the centred-LLR mean gap
+    ``L*gamma^2/(1+gamma)`` used by the detector-aligned scheduler.
+    """
+    g = np.asarray(np.maximum(gamma, 0.0), dtype=float)
+    out = float(n_looks) * g * g / (1.0 + g)
+    return float(out) if np.ndim(gamma) == 0 else out
+
+
 def llr_h0_offset(gamma: np.ndarray | float, n_looks: int) -> np.ndarray | float:
     r"""Constant that converts the centred statistic into the exact LLR.
 

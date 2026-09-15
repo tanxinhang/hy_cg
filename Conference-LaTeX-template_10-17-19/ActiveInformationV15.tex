@@ -1,0 +1,56 @@
+\section{Robust information-aware active observation design}
+\label{sec:active-information-v15}
+
+We extend a passive bistatic link $(i,j,q)$ to an active observation
+$a=(i,j,q,m)$, where the acquisition mode $m$ determines the sensing-power
+scale $p_m$, the number of independent looks $L_m$, and whether refined
+delay--Doppler processing is used.  The central design principle is to price
+an observation by the hypothesis-separation information that reaches the
+fusion node, while reserving final detection claims for exact-likelihood
+Monte Carlo evaluation.
+
+For $L$ independent complex samples, we use
+\begin{equation}
+ H_0:y_\ell\sim\mathcal{CN}(0,\sigma^2),\qquad
+ H_1:y_\ell\sim\mathcal{CN}(0,(1+\gamma)\sigma^2).
+\end{equation}
+The directed divergences and their Jeffreys sum are
+\begin{align}
+ D(P_1\Vert P_0)&=L\left[\gamma-\log(1+\gamma)\right],\\
+ D(P_0\Vert P_1)&=L\left[\log(1+\gamma)-\frac{\gamma}{1+\gamma}\right],\\
+ J(P_1,P_0)&=L\frac{\gamma^2}{1+\gamma}.
+\end{align}
+The final expression is exactly the separation of the centered LLR means.
+If report arrival is observed, independent of the hypothesis, and succeeds
+with probability $\chi_a$, the received divergence is exactly $\chi_a$ times
+the local divergence.  Conditional independence then makes the information
+of a bundle additive.
+
+We represent target-aspect uncertainty by a finite, path-dependent scenario
+set.  For viewing-bisector azimuth $\phi_{ijq}$ and scenario angle $\theta_s$,
+the transparent abstraction
+\begin{equation}
+ g_s(\phi)=g_{\min}+(1-g_{\min})\cos^2(\theta_s-\phi)
+\end{equation}
+gives $\gamma_{a,s}=p_m g_s(\phi_{ijq})\gamma_{ijq}^{\rm coarse/fine}$.
+Unlike a scalar RCS interval, these scenarios can rank different bistatic
+views differently.
+
+For one target--fusion pair, the information-pricing problem is
+\begin{equation}
+ \max_x\;\min_{s\in\mathcal S}\sum_a x_a I_{a,s}
+ -\lambda_E\sum_a x_a e_a-\lambda_R\sum_a x_a r_a,
+\end{equation}
+subject to one mode per physical link, observation-count, energy, and
+report-feasibility constraints.  A depth-first branch-and-bound oracle uses a
+scenario-wise top-remaining-information relaxation and ignores future
+nonnegative costs.  This is a valid optimistic bound.  Exhaustion therefore
+certifies optimality over the declared shortlist; node-limit truncation is
+reported through the incumbent--upper-bound gap.
+
+In a ten-trial, 100-target paired diagnostic, active link--mode selection
+increased mean worst-scenario received KL information from $43.3951$ to
+$49.2893$ under the same four-observation and normalized-energy budgets.  All
+instances were solved with zero certificate gap.  This result establishes a
+module-level information gain for the declared preset; it is not used as a
+substitute for an end-to-end $P_D/P_{FA}$ promotion test.

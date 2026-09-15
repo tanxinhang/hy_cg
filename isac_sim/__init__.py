@@ -77,6 +77,15 @@ from .theory import (
     task_objective,
 )
 from .waveform import psf_local_capture, psf_main_bin, sweep_compare_analytic_vs_psf
+from .active_information import (
+    ActiveObservation,
+    InformationPricingResult,
+    SensingMode,
+    aspect_scenario_factors,
+    configured_sensing_modes,
+    price_active_information_bundle,
+    received_information,
+)
 
 __all__ = [
     "Config",
@@ -125,6 +134,13 @@ __all__ = [
     "psf_main_bin",
     "psf_local_capture",
     "sweep_compare_analytic_vs_psf",
+    "ActiveObservation",
+    "InformationPricingResult",
+    "SensingMode",
+    "aspect_scenario_factors",
+    "configured_sensing_modes",
+    "price_active_information_bundle",
+    "received_information",
 ]
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"

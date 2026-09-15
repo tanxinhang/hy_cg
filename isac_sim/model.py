@@ -181,6 +181,9 @@ class BaseGains:
     dd_collision_count: np.ndarray
     target_gain: np.ndarray
     geom_factor: np.ndarray
+    # Azimuth of the bistatic viewing bisector in the horizontal target frame.
+    # Used only by the opt-in V1.5 aspect-scenario model.
+    aspect_azimuth: np.ndarray
     # Per-(i,j,q) RCS realisation.  Stored so a second geometry (e.g. the
     # scheduler's *belief*) can reuse the exact same physical channel -- the
     # UAV-UAV fading and the target RCS are physical quantities and must not be
@@ -358,6 +361,7 @@ def build_base_gains(
     k_float_grid = np.zeros((M, M, Q), dtype=float)
     target_gain = np.zeros((M, M, Q))
     geom_factor = np.zeros((M, M, Q))
+    aspect_azimuth = np.zeros((M, M, Q))
     rcs_fluct = np.zeros((M, M, Q))
 
     # Swerling-I target: one exponential RCS realisation per (target, CPI),
@@ -414,6 +418,12 @@ def build_base_gains(
                 b = (p_j - p_q) / d_jq
                 sin_angle = float(np.linalg.norm(np.cross(a, b)))
                 geom_factor[i, j, q] = 0.1 + 0.9 * min(max(sin_angle, 0.0), 1.0)
+                bisector_xy = a[:2] + b[:2]
+                if float(np.linalg.norm(bisector_xy)) <= 1e-12:
+                    bisector_xy = a[:2]
+                aspect_azimuth[i, j, q] = float(
+                    np.arctan2(bisector_xy[1], bisector_xy[0])
+                )
 
                 if rcs_view == "mean":
                     rcs_fluct[i, j, q] = float(d.target_rcs)
@@ -478,6 +488,7 @@ def build_base_gains(
         dd_collision_count=dd_collision_count,
         target_gain=target_gain,
         geom_factor=geom_factor,
+        aspect_azimuth=aspect_azimuth,
         rcs_fluct=rcs_fluct,
         eta_loc=eta_loc,
         eta_fine=eta_fine,
