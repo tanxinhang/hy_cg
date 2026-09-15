@@ -24,6 +24,7 @@ from isac_sim.active_statistics import paired_cluster_summary  # noqa: E402
 from isac_sim.coherent_oracle import (  # noqa: E402
     evaluate_coherent_tx_detection_oracle,
 )
+from isac_sim.scientific_gates import lower_tail_detection_summary  # noqa: E402
 from isac_sim.active_system import (  # noqa: E402
     evaluate_active_transport_headroom,
     generate_active_columns,
@@ -57,6 +58,8 @@ def configured(args: argparse.Namespace) -> Config:
             if args.pricing_candidate_limit is not None
             else args.candidate_limit
         ),
+        "active_sensing.candidate_strategy": args.candidate_strategy,
+        "active_sensing.complete_pool_max_links": args.complete_pool_max_links,
         "active_sensing.max_tx_observations_per_uav": args.tx_cap,
         "detect.comm_error_model": "erasure",
         "detect.soft_stat_model": "llr",
@@ -74,16 +77,27 @@ def configured(args: argparse.Namespace) -> Config:
     }
     if args.target_rcs is not None:
         overrides["detect.target_rcs"] = args.target_rcs
+    if args.area_xy is not None:
+        overrides["geometry.area_xy"] = args.area_xy
     if args.radar_net_gain_db is not None:
         overrides["radio.radar_net_gain_db"] = args.radar_net_gain_db
     if args.rescue_looks is not None:
+        rescue_looks = args.rescue_looks
+        rescue_power = args.rescue_power_scale
+        if args.rescue_control == "looks_only":
+            rescue_power = 1.0
+        elif args.rescue_control == "power_only":
+            rescue_looks = 16
+        elif args.rescue_control == "baseline":
+            rescue_power = 1.0
+            rescue_looks = 16
         overrides["active_sensing.mode_names"] = (
             "eco", "nominal", "intensive", "rescue"
         )
         overrides["active_sensing.power_scales"] = (
-            0.5, 1.0, 1.25, args.rescue_power_scale
+            0.5, 1.0, 1.25, rescue_power
         )
-        overrides["active_sensing.looks"] = (8, 16, 32, args.rescue_looks)
+        overrides["active_sensing.looks"] = (8, 16, 32, rescue_looks)
         overrides["active_sensing.refined"] = (False, True, True, True)
     cfg = apply_overrides(cfg, overrides)
     validate_config(cfg)
@@ -96,6 +110,10 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
         abs(mode.power_scale - 1.0), abs(mode.looks - 16), not mode.refined
     ))
     rows: list[dict[str, object]] = []
+    holdout_angles = (
+        tuple(float(value) for value in args.holdout_aspect_angles)
+        if args.holdout_aspect_angles else None
+    )
     total = args.seed_count * args.trials
     for seed_index in range(args.seed_count):
         experiment_seed = cfg.run.seed + 104729 * seed_index
@@ -190,6 +208,7 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                             evaluation_samples=args.validation_samples,
                             seed=experiment_seed + 1009 * trial + 0x51A7E,
                             transport_mode=args.transport_mode,
+                            aspect_angles_deg=holdout_angles,
                         )
                         for column in result.columns
                     ]
@@ -206,6 +225,7 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                             seed=experiment_seed + 1009 * trial + 0x51A7E,
                             transmitter_reference_scales=reference,
                             transport_mode=args.transport_mode,
+                            aspect_angles_deg=holdout_angles,
                         )
                         for column in result.columns
                     ]
@@ -228,6 +248,7 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                                 args.coherent_phase_error_deg
                             ),
                             transport_mode=args.transport_mode,
+                            aspect_angles_deg=holdout_angles,
                         )
                         for column in result.columns
                     ]
@@ -247,6 +268,13 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                     "target_rcs_m2": float(cfg.detect.target_rcs),
                     "fusion_candidate_limit": args.fusion_candidate_limit,
                     "transport_mode": args.transport_mode,
+                    "geometry_role": args.geometry_role,
+                    "design_aspect_angles_deg": json.dumps(
+                        cfg.active_sensing.aspect_angles_deg
+                    ),
+                    "evaluation_aspect_angles_deg": json.dumps(
+                        holdout_angles or cfg.active_sensing.aspect_angles_deg
+                    ),
                     "heldout_worst_pd": float(min(heldout_worst_pd)),
                     "heldout_mean_pd": float(np.mean(heldout_worst_pd)),
                     "heldout_scenario_pfa_mean": float(np.mean([
@@ -337,6 +365,10 @@ def summarize(rows: list[dict[str, object]], args: argparse.Namespace) -> dict[s
             "max_uav_cpu_cycles_mean": float(np.mean([
                 float(row["max_uav_cpu_cycles"]) for row in group
             ])),
+            "geometry_tail": lower_tail_detection_summary(
+                [float(row["heldout_worst_pd"]) for row in group],
+                args.geometry_quantile,
+            ),
         }
         if args.lossless_report_headroom:
             summary[method]["lossless_heldout_worst_pd_mean"] = float(np.mean([
@@ -383,9 +415,26 @@ def main() -> None:
     parser.add_argument("--fusion-candidate-limit", type=int)
     parser.add_argument("--target-rcs", type=float)
     parser.add_argument("--radar-net-gain-db", type=float)
+    parser.add_argument("--area-xy", type=float)
+    parser.add_argument(
+        "--geometry-role", choices=("development", "holdout"),
+        default="development",
+    )
+    parser.add_argument("--geometry-quantile", type=float, default=0.05)
+    parser.add_argument("--holdout-aspect-angles", nargs="*", type=float)
+    parser.add_argument(
+        "--candidate-strategy", choices=("scenario_union", "robust_singleton", "full"),
+        default="scenario_union",
+    )
+    parser.add_argument("--complete-pool-max-links", type=int, default=12)
     parser.add_argument("--design-pd-target", type=float)
     parser.add_argument("--rescue-looks", type=int)
     parser.add_argument("--rescue-power-scale", type=float, default=1.25)
+    parser.add_argument(
+        "--rescue-control",
+        choices=("combined", "looks_only", "power_only", "baseline"),
+        default="combined",
+    )
     parser.add_argument("--lossless-report-headroom", action="store_true")
     parser.add_argument(
         "--transport-mode",
@@ -414,9 +463,13 @@ def main() -> None:
     scientific = {key: value for key, value in vars(args).items() if key != "out"}
     manifest = {
         "artifact": "active_system_v15",
-        "implementation_version": "low-rcs-evidence-rescue.1",
+        "implementation_version": "mechanism-stable.1",
+        "release_class": "v1.6-mechanism-stable-generalization-pending",
         "implementation_digest": implementation_digest(),
-        "scope": "global active-column master with full-load interference envelope",
+        "scope": (
+            "global active-column master with full-load interference envelope, "
+            "factorial resource controls, and separate design/holdout aspects"
+        ),
         "arguments": scientific,
         "config": asdict(cfg),
     }

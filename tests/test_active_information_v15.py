@@ -261,6 +261,21 @@ class ActiveObservationPricingTests(unittest.TestCase):
                             for value in result.scenario_pfa), 0.015)
         self.assertTrue(all(0.0 <= value <= 1.0 for value in result.scenario_pd))
 
+    def test_heldout_aspect_angles_are_evaluated_without_changing_design_angles(self) -> None:
+        cfg, base, coarse, refined = self._problem()
+        cfg.detect.comm_error_model = "erasure"
+        design_angles = cfg.active_sensing.aspect_angles_deg
+        observation = ActiveObservation(
+            (0, 1), SensingMode("nominal", 1.0, 16, True)
+        )
+        result = evaluate_active_detection(
+            cfg, base, coarse, refined, 0, 2, (observation,),
+            calibration_samples=512, evaluation_samples=1024, seed=101,
+            aspect_angles_deg=(22.5, 67.5, 112.5, 157.5),
+        )
+        self.assertEqual(len(result.scenario_pd), 4)
+        self.assertEqual(cfg.active_sensing.aspect_angles_deg, design_angles)
+
     def test_fusion_change_does_not_resample_identical_physical_evidence(self) -> None:
         cfg, base, coarse, refined = self._problem()
         cfg.detect.comm_error_model = "erasure"

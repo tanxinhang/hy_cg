@@ -191,6 +191,7 @@ def _make_active_column(
     evaluation_samples: int,
     seed: int,
     transport_mode: str = "direct_llr",
+    aspect_angles_deg: Sequence[float] | None = None,
 ) -> ActiveColumn:
     chosen = tuple(observations)
     M = cfg.scale.M
@@ -222,8 +223,8 @@ def _make_active_column(
 
     scenario_count = (
         len(cfg.active_sensing.aspect_angles_deg)
-        if cfg.active_sensing.aspect_enable else 1
-    )
+        if aspect_angles_deg is None else len(tuple(aspect_angles_deg))
+    ) if cfg.active_sensing.aspect_enable else 1
     if chosen:
         detection = evaluate_active_detection(
             cfg, base, envelope_coarse, envelope_refined, q, fusion, chosen,
@@ -232,10 +233,12 @@ def _make_active_column(
             seed=seed,
             transmitter_reference_scales=reference_scales,
             transport_mode=transport_mode,
+            aspect_angles_deg=aspect_angles_deg,
         )
         gammas = active_observation_gammas(
             cfg, base, envelope_coarse, envelope_refined, q, chosen,
             reference_scales,
+            aspect_angles_deg,
         )
         information = np.zeros(gammas.shape[0], dtype=float)
         generated_information = np.zeros(gammas.shape[0], dtype=float)
@@ -316,6 +319,7 @@ def evaluate_active_transport_headroom(
     evaluation_samples: int = 4096,
     seed: int = 0x10A55,
     transport_mode: str = "direct_llr",
+    aspect_angles_deg: Sequence[float] | None = None,
 ) -> ActiveTransportHeadroom:
     """Evaluate report-only headroom with the sensing bundle held fixed.
 
@@ -330,6 +334,7 @@ def evaluate_active_transport_headroom(
         evaluation_samples=evaluation_samples,
         seed=seed,
         transport_mode=transport_mode,
+        aspect_angles_deg=aspect_angles_deg,
     )
     lossless_coarse = replace(
         envelope_coarse,
@@ -346,6 +351,7 @@ def evaluate_active_transport_headroom(
         evaluation_samples=evaluation_samples,
         seed=seed,
         transport_mode=transport_mode,
+        aspect_angles_deg=aspect_angles_deg,
     )
     return ActiveTransportHeadroom(current=current, lossless_report=lossless)
 

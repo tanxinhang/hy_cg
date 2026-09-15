@@ -97,20 +97,21 @@ def coherent_oracle_information(
     *,
     transmitter_reference_scales: np.ndarray | None = None,
     phase_error_std_rad: float = 0.0,
+    aspect_angles_deg: Sequence[float] | None = None,
 ) -> CoherentOracleInformation:
     """Compare direct exact-LLR evidence with the coherent oracle evidence."""
     validate_config(cfg)
     chosen = tuple(observations)
     scenario_count = (
         len(cfg.active_sensing.aspect_angles_deg)
-        if cfg.active_sensing.aspect_enable else 1
-    )
+        if aspect_angles_deg is None else len(tuple(aspect_angles_deg))
+    ) if cfg.active_sensing.aspect_enable else 1
     if not chosen:
         zeros = (0.0,) * scenario_count
         return CoherentOracleInformation(zeros, zeros)
     gammas = active_observation_gammas(
         cfg, base, coarse_tables, refined_tables, q, chosen,
-        transmitter_reference_scales,
+        transmitter_reference_scales, aspect_angles_deg,
     )
     plan = ReportingPlan(
         mode="explicit", f_q=np.full(cfg.scale.Q, int(fusion), dtype=int)
@@ -155,6 +156,7 @@ def evaluate_coherent_tx_detection_oracle(
     transmitter_reference_scales: np.ndarray | None = None,
     phase_error_std_rad: float = 0.0,
     transport_mode: str = "receiver_local_llr",
+    aspect_angles_deg: Sequence[float] | None = None,
 ) -> ActiveDetectionResult:
     """Monte Carlo operating point of the same-receiver coherent oracle."""
     validate_config(cfg)
@@ -171,8 +173,8 @@ def evaluate_coherent_tx_detection_oracle(
     chosen = tuple(observations)
     scenario_count = (
         len(cfg.active_sensing.aspect_angles_deg)
-        if cfg.active_sensing.aspect_enable else 1
-    )
+        if aspect_angles_deg is None else len(tuple(aspect_angles_deg))
+    ) if cfg.active_sensing.aspect_enable else 1
     if not chosen:
         return ActiveDetectionResult(
             (0.0,) * scenario_count,
@@ -181,7 +183,7 @@ def evaluate_coherent_tx_detection_oracle(
         )
     gammas = active_observation_gammas(
         cfg, base, coarse_tables, refined_tables, q, chosen,
-        transmitter_reference_scales,
+        transmitter_reference_scales, aspect_angles_deg,
     )
     groups = _coherent_groups(chosen)
     plan = ReportingPlan(

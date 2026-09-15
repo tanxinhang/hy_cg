@@ -107,7 +107,12 @@ def configured_sensing_modes(cfg: Config) -> tuple[SensingMode, ...]:
 
 
 def aspect_scenario_factors(
-    cfg: Config, base: BaseGains, q: int, links: Sequence[Link]
+    cfg: Config,
+    base: BaseGains,
+    q: int,
+    links: Sequence[Link],
+    *,
+    aspect_angles_deg: Sequence[float] | None = None,
 ) -> np.ndarray:
     """Return path-specific RCS multipliers for each declared aspect scenario.
 
@@ -124,7 +129,13 @@ def aspect_scenario_factors(
     view = np.asarray(
         [base.aspect_azimuth[i, j, q] for i, j in links], dtype=float
     )
-    angles = np.deg2rad(np.asarray(active.aspect_angles_deg, dtype=float))
+    declared_angles = (
+        active.aspect_angles_deg
+        if aspect_angles_deg is None else tuple(float(value) for value in aspect_angles_deg)
+    )
+    if not declared_angles or not np.all(np.isfinite(declared_angles)):
+        raise ValueError("aspect holdout angles must be finite and non-empty")
+    angles = np.deg2rad(np.asarray(declared_angles, dtype=float))
     floor = float(active.aspect_floor)
     return floor + (1.0 - floor) * np.cos(angles[:, None] - view[None, :]) ** 2
 
@@ -240,10 +251,13 @@ def active_observation_gammas(
     q: int,
     observations: Sequence[ActiveObservation],
     transmitter_reference_scales: np.ndarray | None = None,
+    aspect_angles_deg: Sequence[float] | None = None,
 ) -> np.ndarray:
     """Return scenario-by-observation SINR with each mode applied once."""
     links = [observation.link for observation in observations]
-    factors = aspect_scenario_factors(cfg, base, q, links)
+    factors = aspect_scenario_factors(
+        cfg, base, q, links, aspect_angles_deg=aspect_angles_deg
+    )
     gammas = np.zeros_like(factors)
     reference = (
         np.ones(cfg.scale.M, dtype=float)
@@ -281,6 +295,7 @@ def evaluate_active_detection(
     seed: int = 0xA5715E,
     transmitter_reference_scales: np.ndarray | None = None,
     transport_mode: str = "direct_llr",
+    aspect_angles_deg: Sequence[float] | None = None,
 ) -> ActiveDetectionResult:
     """Evaluate a mixed-mode exact-LLR sum under observed true erasures.
 
@@ -307,8 +322,8 @@ def evaluate_active_detection(
     chosen = tuple(observations)
     scenario_count = (
         len(cfg.active_sensing.aspect_angles_deg)
-        if cfg.active_sensing.aspect_enable else 1
-    )
+        if aspect_angles_deg is None else len(tuple(aspect_angles_deg))
+    ) if cfg.active_sensing.aspect_enable else 1
     if not chosen:
         return ActiveDetectionResult(
             (0.0,) * scenario_count,
@@ -318,7 +333,7 @@ def evaluate_active_detection(
 
     gammas = active_observation_gammas(
         cfg, base, coarse_tables, refined_tables, q, chosen,
-        transmitter_reference_scales,
+        transmitter_reference_scales, aspect_angles_deg,
     )
     plan = ReportingPlan(
         mode="explicit", f_q=np.full(cfg.scale.Q, int(fusion), dtype=int)

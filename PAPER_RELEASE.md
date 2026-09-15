@@ -1,8 +1,9 @@
 # Paper release contract
 
 > The current integrated theory/model/algorithm direction is documented in
-> [LOW_RCS_EVIDENCE_RESCUE.md](LOW_RCS_EVIDENCE_RESCUE.md). Earlier release
-> evidence remains historical unless the new claim--evidence boundary marks it
+> [V16_MECHANISM_STABLE_THEORY_MODEL_ALGORITHM.md](V16_MECHANISM_STABLE_THEORY_MODEL_ALGORITHM.md).
+> V1.6 is mechanism-stable but not generalization-certified. Earlier release
+> evidence remains historical unless the V1.6 claim--evidence boundary marks it
 > as supported.
 
 The only configuration authorized to generate headline paper results is
@@ -53,12 +54,19 @@ applies this preset before any experiment-specific override.
 
 ## Release gates
 
-1. `python -m unittest discover -s tests -v`
-2. `python tools/rerun_paper.py --mc 1000 --workers 4 --out results_release`
-3. Regenerate manuscript figures only from `results_release`.
-4. Replace every numerical claim inherited from commit `603b61d`; those values
+1. `python -m pytest -q`
+2. `python tools/run_scientific_gates_v16.py --out results_scientific_gates_v16`
+3. Require G1--G2 `pass`, G3 `theory_pass`, G4 `infrastructure_pass`, and label G5 `pending`
+   until the algorithm and endpoints are frozen and an independent geometry
+   bank has been evaluated.
+4. Run the equal-resource rescue controls (`baseline`, `looks_only`,
+   `power_only`, `combined`) and the disjoint held-out aspect set before any
+   architecture-gain claim.
+5. `python tools/rerun_paper.py --mc 1000 --workers 4 --out results_release`
+6. Regenerate manuscript figures only from `results_release`.
+7. Replace every numerical claim inherited from commit `603b61d`; those values
    were produced by a different model and are not canonical-release evidence.
-5. Compile the manuscript and visually inspect every page before tagging a
+8. Compile the manuscript and visually inspect every page before tagging a
    submission release.
 
 Legacy presets and outputs remain available for reproducibility and ablation,

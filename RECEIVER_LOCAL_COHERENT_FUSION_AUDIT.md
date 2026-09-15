@@ -1,5 +1,9 @@
 # Receiver-local LLR and coherent-illumination audit
 
+> This development audit is retained for provenance.  The stable theorem,
+> model, oracle, and release-gate boundary is defined in
+> `V16_MECHANISM_STABLE_THEORY_MODEL_ALGORITHM.md`.
+
 ## Scope
 
 This audit keeps the difficult 15-UAV/10-target operating point fixed at
@@ -48,7 +52,10 @@ refinement mode.  For branch SINRs `gamma_i`,
 `sigma_phi = 0` is perfect waveform, clock, delay, Doppler, and phase
 alignment.  Large phase uncertainty reduces the oracle to the incoherent SINR
 sum.  The oracle is evaluated after selection and never changes which columns
-the deployable algorithm selects.
+the deployable algorithm selects.  This formula audits the already selected
+per-branch power allocations.  V1.6 separately defines the fair fixed-total-
+power coherent headroom through the principal eigenvalue of an explicit
+phase-coherence matrix.
 
 ## Zero-gain results
 
