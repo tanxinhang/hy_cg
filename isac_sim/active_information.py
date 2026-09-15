@@ -17,6 +17,7 @@ claims must still be evaluated with the true-erasure Monte Carlo detector.
 
 from __future__ import annotations
 
+import zlib
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -67,10 +68,31 @@ class InformationPricingResult:
     explored_nodes: int
     exact: bool
     upper_bound: float
+    total_feasible_links: int = 0
+    retained_candidate_links: int = 0
+    certificate_scope: str = "shortlist"
+    candidate_links: tuple[Link, ...] = ()
 
     @property
     def certificate_gap(self) -> float:
         return float(max(self.upper_bound - self.objective, 0.0))
+
+
+@dataclass(frozen=True)
+class ActiveDetectionResult:
+    """Scenario-wise operating point of a mixed-mode exact-LLR bundle."""
+
+    scenario_pd: tuple[float, ...]
+    scenario_pfa: tuple[float, ...]
+    thresholds: tuple[float, ...]
+
+    @property
+    def worst_pd(self) -> float:
+        return float(min(self.scenario_pd, default=0.0))
+
+    @property
+    def worst_pfa(self) -> float:
+        return float(max(self.scenario_pfa, default=0.0))
 
 
 def configured_sensing_modes(cfg: Config) -> tuple[SensingMode, ...]:
@@ -157,6 +179,189 @@ def observation_information_matrix(
     return values
 
 
+def active_candidate_links(
+    cfg: Config,
+    links: Sequence[Link],
+    values: np.ndarray,
+    *,
+    strategy: str | None = None,
+) -> tuple[list[Link], np.ndarray, str]:
+    """Retain robust, scenario-strong, and complementary candidate families."""
+    chosen_strategy = strategy or cfg.active_sensing.candidate_strategy
+    if values.ndim != 3 or values.shape[1] != len(links) or values.shape[2] == 0:
+        raise ValueError("candidate value matrix does not match physical links")
+    if chosen_strategy == "full":
+        if len(links) > cfg.active_sensing.complete_pool_max_links:
+            raise ValueError(
+                "complete candidate pool exceeds active_sensing.complete_pool_max_links"
+            )
+        return list(links), values, "complete_pool"
+
+    best_by_scenario = np.max(values, axis=2)
+    # A link selects one mode before the aspect scenario is known.
+    robust = np.max(np.min(values, axis=0), axis=1)
+    limit = min(int(cfg.active_sensing.max_candidates_per_pair), len(links))
+    if chosen_strategy == "robust_singleton":
+        keep = list(np.argsort(-robust, kind="stable")[:limit])
+    elif chosen_strategy == "scenario_union":
+        priority: list[int] = []
+        scenario_k = int(cfg.active_sensing.scenario_topk_per_scenario)
+        for scenario in range(values.shape[0]):
+            priority.extend(
+                int(index) for index in
+                np.argsort(-best_by_scenario[scenario], kind="stable")[:scenario_k]
+            )
+        pair_scores: list[tuple[float, int, int]] = []
+        for left in range(len(links)):
+            for right in range(left + 1, len(links)):
+                combined = max(
+                    float(np.min(values[:, left, left_mode]
+                                 + values[:, right, right_mode]))
+                    for left_mode in range(values.shape[2])
+                    for right_mode in range(values.shape[2])
+                )
+                complement = combined - max(float(robust[left]), float(robust[right]))
+                pair_scores.append((complement, left, right))
+        pair_scores.sort(key=lambda item: (-item[0], item[1], item[2]))
+        for _, left, right in pair_scores[:cfg.active_sensing.complementary_pair_topk]:
+            priority.extend((left, right))
+        priority.extend(int(index) for index in np.argsort(-robust, kind="stable"))
+        keep = list(dict.fromkeys(priority))[:limit]
+    else:
+        raise ValueError(f"unknown active candidate strategy {chosen_strategy!r}")
+    index = np.asarray(keep, dtype=int)
+    return [links[item] for item in keep], values[:, index, :], "shortlist_union"
+
+
+def active_observation_gammas(
+    cfg: Config,
+    base: BaseGains,
+    coarse_tables: LinkTables,
+    refined_tables: LinkTables,
+    q: int,
+    observations: Sequence[ActiveObservation],
+    transmitter_reference_scales: np.ndarray | None = None,
+) -> np.ndarray:
+    """Return scenario-by-observation SINR with each mode applied once."""
+    links = [observation.link for observation in observations]
+    factors = aspect_scenario_factors(cfg, base, q, links)
+    gammas = np.zeros_like(factors)
+    reference = (
+        np.ones(cfg.scale.M, dtype=float)
+        if transmitter_reference_scales is None
+        else np.asarray(transmitter_reference_scales, dtype=float)
+    )
+    if (
+        reference.shape != (cfg.scale.M,)
+        or not np.all(np.isfinite(reference))
+        or np.any(reference <= 0.0)
+    ):
+        raise ValueError("transmitter reference scales must be positive with shape (M,)")
+    for index, observation in enumerate(observations):
+        i, j = observation.link
+        source = refined_tables if observation.mode.refined else coarse_tables
+        gammas[:, index] = (
+            max(float(source.gamma_sense[i, j, q]), 0.0)
+            * observation.mode.power_scale / reference[i]
+            * factors[:, index]
+        )
+    return gammas
+
+
+def evaluate_active_detection(
+    cfg: Config,
+    base: BaseGains,
+    coarse_tables: LinkTables,
+    refined_tables: LinkTables,
+    q: int,
+    fusion: int,
+    observations: Sequence[ActiveObservation],
+    *,
+    calibration_samples: int | None = None,
+    evaluation_samples: int | None = None,
+    seed: int = 0xA5715E,
+    transmitter_reference_scales: np.ndarray | None = None,
+) -> ActiveDetectionResult:
+    """Evaluate a mixed-mode exact-LLR sum under observed true erasures.
+
+    Every observation uses its own SINR and Gamma shape ``mode.looks``.  H0
+    calibration, H0 evaluation, and H1 evaluation use disjoint deterministic
+    streams.  Stream keys include the physical link and mode, so common random
+    numbers remain stable when another method changes its selected bundle.
+    """
+    validate_config(cfg)
+    if cfg.detect.comm_error_model != "erasure":
+        raise ValueError("mixed-mode exact LLR requires detect.comm_error_model='erasure'")
+    n_cal = int(calibration_samples or cfg.detect.fused_calibration_samples)
+    n_eval = int(evaluation_samples or n_cal)
+    if n_cal < 1 or n_eval < 1:
+        raise ValueError("calibration and evaluation sample counts must be positive")
+    chosen = tuple(observations)
+    scenario_count = (
+        len(cfg.active_sensing.aspect_angles_deg)
+        if cfg.active_sensing.aspect_enable else 1
+    )
+    if not chosen:
+        return ActiveDetectionResult(
+            (0.0,) * scenario_count,
+            (float(cfg.detect.Pfa_target),) * scenario_count,
+            (0.0,) * scenario_count,
+        )
+
+    gammas = active_observation_gammas(
+        cfg, base, coarse_tables, refined_tables, q, chosen,
+        transmitter_reference_scales,
+    )
+    plan = ReportingPlan(
+        mode="explicit", f_q=np.full(cfg.scale.Q, int(fusion), dtype=int)
+    )
+    pd_values: list[float] = []
+    pfa_values: list[float] = []
+    thresholds: list[float] = []
+    for scenario in range(gammas.shape[0]):
+        h0_cal = np.zeros(n_cal, dtype=float)
+        h0_eval = np.zeros(n_eval, dtype=float)
+        h1_eval = np.zeros(n_eval, dtype=float)
+        for index, observation in enumerate(chosen):
+            i, j = observation.link
+            gamma = max(float(gammas[scenario, index]), 0.0)
+            looks = int(observation.mode.looks)
+            coefficient = gamma / (1.0 + gamma)
+            offset = -looks * np.log1p(gamma)
+            chi = float(np.clip(
+                report_chi(coarse_tables, plan, observation.link, q), 0.0, 1.0
+            ))
+            # Key by physical mode parameters, not its human-readable label;
+            # factorial ablations that contain an identical mode then share
+            # exactly the same standard variates.
+            physical_mode = (
+                f"{observation.mode.power_scale:.12g}|{looks}|"
+                f"{int(observation.mode.refined)}"
+            )
+            mode_key = zlib.crc32(physical_mode.encode("utf-8"))
+            rng = np.random.default_rng([
+                int(seed), int(q), int(fusion), int(scenario),
+                int(i), int(j), int(mode_key),
+            ])
+            cal = offset + coefficient * rng.gamma(looks, 1.0, n_cal)
+            h0 = offset + coefficient * rng.gamma(looks, 1.0, n_eval)
+            h1 = offset + coefficient * rng.gamma(looks, 1.0 + gamma, n_eval)
+            h0_cal += np.where(rng.random(n_cal) < chi, cal, 0.0)
+            h0_eval += np.where(rng.random(n_eval) < chi, h0, 0.0)
+            h1_eval += np.where(rng.random(n_eval) < chi, h1, 0.0)
+        threshold = float(np.quantile(
+            h0_cal, 1.0 - cfg.detect.Pfa_target, method="higher"
+        ))
+        thresholds.append(threshold)
+        # Strict inequality matches the released detector.  This matters for
+        # true erasure because the fused law has a discrete atom at zero.
+        pfa_values.append(float(np.mean(h0_eval > threshold)))
+        pd_values.append(float(np.mean(h1_eval > threshold)))
+    return ActiveDetectionResult(
+        tuple(pd_values), tuple(pfa_values), tuple(thresholds)
+    )
+
+
 def price_active_information_bundle(
     cfg: Config,
     base: BaseGains,
@@ -167,6 +372,8 @@ def price_active_information_bundle(
     *,
     modes: Sequence[SensingMode] | None = None,
     max_observations: int | None = None,
+    candidate_links: Sequence[Link] | None = None,
+    candidate_strategy: str | None = None,
 ) -> InformationPricingResult:
     """Solve one robust active-observation pricing problem by branch-and-bound.
 
@@ -184,24 +391,38 @@ def price_active_information_bundle(
     plan = ReportingPlan(
         mode="explicit", f_q=np.full(cfg.scale.Q, int(fusion), dtype=int)
     )
-    all_links = feasible_links_for_target(cfg, base, coarse_tables, q, plan)
+    feasible = feasible_links_for_target(cfg, base, coarse_tables, q, plan)
+    if candidate_links is None:
+        all_links = feasible
+    else:
+        feasible_set = set(feasible)
+        declared = list(dict.fromkeys(candidate_links))
+        invalid = [link for link in declared if link not in feasible_set]
+        if invalid:
+            raise ValueError(f"declared active candidate links are infeasible: {invalid}")
+        all_links = declared
     if not all_links:
         scenario_count = len(active.aspect_angles_deg) if active.aspect_enable else 1
         return InformationPricingResult(
             q, fusion, (), (0.0,) * scenario_count, 0.0, 0.0, 0.0, 0,
             1, True, 0.0,
+            total_feasible_links=len(feasible),
+            retained_candidate_links=0,
+            certificate_scope=(
+                "complete_pool" if candidate_strategy == "full" else "declared_pool"
+                if candidate_links is not None else "shortlist_union"
+            ),
         )
 
     all_values = observation_information_matrix(
         cfg, base, coarse_tables, refined_tables, q, fusion, all_links, chosen_modes
     )
-    # Shortlist physical links by their best robust mode, retaining mode choice
-    # for the certified combinatorial search rather than collapsing it early.
-    robust_by_link_mode = np.min(all_values, axis=0)
-    link_rank = np.max(robust_by_link_mode, axis=1)
-    keep = np.argsort(-link_rank, kind="stable")[: active.max_candidates_per_pair]
-    links = [all_links[int(index)] for index in keep]
-    values = all_values[:, keep, :]
+    if candidate_links is None:
+        links, values, certificate_scope = active_candidate_links(
+            cfg, all_links, all_values, strategy=candidate_strategy
+        )
+    else:
+        links, values, certificate_scope = list(all_links), all_values, "declared_pool"
     order = np.argsort(-np.max(np.min(values, axis=0), axis=1), kind="stable")
     links = [links[int(index)] for index in order]
     values = values[:, order, :]
@@ -305,4 +526,8 @@ def price_active_information_bundle(
         explored_nodes=int(explored),
         exact=not truncated,
         upper_bound=upper,
+        total_feasible_links=len(feasible),
+        retained_candidate_links=len(links),
+        certificate_scope=certificate_scope,
+        candidate_links=tuple(links),
     )

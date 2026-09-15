@@ -386,7 +386,16 @@ class ActiveSensing:
     looks: tuple[int, ...] = (8, 16, 32)
     refined: tuple[bool, ...] = (False, True, True)
     energy_budget_per_target: float = 64.0
+    energy_budget_per_uav: float = 256.0
+    max_tx_observations_per_uav: int = -1
+    matched_filter_cycles_per_look: float = 1.0
+    llr_cycles_per_look: float = 0.25
+    dd_refine_cycles: float = 16.0
     max_candidates_per_pair: int = 8
+    candidate_strategy: str = "scenario_union"
+    scenario_topk_per_scenario: int = 1
+    complementary_pair_topk: int = 2
+    complete_pool_max_links: int = 12
     branch_node_limit: int = 200_000
     information_metric: str = "forward_kl"
     energy_price: float = 0.0
@@ -419,7 +428,7 @@ class Detect:
     #         ell  = -ln(1+gamma) + x * gamma/(1+gamma),  x = |z|^2 / sigma_n^2
     #         delta = E1[ell] - E0[ell] = gamma^2/(1+gamma)
     #         sigma0^2 = Var0[ell]      = gamma^2/(1+gamma)^2
-    #         J      = D_KL(p1||p0)     = gamma - ln(1+gamma)
+    #         D_10   = D_KL(p1||p0)     = gamma - ln(1+gamma)
     #     i.e. *no free parameter at all*, and the per-link information gain
     #     is literally a Kullback-Leibler divergence.
     soft_stat_model: str = "gaussian"
@@ -919,8 +928,33 @@ def validate_config(cfg: Config) -> None:
         or active.energy_budget_per_target <= 0.0
     ):
         raise ValueError("active sensing energy budget must be finite and positive")
+    if (
+        not math.isfinite(active.energy_budget_per_uav)
+        or active.energy_budget_per_uav <= 0.0
+    ):
+        raise ValueError("active sensing per-UAV energy budget must be finite and positive")
+    if active.max_tx_observations_per_uav < -1:
+        raise ValueError("active sensing transmitter cap must be -1 or non-negative")
+    if not all(
+        math.isfinite(value) and value >= 0.0 for value in (
+            active.matched_filter_cycles_per_look,
+            active.llr_cycles_per_look,
+            active.dd_refine_cycles,
+        )
+    ):
+        raise ValueError("active sensing computation costs must be finite and non-negative")
     if active.max_candidates_per_pair < 1 or active.branch_node_limit < 1:
         raise ValueError("active sensing search limits must be positive")
+    if active.candidate_strategy not in {"scenario_union", "robust_singleton", "full"}:
+        raise ValueError(
+            "active sensing candidate strategy must be scenario_union, robust_singleton, or full"
+        )
+    if (
+        active.scenario_topk_per_scenario < 0
+        or active.complementary_pair_topk < 0
+        or active.complete_pool_max_links < 1
+    ):
+        raise ValueError("active sensing candidate-family limits are invalid")
     if active.information_metric not in {"forward_kl", "jeffreys"}:
         raise ValueError("active sensing information metric must be 'forward_kl' or 'jeffreys'")
     if not all(

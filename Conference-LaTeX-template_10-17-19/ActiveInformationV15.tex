@@ -48,9 +48,29 @@ nonnegative costs.  This is a valid optimistic bound.  Exhaustion therefore
 certifies optimality over the declared shortlist; node-limit truncation is
 reported through the incumbent--upper-bound gap.
 
-In a ten-trial, 100-target paired diagnostic, active link--mode selection
-increased mean worst-scenario received KL information from $43.3951$ to
-$49.2893$ under the same four-observation and normalized-energy budgets.  All
-instances were solved with zero certificate gap.  This result establishes a
-module-level information gain for the declared preset; it is not used as a
-substitute for an end-to-end $P_D/P_{FA}$ promotion test.
+Each selected observation is subsequently evaluated by a mixed-mode exact-LLR
+detector, in which both $\gamma_a$ and $L_a$ are observation specific.  A
+strict threshold comparison preserves the intended false-alarm semantics in
+the presence of the erasure atom at zero.  Refinement incurs
+$C_a=L_a(C_{\rm MF}+C_{\rm LLR})+\mathbf{1}_{\rm refined}C_{\rm DD}$ cycles.
+
+To expose the power externality without making the master nonlinear, active
+columns are evaluated under a full-load interference envelope: every
+interfering UAV radiates at the largest declared sensing-power scale, while
+the desired observation uses its selected scale.  A column stores
+scenario-wise $P_D$, received information, energy, CPU, receiver load and
+report use.  The fleet-level MILP lexicographically minimizes the worst and
+total detection deficits, followed by energy, reports and computation, under
+shared UAV and fusion-node budgets.  Its certificate applies to the generated
+column pool.
+
+Across 90 paired target instances from nine geometry clusters, active modes
+increased worst-scenario $P_D$ by $0.03025$ on average (95\% cluster-bootstrap
+CI, $[0.01998,0.04006]$) while mean scenario $P_{FA}$ remained near $0.05$.
+In a separate nine-instance, three-UAV/two-target global diagnostic, an
+independent 32,768-sample holdout replay showed that active columns increased
+mean-target $P_D$ by $0.01717$ (95\% CI, $[0.00360,0.03571]$) under shared
+energy, CPU, reporting and load constraints.  The worst-target gain was
+$0.01282$, but its interval $[-0.00066,0.03345]$ crossed zero.  These results
+support an average detection consequence under the declared conditions; they
+do not establish a worst-target improvement or a full-scale promotion result.

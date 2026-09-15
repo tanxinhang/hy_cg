@@ -77,12 +77,24 @@ from .theory import (
     task_objective,
 )
 from .waveform import psf_local_capture, psf_main_bin, sweep_compare_analytic_vs_psf
+from .active_system import (
+    ActiveColumn,
+    GlobalActiveMasterResult,
+    active_column_cpu_cycles,
+    active_observation_cpu_cycles,
+    generate_active_columns,
+    solve_global_active_master,
+)
+from .active_statistics import paired_cluster_summary
 from .active_information import (
+    ActiveDetectionResult,
     ActiveObservation,
     InformationPricingResult,
     SensingMode,
     aspect_scenario_factors,
+    active_candidate_links,
     configured_sensing_modes,
+    evaluate_active_detection,
     price_active_information_bundle,
     received_information,
 )
@@ -135,12 +147,22 @@ __all__ = [
     "psf_local_capture",
     "sweep_compare_analytic_vs_psf",
     "ActiveObservation",
+    "ActiveDetectionResult",
     "InformationPricingResult",
     "SensingMode",
     "aspect_scenario_factors",
+    "active_candidate_links",
     "configured_sensing_modes",
+    "evaluate_active_detection",
     "price_active_information_bundle",
     "received_information",
+    "ActiveColumn",
+    "GlobalActiveMasterResult",
+    "active_column_cpu_cycles",
+    "active_observation_cpu_cycles",
+    "generate_active_columns",
+    "solve_global_active_master",
+    "paired_cluster_summary",
 ]
 
 __version__ = "1.5.0"

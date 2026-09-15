@@ -1,8 +1,8 @@
-# V1.5 Robust Information-Aware Active Observation Design
+# V1.5-System: Global Active Information Bundle Scheduling
 
 ## One-sentence argument
 
-Jointly choosing bistatic paths and discrete acquisition modes by their worst-case received hypothesis-separation information converts the scheduler from passive fusion ranking into an auditable active-observation design problem, while leaving end-to-end detection claims to the exact-LLR Monte Carlo layer.
+In a single-CPI multi-UAV ISAC network, mixed-mode exact-LLR active columns connect received-information pricing to a global energy/CPU/report-constrained master, while paired Monte Carlo evidence measures—without assuming—the downstream detection consequence.
 
 ## Terminology ledger
 
@@ -13,17 +13,22 @@ Jointly choosing bistatic paths and discrete acquisition modes by their worst-ca
 | active observation | target, bistatic link, and acquisition-mode tuple `(q,i,j,m)` | not merely a selected link |
 | aspect scenario | one path-dependent finite RCS-factor realization | not a scalar RCS interval |
 | information-certified pricing | branch-and-bound pricing with a valid information upper bound | not a certificate for final `P_D` |
+| mixed-mode exact LLR | exact LLR sum in which each observation carries its own `gamma_a` and `L_a` | not the V1.4 global-look detector |
+| active column | `(target, fusion, observations, modes)` with scenario `P_D`, information, energy, CPU and report coefficients | not a link-only bundle |
+| full-load power envelope | all UAV interferers radiate at the largest declared sensing-power scale | conservative cross-column coupling, not selected-load equality |
+| complete-pool certificate | exact branch-and-bound result over every feasible physical link admitted by the configured full-pool limit | stronger than shortlist exactness |
 
 ## Scope and system boundary
 
-V1.5 adds an opt-in research path and does not mutate the frozen V1.4 detector or its published result files. The new layer designs one coherent processing interval using discrete power, look-count, and delay–Doppler-refinement modes. It assumes that the fusion destination observes whether each report arrived and that packet success is independent of the target hypothesis. The present aspect law is a transparent finite-scenario abstraction, not a calibrated target signature. Geometry, communication reliability, refined sensing tables, and fusion assignments still come from the existing simulator.
+V1.5-System remains an opt-in research path and does not mutate the frozen V1.4 detector or its published result files. It designs one coherent processing interval using discrete power, look-count, and delay–Doppler-refinement modes. It assumes that the fusion destination observes whether each report arrived and that packet success is independent of the target hypothesis. The present aspect law is a transparent finite-scenario abstraction, not a calibrated target signature.
 
 The implementation boundary is deliberate:
 
 1. received information is the pricing objective and the bounding quantity;
 2. worst-case finite scenarios are enforced during bundle generation;
-3. V1.4 exact-LLR Monte Carlo remains the authority for end-to-end `P_D` and `P_FA` promotion;
-4. trajectory control, learned RCS signatures, and joint column-and-scenario generation remain outside this single-CPI module.
+3. mixed-mode exact-LLR Monte Carlo now evaluates every active column at the declared `P_FA`, while a larger promotion campaign is still required before replacing V1.4;
+4. the global master is exact over its generated columns and uses a conservative full-load interference envelope;
+5. trajectory control, learned RCS signatures, and joint column-and-scenario generation remain outside this single-CPI module.
 
 ## Theory
 
@@ -104,22 +109,82 @@ For each target–fusion pair, binary variable `x_ijm` selects at most one mode 
 
 subject to one-mode-per-link, observation-count, normalized-energy, and physical/report-feasibility constraints. `r_ij` is one for a remote report and zero for evidence already local to the fusion node.
 
-The oracle first shortlists physical links by their best robust mode and then performs an exact depth-first branch-and-bound search over mode choices. At a partial node, its optimistic bound adds, separately for each scenario, the largest remaining per-link information increments that could occupy the unfilled slots. It ignores future non-negative energy and reporting costs. Every feasible continuation is componentwise no larger than this relaxation, so the minimum of the relaxed scenario totals is a valid upper bound. A node is safely pruned when this bound cannot exceed the incumbent.
+The default candidate pool is now the capped union of three families: robust singletons, per-scenario leaders, and links belonging to the strongest complementary pairs. This prevents the elementary failure in which `(10,0)` and `(0,10)` are both discarded because each has zero singleton worst-case value. A `full` strategy bypasses shortlisting when the complete physical pool lies below the declared safety limit.
 
-If the declared node limit is not reached, the returned solution is exact over the shortlisted candidates and its certificate gap is zero. If the limit is reached, the root relaxation is returned as a conservative upper bound and the nonzero incumbent gap is reported. The shortlist itself is an explicit scope boundary: exactness applies to the retained candidate set, not to paths removed before enumeration.
+The oracle performs an exact depth-first branch-and-bound search over the retained mode choices. At a partial node, its optimistic bound adds, separately for each scenario, the largest remaining per-link information increments that could occupy the unfilled slots. It ignores future non-negative energy and reporting costs. Every feasible continuation is componentwise no larger than this relaxation, so the minimum of the relaxed scenario totals is a valid upper bound. A node is safely pruned when this bound cannot exceed the incumbent.
+
+If the declared node limit is not reached, the result is exact over the declared pool. The certificate scope is returned explicitly as `shortlist_union`, `declared_pool`, or `complete_pool`. If the node limit is reached, the root relaxation is returned as a conservative upper bound and the nonzero incumbent gap is reported.
 
 ## Reproducible experiment and current evidence
 
 `tools/run_active_information_v15.py` compares joint link-and-mode choice (`active_modes`) with robust link choice restricted to the nominal mode (`fixed_nominal`). Both methods share the same 100 target instances, fusion decisions, four aspect scenarios, four-observation cap, and normalized energy budget of 64. The configuration and command arguments are written to an artifact-specific immutable manifest.
 
-The 10-trial run in `results_active_information_v15/run_0c4d9ba05082` produced:
+The historical Phase-A 10-trial run in `results_active_information_v15/run_0c4d9ba05082` produced:
 
 | Method | Mean worst-scenario information | Median | Mean energy | Mean observations | Exact rate | Maximum certificate gap |
 |---|---:|---:|---:|---:|---:|---:|
 | fixed nominal | 43.3951 | 1.8405 | 64.0 | 4.0 | 1.00 | 0 |
 | active modes | 49.2893 | 2.1570 | 64.0 | 4.0 | 1.00 | 0 |
 
-The paired mean gain is 5.8942, or 13.58%, and `active_modes` is not worse in all 100 paired target instances. The large mean–median separation shows strong geometry heterogeneity; therefore this result supports the algorithmic value of mode choice but is not yet a population-level detection claim. No `P_D` promotion is made from this information-only experiment.
+The paired mean gain was 5.8942, or 13.58%. The 100% non-worse rate is a dominance sanity check because fixed nominal is a feasible active-mode restriction; it is not the headline result. The large mean–median separation motivated the distributional and detection analysis below.
+
+## Mixed-mode exact-LLR detector
+
+Each observation now carries its own mode-specific `gamma_a` and `L_a`. For scenario `s`, its exact contribution is
+
+\[
+\ell_{a,s}=-L_a\log(1+\gamma_{a,s})
++\frac{\gamma_{a,s}}{1+\gamma_{a,s}}X_a,
+\]
+
+where `X_a|H0 ~ Gamma(L_a,1)` and `X_a|H1 ~ Gamma(L_a,1+gamma_a,s)`. The fusion statistic is `Lambda_q=sum_a E_a ell_a`, with observed Bernoulli erasures. H0 calibration and independent H0/H1 evaluation use deterministic streams keyed by target, fusion, scenario, physical link and physical mode parameters. The strict decision `Lambda > threshold` matches V1.4 and correctly handles the erasure atom at zero.
+
+## Power and computation coupling
+
+The physical table builder accepts one sensing-power scale per UAV before it forms desired signals or leakage fields. Consequently, increasing transmitter `i` changes both its echo numerator and the interference denominators at other receivers. Active columns are valued under a full-load envelope `p_bar=max_m p_m` for every interfering UAV:
+
+\[
+\gamma_{ijq,m,s}^{env}=
+\frac{p_m S_{ijq}g_s(\phi_{ijq})}
+{N_{ij}+\sum_{k\ne i}\bar p_k I_{kj}}.
+\]
+
+This is conservative and column-separable; it does not claim equality to the interference produced by the selected columns. Refinement is no longer free. Observation compute cost is
+
+\[
+C_a=L_a(C_{MF}+C_{LLR})+\mathbf 1_{refined}C_{DD},
+\]
+
+and the active column also includes the existing fusion fixed, per-observation and cubic costs.
+
+## Global active-column master
+
+An active column contains target, fusion UAV, physical observations, sensing modes, scenario information, scenario `P_D/P_FA`, per-transmitter energy and load, receiver load, reports and CPU cycles. The global binary master lexicographically minimizes
+
+\[
+(d_{max},\sum_q d_q,E_{total},R_{total},C_{total}),
+\qquad
+d_q\ge P_D^{req}-P_{D,qc}^{worst},
+\]
+
+subject to exactly one column per target and fleet-wide fusion-target, transmitter-energy, transmitter-load, receiver-load, fusion-observation, CPU, report and total-observation budgets. KL remains a pricing and candidate-generation quantity; worst-scenario `P_D@P_FA` determines the reliability deficit. The MILP result is exact over the generated active-column pool.
+
+## Multi-seed paired evidence
+
+The pair-level run `results_active_information_v15_system/run_80db6de3b0ec` used 90 paired target instances from nine geometry clusters, 2,048 H0 calibration samples and 4,096 independent evaluation samples per scenario. Mean scenario PFA was 0.05024 for active modes and 0.05000 for fixed nominal.
+
+| Paired active minus fixed nominal | Estimate | 95% cluster-bootstrap CI |
+|---|---:|---:|
+| received-information mean | 4.6456 | [1.8370, 8.8870] |
+| received-information median | 0.5389 | [0.0885, 0.9434] |
+| worst-scenario `P_D` mean | 0.03025 | [0.01998, 0.04006] |
+| worst-scenario `P_D` median | 0.00439 | [0.00073, 0.01648] |
+
+The information gain had `P10/P50/P90 = 0/0.5389/8.0569`, mean `Delta log(1+I)=0.1421`, and normalized mean gain 0.1654. Among 22 weak-information pairs (`I_fixed <= 1`), mean and median information gains were 0.0845 and 0.0091. Active information improved in 80% of instances; worst-scenario `P_D` improved in 61.1% and was non-worse within `1e-6` in 94.4%. These results support a positive average detection consequence, not pointwise monotonicity.
+
+The factorial diagnostic showed that the improvement cannot be attributed to DD refinement in this preset: nominal already uses refinement, so refinement-only exactly matched fixed nominal. Power-only and looks-only both had positive information and `P_D` mean-gain confidence intervals. Looks-only achieved the largest mean information gain (6.0599), while the joint declared mode set achieved 4.6456 because it does not contain every Cartesian power–look–refinement combination. Thus the present claim is joint discrete mode selection, not an isolated causal superiority of any one component.
+
+The fleet-level run `results_active_system_v15/run_8386b9d8389f` used nine three-UAV/two-target system instances and 234 generated columns per instance. Column selection used 16,384 evaluation samples per scenario, whereas all reported detection values came from an independent 32,768-sample holdout replay. Under shared UAV energy, CPU, report and load caps, active columns raised heldout mean-target `P_D` from 0.24779 to 0.26496. The paired gain was 0.01717 with a cluster-bootstrap 95% CI of [0.00360, 0.03571]. Heldout worst-target `P_D` increased from 0.13877 to 0.15158, but its paired CI [-0.00066, 0.03345] included zero; this endpoint is therefore inconclusive. Mean scenario PFA remained near target (0.05021 versus 0.04957). This is system-level support for mean detection on a small diagnostic, not a worst-target or full-scale promotion result.
 
 ## Claim–evidence map
 
@@ -128,17 +193,22 @@ The paired mean gain is 5.8942, or 13.58%, and `active_modes` is not worse in al
 | Jeffreys divergence equals the exact-LLR mean gap | analytic identity plus unit test | established under the local Gamma model |
 | observed independent erasure scales KL by `chi` | analytic decomposition plus unit test | established under true erasure |
 | aspect scenarios create path-dependent rankings | controlled-azimuth unit test | established for the declared abstraction |
-| pricing is exact on the shortlist when untruncated | brute-force parity test and zero run-time gaps | established for tested finite instances |
-| active modes improve robust received information | 100 paired target instances | supported for the declared preset and seed |
-| active modes improve final detection probability | requires exact-LLR Monte Carlo integration | not yet claimed |
+| pricing preserves scenario-complementary pairs | adversarial `(10,0)/(0,10)` unit test | established for the union strategy |
+| pricing is exact over its declared pool when untruncated | brute-force parity, complete-pool scope test and zero gaps | established for tested finite instances |
+| mixed-mode detector controls scenario PFA | independent calibrated/evaluation Monte Carlo | supported at mean PFA near 0.05 |
+| active modes improve robust received information | 90 paired targets, nine clusters | supported for the declared preset |
+| information gain has a positive average detection consequence | paired worst-`P_D` cluster-bootstrap CI excludes zero | supported, not pointwise guaranteed |
+| global active columns improve heldout mean-target detection | nine small-system paired instances; CI excludes zero | preliminary system-level support |
+| global active columns improve heldout worst-target detection | nine small-system paired instances; CI crosses zero | inconclusive |
 
 ## Assumptions and missing evidence
 
 - Conditional independence is used for information additivity; a future latent physical covariance model should replace hand-set correlation sensitivities before correlated-information claims are made.
 - Aspect scenarios are synthetic. Measured or electromagnetically simulated signatures are required for target-specific claims.
-- Mode energy is normalized look-power energy. A hardware timing and Joule model is required before platform-energy claims are made.
-- The current solver prices each target–fusion pair independently. A master problem must enforce fleet-wide CPU, report, and energy coupling for system-level scheduling claims.
-- Larger Monte Carlo campaigns, seed sweeps, `P_D/P_FA` calibration, and promotion gates remain required before V1.5 replaces V1.4 results.
+- Mode energy remains normalized look-power energy. Hardware timing and Joule calibration are required before platform-energy claims are made.
+- The full-load power envelope is conservative; selected-load iterative or decomposition methods are needed to recover less conservative cross-column interference coupling.
+- The global master is exact over 234 generated columns, not the complete fleet-wide active-column universe.
+- The nine-system diagnostic is too small for release promotion. Larger system sizes, more geometry clusters and independent detector draws remain required before V1.5-System replaces V1.4 results.
 
 ## Recommended manuscript outline
 
@@ -153,4 +223,4 @@ The paired mean gain is 5.8942, or 13.58%, and `active_modes` is not worse in al
 
 本次升级把论证主线从“融合端如何排序已有观测”推进到“系统应主动采集哪些观测”。理论层以现有精确 LLR 为起点，证明 KL、Jeffreys 散度、真实擦除缩放和独立观测可加性；模型层把链路扩展为“链路＋功率＋积累次数＋DD 精化”的主动观测，并用路径相关方位场景替代统一缩放的 RCS 区间；算法层实现带合法上界和证书间隙的分支定界定价器。
 
-当前证据足以支持“主动模式提高最坏场景接收信息”这一模块级结论，但不足以声称最终检测概率已经提升。后续应按顺序完成混合模式精确 LLR 检测、全局资源 master、相关物理模型与多种子大样本 promotion；这样可以保持每一步可核验，也不会把信息代理指标误写成最终性能指标。
+本轮已经闭合此前缺失的四条链：mixed-mode exact LLR、场景互补候选池与完整池证书、全局能量/CPU/收发资源 master，以及多种子配对统计。新的证据支持“平均信息增益伴随正的平均 worst-scenario `P_D` 增益”，但没有声称每个目标都单调改善。系统级结果仍限于九个小规模实例；下一步应扩大 promotion 样本，而不是增加 trajectory、DRL、CVaR 或更多 sensing modes。

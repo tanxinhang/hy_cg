@@ -511,6 +511,7 @@ def compute_link_tables(
     dd_gain: np.ndarray | None = None,
     active_tx_mask: np.ndarray | None = None,
     reuse_from: LinkTables | None = None,
+    sensing_power_scale_by_uav: np.ndarray | None = None,
 ) -> LinkTables:
     """Per-link communication / sensing-SINR quantities.
 
@@ -537,6 +538,12 @@ def compute_link_tables(
     This removes the O(M^2 * Q) sensing loop (by far the dominant cost) from
     every re-evaluation.  It is ignored for ``reliable_comm_assisted``, where
     the sensing power itself depends on ``chi_comm``.
+
+    ``sensing_power_scale_by_uav`` applies active-mode power at the transmitter
+    before either desired-signal or leakage fields are formed.  Thus raising a
+    UAV's sensing power strengthens its own echoes and increases the
+    interference seen by other receivers.  The default all-one vector exactly
+    preserves the released passive model.
     """
     M, Q = cfg.scale.M, cfg.scale.Q
     r, c, d = cfg.radio, cfg.comm, cfg.detect
@@ -550,6 +557,7 @@ def compute_link_tables(
     # ``dd_gain=None`` and reuses the selection-stage sensing block).
     can_reuse_sensing = (
         reuse_from is not None
+        and sensing_power_scale_by_uav is None
         and dd_gain is None
         and r.isac_power_model != "reliable_comm_assisted"
         # Under active-set coupling the sensing denominator contains the active
@@ -564,6 +572,13 @@ def compute_link_tables(
 
     P = np.full(M, r.P_default, dtype=float)
     P_sense = r.rho * P
+    if sensing_power_scale_by_uav is not None:
+        power_scale = np.asarray(sensing_power_scale_by_uav, dtype=float)
+        if power_scale.shape != (M,) or not np.all(np.isfinite(power_scale)):
+            raise ValueError(f"sensing power scale must be finite with shape ({M},)")
+        if np.any(power_scale <= 0.0):
+            raise ValueError("sensing power scales must be strictly positive")
+        P_sense = P_sense * power_scale
     P_comm = (1.0 - r.rho) * P
 
     n0 = noise_power(cfg)
@@ -735,7 +750,7 @@ def compute_link_tables(
             if r.isac_power_model == "sensing_only":
                 effective_sensing_power = P_sense[i]
             elif r.isac_power_model == "joint_waveform":
-                effective_sensing_power = P[i]
+                effective_sensing_power = P_sense[i] + P_comm[i]
             elif r.isac_power_model == "reliable_comm_assisted":
                 effective_sensing_power = P_sense[i] + chi_comm[i, j] * P_comm[i]
             else:
