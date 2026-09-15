@@ -314,8 +314,15 @@ def generate_active_columns(
     calibration_samples: int = 512,
     evaluation_samples: int = 1024,
     seed: int = 0xC0115,
+    include_priced_rescue_column: bool = True,
 ) -> list[ActiveColumn]:
-    """Generate active columns and exact-LLR values for the global master."""
+    """Generate active columns and exact-LLR values for the global master.
+
+    Exhaustive mode enumeration is limited to ``candidate_limit`` physical
+    links.  Independently, the information-pricing oracle's complete selected
+    bundle is injected as a rescue column.  This preserves a strong weak-target
+    action when pricing uses a wider candidate pool than enumeration.
+    """
     validate_config(cfg)
     chosen_modes = tuple(modes or configured_sensing_modes(cfg))
     if candidate_limit < 1:
@@ -346,6 +353,7 @@ def generate_active_columns(
             )
             candidates = list(priced.candidate_links)[:candidate_limit]
             choices = range(-1, len(chosen_modes))
+            generated_signatures: set[tuple[ActiveObservation, ...]] = set()
             for assignment in itertools.product(choices, repeat=len(candidates)):
                 selected = [
                     ActiveObservation(candidates[index], chosen_modes[mode_index])
@@ -366,6 +374,23 @@ def generate_active_columns(
                     seed=seed,
                 )
                 columns.append(column)
+                generated_signatures.add(tuple(selected))
+            rescue = tuple(priced.observations)
+            if (
+                include_priced_rescue_column
+                and rescue
+                and rescue not in generated_signatures
+                and len(rescue) <= K
+                and sum(obs.mode.energy for obs in rescue)
+                <= cfg.active_sensing.energy_budget_per_target + 1e-12
+            ):
+                columns.append(_make_active_column(
+                    cfg, base, envelope_coarse, envelope_refined, q, fusion,
+                    rescue, reference,
+                    calibration_samples=calibration_samples,
+                    evaluation_samples=evaluation_samples,
+                    seed=seed,
+                ))
     return columns
 
 
@@ -417,9 +442,16 @@ def solve_global_active_master(
     columns: Sequence[ActiveColumn],
     *,
     lex_tolerance: float = 1e-4,
+    pd_design_target: float | None = None,
 ) -> GlobalActiveMasterResult:
     """Solve the fleet-level lexicographic active-column master exactly."""
     validate_config(cfg)
+    design_target = (
+        float(cfg.detect.pd_required)
+        if pd_design_target is None else float(pd_design_target)
+    )
+    if not float(cfg.detect.pd_required) <= design_target <= 1.0:
+        raise ValueError("pd_design_target must lie in [pd_required, 1]")
     pool = list(columns)
     Q, M, B = cfg.scale.Q, cfg.scale.M, len(pool)
     if any(not any(column.target == q for column in pool) for q in range(Q)):
@@ -446,7 +478,7 @@ def solve_global_active_master(
         for b, column in enumerate(pool):
             if column.target == q: row[b] = -column.robust_pd
         row[B + q] = -1.0
-        add(row, ub=-float(cfg.detect.pd_required))
+        add(row, ub=-design_target)
         row = np.zeros(n); row[B + q] = 1.0; row[dmax] = -1.0
         add(row, ub=0.0)
 
@@ -504,7 +536,7 @@ def solve_global_active_master(
     objective = np.zeros(n); objective[dmax] = 1.0; objectives.append(objective)
     objective = np.zeros(n)
     objective[:B] = [
-        max(float(cfg.detect.pd_required) - column.robust_pd, 0.0)
+        max(design_target - column.robust_pd, 0.0)
         for column in pool
     ]
     objectives.append(objective)
@@ -533,14 +565,14 @@ def solve_global_active_master(
         if stage == 1:
             selected_pd = [pool[index].robust_pd for index in selected_indices]
             optimum = max(
-                max(float(cfg.detect.pd_required) - pd, 0.0) for pd in selected_pd
+                max(design_target - pd, 0.0) for pd in selected_pd
             )
         else:
             optimum = float(sum(objective[index] for index in selected_indices))
         optima.append(optimum)
         tolerance = lex_tolerance * max(1.0, abs(optimum))
         if stage == 1:
-            minimum_pd = float(cfg.detect.pd_required) - optimum - tolerance
+            minimum_pd = design_target - optimum - tolerance
             for q in range(Q):
                 row = np.zeros(n)
                 for b, column in enumerate(pool):
@@ -571,6 +603,7 @@ def solve_global_active_master(
         objective={
             "worst_detection_deficit": float(np.max(deficits)),
             "total_detection_deficit": float(np.sum(deficits)),
+            "pd_design_target": design_target,
             "network_evidence_loss": float(sum(
                 column.network_evidence_loss for column in chosen
             )),

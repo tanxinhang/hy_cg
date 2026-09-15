@@ -72,6 +72,7 @@ def solve_active_evidence_acquisition(
     evaluation_samples: int = 1024,
     seed: int = 0xE71D3,
     lex_tolerance: float = 1e-4,
+    pd_design_target: float | None = None,
 ) -> EvidenceAcquisitionResult:
     """Acquire, transport, and schedule detector-relevant evidence.
 
@@ -119,7 +120,10 @@ def solve_active_evidence_acquisition(
         seed=seed,
     ))
     schedule = solve_global_active_master(
-        cfg, columns, lex_tolerance=lex_tolerance
+        cfg,
+        columns,
+        lex_tolerance=lex_tolerance,
+        pd_design_target=pd_design_target,
     )
     uncertainty = (
         "finite_aspect_scenarios"

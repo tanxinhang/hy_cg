@@ -80,6 +80,16 @@ action-space optimality. Receiver-local aggregation and multi-tier fusion are
 deferred until a lossless-report oracle demonstrates material transport
 headroom and an aggregate-packet reliability model is available.
 
+To protect weak targets, the complete bundle returned by information pricing is
+inserted as a rescue column even when exhaustive mode enumeration uses a
+narrower link set. Pricing width is therefore decoupled from enumeration width.
+We also distinguish the operational requirement $P_D^{\rm req}$ from a design
+target $P_D^{\rm des}\ge P_D^{\rm req}$. Setting
+$P_D^{\rm des}>P_D^{\rm req}$ preserves validation margin; setting
+$P_D^{\rm des}=1$ makes the first lexicographic stage a pure max--min detector
+design instead of stopping as soon as every design estimate reaches the
+operational threshold.
+
 \subsection{Current evidence and claim boundary}
 
 In one corrected 15-UAV/10-target instance, active acquisition achieved
@@ -91,3 +101,10 @@ execution path and a mean improvement in that instance; it does not demonstrate
 a fleet-population effect, a worst-target advantage, or a reduced minimum
 detectable RCS. Those claims require paired multi-seed RCS sweeps and the
 formation-versus-transport headroom ablation.
+
+A subsequent three-geometry screen at an explicit 17.5-dB radar net-gain
+coordinate and $P_D^{\rm des}=1$ reached mean worst-target
+$P_D=0.9857$ and mean-target $P_D=0.9981$. The result demonstrates a feasible
+remediation point, but not yet a promotion claim: the hardware coordinate must
+be mapped to a real platform and the maximum scenario false-alarm rate requires
+higher-resolution simultaneous calibration.

@@ -49,7 +49,11 @@ def configured(args: argparse.Namespace) -> Config:
         "active_sensing.enable": True,
         "active_sensing.energy_budget_per_target": args.target_energy,
         "active_sensing.energy_budget_per_uav": args.uav_energy,
-        "active_sensing.max_candidates_per_pair": args.candidate_limit,
+        "active_sensing.max_candidates_per_pair": (
+            args.pricing_candidate_limit
+            if args.pricing_candidate_limit is not None
+            else args.candidate_limit
+        ),
         "active_sensing.max_tx_observations_per_uav": args.tx_cap,
         "detect.comm_error_model": "erasure",
         "detect.soft_stat_model": "llr",
@@ -67,6 +71,17 @@ def configured(args: argparse.Namespace) -> Config:
     }
     if args.target_rcs is not None:
         overrides["detect.target_rcs"] = args.target_rcs
+    if args.radar_net_gain_db is not None:
+        overrides["radio.radar_net_gain_db"] = args.radar_net_gain_db
+    if args.rescue_looks is not None:
+        overrides["active_sensing.mode_names"] = (
+            "eco", "nominal", "intensive", "rescue"
+        )
+        overrides["active_sensing.power_scales"] = (
+            0.5, 1.0, 1.25, args.rescue_power_scale
+        )
+        overrides["active_sensing.looks"] = (8, 16, 32, args.rescue_looks)
+        overrides["active_sensing.refined"] = (False, True, True, True)
     cfg = apply_overrides(cfg, overrides)
     validate_config(cfg)
     return cfg
@@ -88,6 +103,7 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
             coarse = compute_link_tables(cfg, base)
             refined = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
             allowed_fusions = None
+            fixed_allowed_fusions = None
             if args.fusion_candidate_limit is not None:
                 allowed_fusions = screen_fusion_candidates(
                     cfg,
@@ -95,6 +111,14 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                     coarse,
                     refined,
                     modes=modes,
+                    information_limit=args.fusion_candidate_limit,
+                )
+                fixed_allowed_fusions = screen_fusion_candidates(
+                    cfg,
+                    base,
+                    coarse,
+                    refined,
+                    modes=(nominal,),
                     information_limit=args.fusion_candidate_limit,
                 )
             columns = generate_active_columns(
@@ -105,27 +129,51 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                 evaluation_samples=args.evaluation_samples,
                 seed=experiment_seed + 1009 * trial,
             )
-            fixed_columns = [column for column in columns if all(
-                observation.mode.power_scale == nominal.power_scale
-                and observation.mode.looks == nominal.looks
-                and observation.mode.refined == nominal.refined
-                for observation in column.observations
-            )]
+            fixed_columns = generate_active_columns(
+                cfg, base, coarse, refined, modes=(nominal,),
+                candidate_limit=args.candidate_limit,
+                allowed_fusions=fixed_allowed_fusions,
+                calibration_samples=args.calibration_samples,
+                evaluation_samples=args.evaluation_samples,
+                seed=experiment_seed + 1009 * trial,
+            )
             results = {
-                "fixed_nominal_global": solve_global_active_master(cfg, fixed_columns),
-                "active_modes_global": solve_global_active_master(cfg, columns),
+                "fixed_nominal_global": solve_global_active_master(
+                    cfg, fixed_columns, pd_design_target=args.design_pd_target
+                ),
+                "active_modes_global": solve_global_active_master(
+                    cfg, columns, pd_design_target=args.design_pd_target
+                ),
             }
-            reference = np.full(
+            active_reference = np.full(
                 cfg.scale.M, max(mode.power_scale for mode in modes), dtype=float
             )
-            envelope_coarse = compute_link_tables(
-                cfg, base, sensing_power_scale_by_uav=reference
+            fixed_reference = np.full(
+                cfg.scale.M, nominal.power_scale, dtype=float
             )
-            envelope_refined = compute_link_tables(
+            active_envelope_coarse = compute_link_tables(
+                cfg, base, sensing_power_scale_by_uav=active_reference
+            )
+            active_envelope_refined = compute_link_tables(
                 cfg, base, dd_gain=base.eta_fine,
-                sensing_power_scale_by_uav=reference,
+                sensing_power_scale_by_uav=active_reference,
+            )
+            fixed_envelope_coarse = compute_link_tables(
+                cfg, base, sensing_power_scale_by_uav=fixed_reference
+            )
+            fixed_envelope_refined = compute_link_tables(
+                cfg, base, dd_gain=base.eta_fine,
+                sensing_power_scale_by_uav=fixed_reference,
             )
             for method, result in results.items():
+                if method == "active_modes_global":
+                    reference = active_reference
+                    envelope_coarse = active_envelope_coarse
+                    envelope_refined = active_envelope_refined
+                else:
+                    reference = fixed_reference
+                    envelope_coarse = fixed_envelope_coarse
+                    envelope_refined = fixed_envelope_refined
                 headroom = None
                 if args.lossless_report_headroom:
                     headroom = [
@@ -278,8 +326,13 @@ def main() -> None:
     parser.add_argument("--seed-count", type=int, default=3)
     parser.add_argument("--seed", type=int, default=20250915)
     parser.add_argument("--candidate-limit", type=int, default=3)
+    parser.add_argument("--pricing-candidate-limit", type=int)
     parser.add_argument("--fusion-candidate-limit", type=int)
     parser.add_argument("--target-rcs", type=float)
+    parser.add_argument("--radar-net-gain-db", type=float)
+    parser.add_argument("--design-pd-target", type=float)
+    parser.add_argument("--rescue-looks", type=int)
+    parser.add_argument("--rescue-power-scale", type=float, default=1.25)
     parser.add_argument("--lossless-report-headroom", action="store_true")
     parser.add_argument("--max-observations", type=int, default=3)
     parser.add_argument("--target-energy", type=float, default=48.0)

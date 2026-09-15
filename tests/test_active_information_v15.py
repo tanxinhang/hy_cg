@@ -20,6 +20,7 @@ from isac_sim.active_system import (
     ActiveColumn,
     active_column_cpu_cycles,
     evaluate_active_transport_headroom,
+    generate_active_columns,
     screen_fusion_candidates,
     solve_global_active_master,
 )
@@ -128,6 +129,29 @@ class ActiveObservationPricingTests(unittest.TestCase):
         self.assertGreaterEqual(len(screened[0]), 1)
         self.assertLessEqual(len(screened[0]), 2)
         self.assertTrue(all(0 <= fusion < cfg.scale.M for fusion in screened[0]))
+
+    def test_priced_rescue_bundle_survives_narrow_enumeration(self) -> None:
+        cfg, base, coarse, refined = self._problem()
+        cfg.detect.soft_stat_model = "llr"
+        cfg.detect.comm_error_model = "erasure"
+        modes = (
+            SensingMode("eco", 0.5, 8, False),
+            SensingMode("nominal", 1.0, 16, True),
+        )
+        priced = price_active_information_bundle(
+            cfg, base, coarse, refined, 0, 0, modes=modes,
+            max_observations=2,
+        )
+        self.assertGreater(len(priced.observations), 1)
+        columns = generate_active_columns(
+            cfg, base, coarse, refined, modes=modes, candidate_limit=1,
+            allowed_fusions={0: (0,)}, calibration_samples=64,
+            evaluation_samples=128, seed=17,
+        )
+        self.assertIn(
+            tuple(priced.observations),
+            {column.observations for column in columns},
+        )
 
     def test_branch_and_bound_matches_complete_small_enumeration(self) -> None:
         cfg, base, coarse, refined = self._problem()
@@ -359,6 +383,22 @@ class GlobalActiveMasterTests(unittest.TestCase):
         )
         result = solve_global_active_master(cfg, [high_loss, low_loss])
         self.assertEqual(result.columns, (low_loss,))
+
+    def test_design_target_preserves_detection_margin(self) -> None:
+        cfg = Config()
+        cfg.scale.M = 2
+        cfg.scale.Q = 1
+        cfg.active_sensing.aspect_enable = False
+        cfg.detect.pd_required = 0.95
+        low_energy = self._column(0, 0.951, 0.0, 0.0)
+        margin = self._column(0, 0.980, 1.0, 0.0)
+        ordinary = solve_global_active_master(cfg, [low_energy, margin])
+        protected = solve_global_active_master(
+            cfg, [low_energy, margin], pd_design_target=0.97
+        )
+        self.assertEqual(ordinary.columns, (low_energy,))
+        self.assertEqual(protected.columns, (margin,))
+        self.assertEqual(protected.objective["pd_design_target"], 0.97)
 
 
 if __name__ == "__main__":

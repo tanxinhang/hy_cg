@@ -304,6 +304,24 @@ substantial transport headroom.
 | Receiver-local or multi-tier fusion improves performance | Future work |
 | Complete fleet action-space optimality | Not supported |
 
+## 9. Worst-target remediation update
+
+The implementation now guarantees that the complete information-priced bundle
+enters the global candidate pool, decouples pricing width from exhaustive mode
+enumeration, generates the fixed baseline independently, and supports a design
+detection target above the operational requirement. The full diagnosis and
+screening results are recorded in
+[WORST_TARGET_REMEDIATION.md](WORST_TARGET_REMEDIATION.md).
+
+In a three-geometry screen with an explicit 17.5 dB radar net-gain coordinate,
+standard acquisition modes, and pure max--min design, the active method reached
+mean worst-target \(P_D=0.9857\) and mean-target \(P_D=0.9981\). This closes the
+screening performance gap but does not yet constitute a promotion result: the
+hardware gain must be mapped to a real platform, the maximum scenario false-
+alarm estimate exceeded 0.05 at low calibration resolution, and the active
+method remained slightly below the saturated fixed nominal detector while
+using materially less energy and computation.
+
 ## 中文整合说明
 
 这次整合把论文主线从“协同照射能提升感知”改成“低 RCS 证据救援”。核心指标不再只是平均 \(P_D\)，而是满足指定 \(P_D@P_{FA}\) 时的最小可检测 RCS；模型按证据生成、证据传输、最终融合三层组织；算法仍保留单 fusion 根节点，但会显式计算生成证据、接收证据、网络证据损失和保留率。
