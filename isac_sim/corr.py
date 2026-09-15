@@ -70,17 +70,18 @@ EPS = 1e-12
 
 
 def _rhos(cfg: Config) -> Tuple[float, float, float, float]:
-    """Normalised (rho_tx, rho_rx, rho_target, rho_dd), guaranteed to sum <= 1."""
+    """Return validated ``(rho_tx, rho_rx, rho_target, rho_dd)`` values.
+
+    Configuration validation owns clipping policy: silently changing recorded
+    experiment parameters here would make the saved manifest disagree with the
+    covariance actually used by the simulator.
+    """
     c = cfg.corr
-    raw = [
-        max(float(c.rho_tx), 0.0),
-        max(float(c.rho_rx), 0.0),
-        max(float(c.rho_target), 0.0),
-        max(float(c.rho_dd), 0.0),
-    ]
-    total = sum(raw)
-    if total > 1.0:
-        raw = [r / total for r in raw]
+    raw = [float(c.rho_tx), float(c.rho_rx), float(c.rho_target), float(c.rho_dd)]
+    if not all(np.isfinite(value) and value >= 0.0 for value in raw):
+        raise ValueError("correlation coefficients must be finite and non-negative")
+    if sum(raw) > 1.0 + EPS:
+        raise ValueError("correlation coefficients must sum to at most one")
     return raw[0], raw[1], raw[2], raw[3]
 
 

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
+import json
+import tempfile
+from pathlib import Path
 
 import numpy as np
 
@@ -11,6 +15,7 @@ from isac_sim.llr import llr_h0_offset
 from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry
 from isac_sim.simulate import run_one_trial
 from isac_sim.soft_channel import received_full_llr_moments
+from tools.run_fusion_headroom_v14 import _write_artifact_manifest
 
 
 class ExactLlrFusionTests(unittest.TestCase):
@@ -110,6 +115,44 @@ class ExactLlrFusionTests(unittest.TestCase):
         np.testing.assert_array_equal(
             nominal.reporting_plan.f_q, exact.reporting_plan.f_q
         )
+
+    def test_bundle_only_roster_builds_refined_value_table(self) -> None:
+        cfg = apply_preset(Config(), "small-uav-compact-800m")
+        cfg = apply_overrides(cfg, {
+            "scale.M": 4,
+            "scale.Q": 2,
+            "prior.belief_mode": False,
+            "dd.use_otfs_bin_validity": False,
+            "selector.max_links_per_target": 2,
+            "selector.max_total_links": 4,
+            "selector.bundle_shortlist_per_type": 2,
+            "detect.fused_calibration_samples": 512,
+            "detect.comm_error_model": "erasure",
+            "detect.num_false_per_target": 1,
+            "run.verbose": False,
+        })
+
+        with patch(
+            "isac_sim.simulate.compute_link_tables", wraps=compute_link_tables
+        ) as mocked:
+            run_one_trial(cfg, 0, methods=["joint_bundle_cg"])
+
+        self.assertTrue(any(
+            call.kwargs.get("dd_gain") is not None
+            for call in mocked.call_args_list
+        ))
+
+    def test_artifact_manifests_do_not_overwrite_each_other(self) -> None:
+        cfg = Config()
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            _write_artifact_manifest(out, "main", cfg, {"mc": 200})
+            _write_artifact_manifest(out, "detector", cfg, {"mc": 20})
+
+            main = json.loads((out / "main.config.json").read_text())
+            detector = json.loads((out / "detector.config.json").read_text())
+            self.assertEqual(main["parameters"]["mc"], 200)
+            self.assertEqual(detector["parameters"]["mc"], 20)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,11 @@
 
 No parameter was changed after the MC=10 screening.
 
+Post-audit verification: after decoupling refined receiver-table construction
+from the comparison-method roster, the frozen MC=200 run was repeated. Every
+exported scalar field in the main CSV matched the pre-fix result exactly. The
+promotion decision and the numerical values below are therefore unchanged.
+
 ## Results
 
 | Method | $P_D$ | cluster 95% CI | weak $P_D$ | $P_{FA}$ | mean observations | CPU max utilization |
@@ -52,4 +57,9 @@ The earlier diagnosis is confirmed: the meaningful gain comes from allocating mo
 
 ## Artifact
 
-The source CSV is results_fusion_headroom_v14_mc200/cpu_dynamic_main.csv.
+The post-audit source CSV is
+`results_fusion_headroom_v14_refine_fix/cpu_dynamic_main.csv`; it is
+field-for-field identical to the original
+`results_fusion_headroom_v14_mc200/cpu_dynamic_main.csv`.
+Its effective run configuration is recorded separately in
+`results_fusion_headroom_v14_refine_fix/cpu_dynamic_main.config.json`.

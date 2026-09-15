@@ -30,3 +30,8 @@ No additional hand-tuned diversity reward is justified by this screening. The ne
 Correlation creates near-tied saturated bundle values. HiGHS could classify the third lexicographic stage as infeasible under a $10^{-5}$ lock even though the previous integer incumbent remained feasible. Correlation mode now uses a $10^{-4}$ reliability lock; independent/released paths retain $10^{-5}$. This is a numerical tolerance change only and does not relax resource constraints or reorder objectives.
 
 Source: results_fusion_headroom_v14_corr20/correlation_sensitivity.csv.
+
+Post-audit verification: the correlation sweep was repeated after refined
+receiver-table construction was decoupled from the method roster. All exported
+fields matched the original CSV exactly. The verified copy is
+`results_fusion_headroom_v14_refine_fix/correlation_sensitivity.csv`.

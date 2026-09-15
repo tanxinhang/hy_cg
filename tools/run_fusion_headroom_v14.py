@@ -23,6 +23,23 @@ from isac_sim.report import scalar_summary_row, write_rows_csv  # noqa: E402
 from isac_sim.simulate import run_simulation  # noqa: E402
 
 
+def _write_artifact_manifest(
+    out: Path,
+    artifact: str,
+    cfg: Config,
+    parameters: dict[str, object] | None = None,
+) -> None:
+    """Write one immutable-by-name configuration record per result artifact."""
+    payload = {
+        "artifact": artifact,
+        "parameters": parameters or {},
+        "config": asdict(cfg),
+    }
+    (out / f"{artifact}.config.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
+    )
+
+
 def configured(args: argparse.Namespace) -> Config:
     cfg = apply_preset(Config(), args.preset)
     cfg = apply_overrides(cfg, {
@@ -58,6 +75,10 @@ def run_cpu_dynamic_main(cfg: Config, out: Path) -> None:
         "fixed_fusion_bundle",
         "local_only_bundle",
     ]
+    _write_artifact_manifest(
+        out, "cpu_dynamic_main", cfg,
+        {"methods": methods, "paired_reference": "rcs_robust_bundle_cg"},
+    )
     summary = run_simulation(
         cfg, methods=methods, paired_reference="rcs_robust_bundle_cg"
     )
@@ -86,7 +107,12 @@ def run_detector_ablation(cfg: Config, detector_k: int, out: Path) -> None:
         "selector.max_links_per_target": detector_k,
         "selector.max_total_links": detector_k * cfg.scale.Q,
     })
+    validate_config(cfg)
     methods = ["joint_bundle_cg", "joint_bundle_cg_exact_llr"]
+    _write_artifact_manifest(
+        out, "detector_ablation", cfg,
+        {"detector_k": detector_k, "methods": methods},
+    )
     summary = run_simulation(
         cfg, methods=methods, paired_reference="joint_bundle_cg"
     )
@@ -108,13 +134,26 @@ def run_detector_ablation(cfg: Config, detector_k: int, out: Path) -> None:
 
 
 def run_headroom(cfg: Config, args: argparse.Namespace, out: Path) -> None:
+    _write_artifact_manifest(out, "fusion_headroom", cfg, {
+        "headroom_trials": args.headroom_trials,
+        "k_safe": args.k_safe,
+        "shortlist_per_type": args.shortlist_per_type,
+    })
     rows: list[dict[str, object]] = []
     for trial in range(args.headroom_trials):
         rng = np.random.default_rng([cfg.run.seed, 14141, trial])
         geom = generate_geometry(cfg, rng)
         base = build_base_gains(cfg, geom, rng, rcs_view="mean")
-        tables = compute_link_tables(cfg, base)
-        fixed = assign_fusion_nodes(cfg, base, tables, geom)
+        coarse_tables = compute_link_tables(cfg, base)
+        # Match the main simulation: the fixed fusion assignment only sees the
+        # coarse scheduler view, while detector headroom is evaluated with the
+        # configured refined receiver statistics.
+        fixed = assign_fusion_nodes(cfg, base, coarse_tables, geom)
+        tables = (
+            compute_link_tables(cfg, base, dd_gain=base.eta_fine)
+            if cfg.refine.enable or cfg.refine.apply_to_all
+            else coarse_tables
+        )
         diagnostics = fusion_headroom_diagnostic(
             cfg,
             base,
@@ -173,17 +212,9 @@ def run_correlation_sensitivity(
     method = "rcs_robust_bundle_cg"
     rows: list[dict[str, object]] = []
     trial_pd: dict[float, np.ndarray] = {}
-    for level in levels:
-        # Preserve the declared structural composition while varying total
-        # correlation mass: tx/rx/target/DD = 0.3/0.3/0.2/0.2.
-        corr_cfg = apply_overrides(cfg, {
-            "corr.enable": True,
-            "corr.rho_tx": 0.30 * level,
-            "corr.rho_rx": 0.30 * level,
-            "corr.rho_target": 0.20 * level,
-            "corr.rho_dd": 0.20 * level,
-            "run.num_mc": args.corr_mc,
-        })
+    effective_configs = _correlation_configs(cfg, levels, args.corr_mc)
+    _write_correlation_manifest(out, cfg, method, levels, effective_configs)
+    for level, corr_cfg in effective_configs:
         records: list[dict[str, object]] = []
         summary = run_simulation(
             corr_cfg, methods=[method], trial_records=records
@@ -219,6 +250,82 @@ def run_correlation_sensitivity(
     write_rows_csv(rows, out / "correlation_sensitivity.csv")
 
 
+def _correlation_configs(
+    cfg: Config, levels: list[float], corr_mc: int
+) -> list[tuple[float, Config]]:
+    effective_configs: list[tuple[float, Config]] = []
+    for level in levels:
+        # Preserve the declared structural composition while varying total
+        # correlation mass: tx/rx/target/DD = 0.3/0.3/0.2/0.2.
+        corr_cfg = apply_overrides(cfg, {
+            "corr.enable": True,
+            "corr.rho_tx": 0.30 * level,
+            "corr.rho_rx": 0.30 * level,
+            "corr.rho_target": 0.20 * level,
+            "corr.rho_dd": 0.20 * level,
+            "run.num_mc": corr_mc,
+        })
+        validate_config(corr_cfg)
+        effective_configs.append((level, corr_cfg))
+    return effective_configs
+
+
+def _write_correlation_manifest(
+    out: Path,
+    cfg: Config,
+    method: str,
+    levels: list[float],
+    effective_configs: list[tuple[float, Config]],
+) -> None:
+    _write_artifact_manifest(out, "correlation_sensitivity", cfg, {
+        "method": method,
+        "levels": levels,
+        "effective_configs": [
+            {"rho_total": level, "config": asdict(corr_cfg)}
+            for level, corr_cfg in effective_configs
+        ],
+    })
+
+
+def write_requested_manifests(
+    cfg: Config, args: argparse.Namespace, out: Path
+) -> None:
+    """Materialize artifact-specific manifests without rerunning simulations."""
+    if args.mode in {"main", "all"}:
+        methods = [
+            "rcs_robust_bundle_cg", "joint_bundle_cg",
+            "fixed_fusion_bundle", "local_only_bundle",
+        ]
+        _write_artifact_manifest(
+            out, "cpu_dynamic_main", cfg,
+            {"methods": methods, "paired_reference": "rcs_robust_bundle_cg"},
+        )
+    if args.mode in {"detector", "all"}:
+        detector_cfg = apply_overrides(cfg, {
+            "selector.max_links_per_target": args.detector_k,
+            "selector.max_total_links": args.detector_k * cfg.scale.Q,
+        })
+        validate_config(detector_cfg)
+        _write_artifact_manifest(out, "detector_ablation", detector_cfg, {
+            "detector_k": args.detector_k,
+            "methods": ["joint_bundle_cg", "joint_bundle_cg_exact_llr"],
+        })
+    if args.mode in {"headroom", "all"}:
+        _write_artifact_manifest(out, "fusion_headroom", cfg, {
+            "headroom_trials": args.headroom_trials,
+            "k_safe": args.k_safe,
+            "shortlist_per_type": args.shortlist_per_type,
+        })
+    if args.mode in {"correlation", "all"}:
+        levels = [float(value) for value in args.corr_levels.split(",")]
+        if not levels or any(value < 0.0 or value > 1.0 for value in levels):
+            raise ValueError("correlation levels must lie in [0,1]")
+        effective = _correlation_configs(cfg, levels, args.corr_mc)
+        _write_correlation_manifest(
+            out, cfg, "rcs_robust_bundle_cg", levels, effective
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preset", default="small-uav-compact-800m")
@@ -243,12 +350,19 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--out", type=Path, default=ROOT / "results_fusion_headroom_v14")
+    parser.add_argument(
+        "--manifest-only", action="store_true",
+        help="write artifact-specific effective configuration files and exit",
+    )
     args = parser.parse_args()
     cfg = configured(args)
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "config.json").write_text(
         json.dumps(asdict(cfg), indent=2, sort_keys=True), encoding="utf-8"
     )
+    if args.manifest_only:
+        write_requested_manifests(cfg, args, args.out)
+        return 0
     if args.mode in {"main", "all"}:
         run_cpu_dynamic_main(cfg, args.out)
     if args.mode in {"detector", "all"}:

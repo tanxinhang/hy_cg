@@ -176,14 +176,14 @@ $K=2$ 只在声明的 shortlist 上精确枚举；$K=6$ 是受控 greedy 诊断�
 
 | 指标 | 均值 | 中位数 |
 |---|---:|---:|
-| $P_D^{\rm local}$ | 0.7519 | 0.9488 |
-| $P_D^{(2)}$ | 0.8178 | 0.9931 |
-| $P_D^{(6)}$ | 0.8859 | 0.9995 |
-| $G^{\rm obs}$ | 0.0681 | 0.00614 |
-| $G^{\rm comm}$ | 0.00081 | 0 |
-| $G^f$ | 0.00110 | 0 |
+| $P_D^{\rm local}$ | 0.8439 | 0.9647 |
+| $P_D^{(2)}$ | 0.9052 | 0.9966 |
+| $P_D^{(6)}$ | 0.9528 | 0.9999 |
+| $G^{\rm obs}$ | 0.0476 | 0.00334 |
+| $G^{\rm comm}$ | 0.00040 | 0 |
+| $G^f$ | 0.00021 | 0 |
 
-平均 observation-count headroom 约为 fusion-location headroom 的 62 倍。因此当前重点应是动态互补观测，不是继续细调 fusion ranking。
+平均 observation-count headroom 约为 fusion-location headroom 的 227 倍。因此当前重点仍应是动态互补观测，不是继续细调 fusion ranking。以上数值使用粗粒度调度视图分配固定融合节点，并以配置声明的细化接收机统计量计算 detector headroom。
 
 ### 9.2 Exact LLR 消融
 
@@ -191,10 +191,10 @@ MC=20、固定 $K=2$，两种检测器共享完全相同的 bundle 和融合节�
 
 | 检测器 | $P_D$ | $P_{FA}$ |
 |---|---:|---:|
-| deflection-weighted centred LLR | 0.580 | 0.0570 |
-| exact LLR sum | 0.575 | 0.0540 |
+| deflection-weighted centred LLR | 0.570 | 0.0531 |
+| exact LLR sum | 0.575 | 0.0534 |
 
-exact-minus-deflection 为 $-0.005$，95% 配对区间约为 $[-0.0223,0.0123]$。exact LLR 是理论正确性基线，但当前没有证据把它提升为性能 headline。
+exact-minus-deflection 为 $+0.005$，95% 配对区间约为 $[-0.0048,0.0148]$。exact LLR 是理论正确性基线，但当前没有证据把它提升为性能 headline。
 
 ### 9.3 RCS-robust + CPU dynamic bundle
 
@@ -217,6 +217,7 @@ robust 的 trial-cluster $P_{FA}$ 区间为 $[0.0495,0.0532]$，覆盖设计值 
 - 统一 RCS 下界不是 target-specific CVaR；没有可靠先验前不伪造分布。
 - headroom 的 $K=6$ 路径不是无限观测的全局组合最优。
 - MC=200 支持把 V1.4 作为后续候选版本；headline 身份仍应与论文主结果迁移分开管理。
+- 细化表触发条件修复后，MC=200 主结果与相关性筛查逐字段复核一致；headroom 与 detector 消融已按统一细化口径更新。
 - 若 MC=200 仍显示 $P_D^{(6)}\approx P_D^{\rm local}$，则系统属于 sensing-limited，应转向更多 look、sensing power 或几何设计。
 
 ### 10.1 相关性筛查结果
@@ -232,8 +233,11 @@ robust 的 trial-cluster $P_{FA}$ 区间为 $[0.0495,0.0532]$，覆盖设计值 
 ## 11. 复现
 
     python -m pytest -q
-    python tools\run_fusion_headroom_v14.py --mode headroom --headroom-trials 3
-    python tools\run_fusion_headroom_v14.py --mode detector --mc 20 --detector-k 2
-    python tools\run_fusion_headroom_v14.py --mode main --mc 200 --workers 4
+    python tools\run_fusion_headroom_v14.py --mode headroom --headroom-trials 3 --calibration-samples 16384 --out results_fusion_headroom_v14_refine_fix
+    python tools\run_fusion_headroom_v14.py --mode detector --mc 20 --workers 4 --detector-k 2 --calibration-samples 16384 --out results_fusion_headroom_v14_refine_fix
+    python tools\run_fusion_headroom_v14.py --mode correlation --corr-mc 20 --workers 4 --calibration-samples 16384 --out results_fusion_headroom_v14_refine_fix
+    python tools\run_fusion_headroom_v14.py --mode main --mc 200 --workers 4 --calibration-samples 16384 --out results_fusion_headroom_v14_refine_fix
 
 实现入口：isac_sim/llr.py、isac_sim/soft_channel.py、isac_sim/fusion.py、isac_sim/fusion_headroom.py、isac_sim/bundle_master.py 与 tools/run_fusion_headroom_v14.py。
+
+每个结果文件都有同名的独立有效配置清单（`*.config.json`）；后续以不同 mode 写入同一目录时，不再依赖会被覆盖的通用 `config.json`。如只需补建配置清单，可在相同命令末尾添加 `--manifest-only`，不会执行仿真或改写 CSV。

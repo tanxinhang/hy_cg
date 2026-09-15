@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from .config import Config, Link, MethodName, apply_overrides
+from .config import Config, Link, MethodName, apply_overrides, validate_config
 from .fusion import (
     calibrated_fused_threshold,
     compute_weights,
@@ -956,12 +956,17 @@ def run_one_trial(
         weak_target_index = weakest_belief_target(cfg, base_belief, tables_belief)
 
         needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
-        c2f_tables = None
         method_roster = methods if methods is not None else DEFAULT_METHODS
-        if needs_fine and any(m in C2F_METHODS for m in method_roster):
-            c2f_tables = compute_link_tables(
+        # The refined receiver model is a property of the configured system,
+        # not of which comparison methods happen to share this run.  Bundle
+        # methods consume this table through ``value_tables`` and every method
+        # is evaluated on the same refined statistics below.
+        c2f_tables = (
+            compute_link_tables(
                 scheduler_cfg, base_belief, dd_gain=base_belief.eta_fine
             )
+            if needs_fine else None
+        )
 
         cached_lagrangian = select_lagrangian(cfg, base_belief, tables_belief, plan)
         if cfg.refine.enable:
@@ -999,10 +1004,11 @@ def run_one_trial(
     weak_target_index = weakest_belief_target(cfg, base, tables)
 
     needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
-    c2f_tables = None
     method_roster = methods if methods is not None else DEFAULT_METHODS
-    if needs_fine and any(m in C2F_METHODS for m in method_roster):
-        c2f_tables = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
+    c2f_tables = (
+        compute_link_tables(cfg, base, dd_gain=base.eta_fine)
+        if needs_fine else None
+    )
 
     cached_lagrangian = select_lagrangian(cfg, base, tables, plan)
     if cfg.refine.enable:
@@ -1044,6 +1050,7 @@ def run_simulation(
     for compatibility, while generic reference-labelled fields support
     experimental successor methods without mislabelling the contrast.
     """
+    validate_config(cfg)
     method_roster = methods if methods is not None else DEFAULT_METHODS
     if paired_reference is not None and paired_reference not in method_roster:
         raise ValueError(

@@ -846,6 +846,27 @@ def validate_config(cfg: Config) -> None:
     when their MAC and payload-interference assumptions describe different
     systems.
     """
+    if cfg.scale.M < 2:
+        raise ValueError("scale.M must be at least two")
+    if cfg.scale.Q < 1:
+        raise ValueError("scale.Q must be at least one")
+    if cfg.run.num_mc < 1:
+        raise ValueError("run.num_mc must be at least one")
+    if not math.isfinite(cfg.detect.Pfa_target) or not 0.0 < cfg.detect.Pfa_target < 1.0:
+        raise ValueError("detect.Pfa_target must lie in (0, 1)")
+    if cfg.detect.n_looks < 1:
+        raise ValueError("detect.n_looks must be at least one")
+    corr_values = (
+        cfg.corr.rho_tx,
+        cfg.corr.rho_rx,
+        cfg.corr.rho_target,
+        cfg.corr.rho_dd,
+    )
+    if not all(math.isfinite(value) and value >= 0.0 for value in corr_values):
+        raise ValueError("correlation coefficients must be finite and non-negative")
+    if sum(corr_values) > 1.0 + 1e-12:
+        raise ValueError("correlation coefficients must sum to at most one")
+
     interference_model = cfg.comm.interference_model.lower()
     mac_model = cfg.comm.mac_model.lower()
     if interference_model not in {"full_concurrent", "active_set", "orthogonal"}:
@@ -913,16 +934,20 @@ def validate_config(cfg: Config) -> None:
         )
     if cfg.fusion.max_targets_per_uav < -1 or cfg.fusion.max_targets_per_uav == 0:
         raise ValueError("fusion.max_targets_per_uav must be -1 or positive")
-    if cfg.fusion.processing_window_s <= 0.0:
+    if not math.isfinite(cfg.fusion.processing_window_s) or cfg.fusion.processing_window_s <= 0.0:
         raise ValueError("fusion.processing_window_s must be positive")
-    if cfg.fusion.cpu_rate_cycles_per_s == 0.0:
+    if (
+        not math.isfinite(cfg.fusion.cpu_rate_cycles_per_s)
+        or cfg.fusion.cpu_rate_cycles_per_s == 0.0
+    ):
         raise ValueError("fusion.cpu_rate_cycles_per_s must be negative (off) or positive")
-    if min(
+    cpu_costs = (
         cfg.fusion.cpu_fixed_cycles,
         cfg.fusion.cpu_per_observation_cycles,
         cfg.fusion.cpu_cubic_cycles,
-    ) < 0.0:
-        raise ValueError("fusion CPU cost coefficients must be non-negative")
+    )
+    if not all(math.isfinite(value) and value >= 0.0 for value in cpu_costs):
+        raise ValueError("fusion CPU cost coefficients must be finite and non-negative")
     if cfg.prior.search_gate_sigma < 0:
         raise ValueError("prior.search_gate_sigma must be non-negative")
     if not 0.0 < cfg.prior.robust_position_confidence < 1.0:

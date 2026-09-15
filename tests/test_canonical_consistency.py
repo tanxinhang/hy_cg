@@ -161,6 +161,25 @@ class CanonicalConfigurationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "system_loss"):
             validate_config(cfg)
 
+    def test_invalid_run_detection_correlation_and_cpu_values_are_rejected(self) -> None:
+        mutations = [
+            ("run.num_mc", lambda cfg: setattr(cfg.run, "num_mc", 0)),
+            ("Pfa_target", lambda cfg: setattr(cfg.detect, "Pfa_target", 1.5)),
+            ("scale.Q", lambda cfg: setattr(cfg.scale, "Q", 0)),
+            ("correlation", lambda cfg: setattr(cfg.corr, "rho_tx", -0.1)),
+            ("sum", lambda cfg: setattr(cfg.corr, "rho_tx", 0.8)),
+            (
+                "cpu_rate_cycles_per_s",
+                lambda cfg: setattr(cfg.fusion, "cpu_rate_cycles_per_s", float("nan")),
+            ),
+        ]
+        for expected, mutate in mutations:
+            cfg = Config()
+            mutate(cfg)
+            with self.subTest(expected=expected):
+                with self.assertRaisesRegex(ValueError, expected):
+                    validate_config(cfg)
+
     def test_nearest_target_alias_is_backward_compatible(self) -> None:
         cfg = apply_preset(Config(), "paper-canonical")
         cfg.scale.M, cfg.scale.Q = 4, 2
