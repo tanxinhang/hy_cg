@@ -86,6 +86,7 @@ from .active_system import (
     GlobalActiveMasterResult,
     active_column_cpu_cycles,
     active_fusion_cpu_cycles,
+    active_local_aggregation_cpu_cycles,
     active_observation_cpu_cycles,
     active_receiver_cpu_cycles,
     evaluate_active_transport_headroom,
@@ -99,6 +100,12 @@ from .low_rcs_rescue import (
     bracket_minimum_detectable_rcs,
 )
 from .active_statistics import paired_cluster_summary
+from .coherent_oracle import (
+    CoherentOracleInformation,
+    coherent_group_gamma,
+    coherent_oracle_information,
+    evaluate_coherent_tx_detection_oracle,
+)
 from .evidence_acquisition import (
     EvidenceAcquisitionResult,
     EvidenceAcquisitionScope,
@@ -179,6 +186,7 @@ __all__ = [
     "GlobalActiveMasterResult",
     "active_column_cpu_cycles",
     "active_fusion_cpu_cycles",
+    "active_local_aggregation_cpu_cycles",
     "active_observation_cpu_cycles",
     "active_receiver_cpu_cycles",
     "evaluate_active_transport_headroom",
@@ -189,6 +197,10 @@ __all__ = [
     "RcsOperatingPoint",
     "bracket_minimum_detectable_rcs",
     "paired_cluster_summary",
+    "CoherentOracleInformation",
+    "coherent_group_gamma",
+    "coherent_oracle_information",
+    "evaluate_coherent_tx_detection_oracle",
     "EvidenceAcquisitionResult",
     "EvidenceAcquisitionScope",
     "solve_active_evidence_acquisition",

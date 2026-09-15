@@ -280,6 +280,7 @@ def evaluate_active_detection(
     evaluation_samples: int | None = None,
     seed: int = 0xA5715E,
     transmitter_reference_scales: np.ndarray | None = None,
+    transport_mode: str = "direct_llr",
 ) -> ActiveDetectionResult:
     """Evaluate a mixed-mode exact-LLR sum under observed true erasures.
 
@@ -293,6 +294,10 @@ def evaluate_active_detection(
     its selected bundle.
     """
     validate_config(cfg)
+    if transport_mode not in {"direct_llr", "receiver_local_llr"}:
+        raise ValueError(
+            "transport_mode must be 'direct_llr' or 'receiver_local_llr'"
+        )
     if cfg.detect.comm_error_model != "erasure":
         raise ValueError("mixed-mode exact LLR requires detect.comm_error_model='erasure'")
     n_cal = int(calibration_samples or cfg.detect.fused_calibration_samples)
@@ -325,6 +330,9 @@ def evaluate_active_detection(
         h0_cal = np.zeros(n_cal, dtype=float)
         h0_eval = np.zeros(n_eval, dtype=float)
         h1_eval = np.zeros(n_eval, dtype=float)
+        receiver_erasure_masks: dict[
+            int, tuple[np.ndarray, np.ndarray, np.ndarray]
+        ] = {}
         for index, observation in enumerate(chosen):
             i, j = observation.link
             gamma = max(float(gammas[scenario, index]), 0.0)
@@ -351,18 +359,33 @@ def evaluate_active_detection(
                 int(seed), int(q), int(scenario), int(i), int(j),
                 int(mode_key), 0x571A7157,
             ])
-            erasure_rng = np.random.default_rng([
-                int(seed), int(q), int(scenario), int(i), int(j),
-                int(mode_key), 0xE2A5E2A5,
-            ])
+            if transport_mode == "receiver_local_llr":
+                if j not in receiver_erasure_masks:
+                    erasure_rng = np.random.default_rng([
+                        int(seed), int(q), int(scenario), int(j), 0x10CA11A6,
+                    ])
+                    receiver_erasure_masks[j] = (
+                        erasure_rng.random(n_cal) < chi,
+                        erasure_rng.random(n_eval) < chi,
+                        erasure_rng.random(n_eval) < chi,
+                    )
+                cal_arrives, h0_arrives, h1_arrives = receiver_erasure_masks[j]
+            else:
+                erasure_rng = np.random.default_rng([
+                    int(seed), int(q), int(scenario), int(i), int(j),
+                    int(mode_key), 0xE2A5E2A5,
+                ])
+                cal_arrives = erasure_rng.random(n_cal) < chi
+                h0_arrives = erasure_rng.random(n_eval) < chi
+                h1_arrives = erasure_rng.random(n_eval) < chi
             cal = offset + coefficient * statistic_rng.gamma(looks, 1.0, n_cal)
             h0 = offset + coefficient * statistic_rng.gamma(looks, 1.0, n_eval)
             h1 = offset + coefficient * statistic_rng.gamma(
                 looks, 1.0 + gamma, n_eval
             )
-            h0_cal += np.where(erasure_rng.random(n_cal) < chi, cal, 0.0)
-            h0_eval += np.where(erasure_rng.random(n_eval) < chi, h0, 0.0)
-            h1_eval += np.where(erasure_rng.random(n_eval) < chi, h1, 0.0)
+            h0_cal += np.where(cal_arrives, cal, 0.0)
+            h0_eval += np.where(h0_arrives, h0, 0.0)
+            h1_eval += np.where(h1_arrives, h1, 0.0)
         threshold = float(np.quantile(
             h0_cal, 1.0 - cfg.detect.Pfa_target, method="higher"
         ))

@@ -52,6 +52,9 @@ class ActiveColumn:
     # the final fusion UAV.  Keeping ``cpu_cycles`` preserves the public total.
     receiver_cpu_cycles: tuple[float, ...] = ()
     fusion_cpu_cycles: float = 0.0
+    local_aggregation_cpu_cycles: tuple[float, ...] = ()
+    transport_mode: str = "direct_llr"
+    fusion_inputs: int = 0
 
     @property
     def robust_pd(self) -> float:
@@ -161,6 +164,19 @@ def active_receiver_cpu_cycles(
     return tuple(float(value) for value in cycles)
 
 
+def active_local_aggregation_cpu_cycles(
+    cfg: Config, observations: Sequence[ActiveObservation]
+) -> tuple[float, ...]:
+    """Per-receiver scalar additions used to collapse local exact LLRs."""
+    counts = np.zeros(cfg.scale.M, dtype=int)
+    for observation in observations:
+        counts[observation.link[1]] += 1
+    per_addition = float(cfg.fusion.cpu_per_observation_cycles)
+    return tuple(
+        per_addition * max(int(count) - 1, 0) for count in counts
+    )
+
+
 def _make_active_column(
     cfg: Config,
     base: BaseGains,
@@ -174,6 +190,7 @@ def _make_active_column(
     calibration_samples: int,
     evaluation_samples: int,
     seed: int,
+    transport_mode: str = "direct_llr",
 ) -> ActiveColumn:
     chosen = tuple(observations)
     M = cfg.scale.M
@@ -183,13 +200,25 @@ def _make_active_column(
     plan = ReportingPlan(
         mode="explicit", f_q=np.full(cfg.scale.Q, fusion, dtype=int)
     )
+    if transport_mode not in {"direct_llr", "receiver_local_llr"}:
+        raise ValueError(
+            "transport_mode must be 'direct_llr' or 'receiver_local_llr'"
+        )
+    remote_receivers: set[int] = set()
     remote = 0
     for observation in chosen:
         i, j = observation.link
         energy[i] += observation.mode.energy
         tx_load[i] += 1
         receiver[j] += 1
-        remote += int(not is_local_observation(plan, observation.link, q))
+        if not is_local_observation(plan, observation.link, q):
+            remote += 1
+            remote_receivers.add(j)
+    if transport_mode == "receiver_local_llr":
+        remote = len(remote_receivers)
+        fusion_input_count = len({obs.link[1] for obs in chosen})
+    else:
+        fusion_input_count = len(chosen)
 
     scenario_count = (
         len(cfg.active_sensing.aspect_angles_deg)
@@ -202,6 +231,7 @@ def _make_active_column(
             evaluation_samples=evaluation_samples,
             seed=seed,
             transmitter_reference_scales=reference_scales,
+            transport_mode=transport_mode,
         )
         gammas = active_observation_gammas(
             cfg, base, envelope_coarse, envelope_refined, q, chosen,
@@ -236,8 +266,18 @@ def _make_active_column(
         scenario_information = (0.0,) * scenario_count
         scenario_generated_information = (0.0,) * scenario_count
         scenario_network_information_loss = (0.0,) * scenario_count
-    receiver_cpu = active_receiver_cpu_cycles(cfg, chosen)
-    fusion_cpu = active_fusion_cpu_cycles(cfg, len(chosen))
+    observation_cpu = np.asarray(
+        active_receiver_cpu_cycles(cfg, chosen), dtype=float
+    )
+    local_aggregation_cpu = (
+        np.asarray(active_local_aggregation_cpu_cycles(cfg, chosen), dtype=float)
+        if transport_mode == "receiver_local_llr"
+        else np.zeros(M, dtype=float)
+    )
+    receiver_cpu = tuple(float(value) for value in (
+        observation_cpu + local_aggregation_cpu
+    ))
+    fusion_cpu = active_fusion_cpu_cycles(cfg, fusion_input_count)
     return ActiveColumn(
         target=q,
         fusion=fusion,
@@ -254,6 +294,11 @@ def _make_active_column(
         scenario_network_information_loss=scenario_network_information_loss,
         receiver_cpu_cycles=receiver_cpu,
         fusion_cpu_cycles=fusion_cpu,
+        local_aggregation_cpu_cycles=tuple(
+            float(value) for value in local_aggregation_cpu
+        ),
+        transport_mode=transport_mode,
+        fusion_inputs=fusion_input_count,
     )
 
 
@@ -270,6 +315,7 @@ def evaluate_active_transport_headroom(
     calibration_samples: int = 2048,
     evaluation_samples: int = 4096,
     seed: int = 0x10A55,
+    transport_mode: str = "direct_llr",
 ) -> ActiveTransportHeadroom:
     """Evaluate report-only headroom with the sensing bundle held fixed.
 
@@ -283,6 +329,7 @@ def evaluate_active_transport_headroom(
         calibration_samples=calibration_samples,
         evaluation_samples=evaluation_samples,
         seed=seed,
+        transport_mode=transport_mode,
     )
     lossless_coarse = replace(
         envelope_coarse,
@@ -298,6 +345,7 @@ def evaluate_active_transport_headroom(
         calibration_samples=calibration_samples,
         evaluation_samples=evaluation_samples,
         seed=seed,
+        transport_mode=transport_mode,
     )
     return ActiveTransportHeadroom(current=current, lossless_report=lossless)
 
@@ -315,6 +363,7 @@ def generate_active_columns(
     evaluation_samples: int = 1024,
     seed: int = 0xC0115,
     include_priced_rescue_column: bool = True,
+    transport_mode: str = "direct_llr",
 ) -> list[ActiveColumn]:
     """Generate active columns and exact-LLR values for the global master.
 
@@ -372,6 +421,7 @@ def generate_active_columns(
                     calibration_samples=calibration_samples,
                     evaluation_samples=evaluation_samples,
                     seed=seed,
+                    transport_mode=transport_mode,
                 )
                 columns.append(column)
                 generated_signatures.add(tuple(selected))
@@ -390,6 +440,7 @@ def generate_active_columns(
                     calibration_samples=calibration_samples,
                     evaluation_samples=evaluation_samples,
                     seed=seed,
+                    transport_mode=transport_mode,
                 ))
     return columns
 

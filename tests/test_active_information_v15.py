@@ -18,6 +18,7 @@ from isac_sim.active_information import (
 )
 from isac_sim.active_system import (
     ActiveColumn,
+    _make_active_column,
     active_column_cpu_cycles,
     evaluate_active_transport_headroom,
     generate_active_columns,
@@ -25,6 +26,10 @@ from isac_sim.active_system import (
     solve_global_active_master,
 )
 from isac_sim.config import Config, apply_overrides, apply_preset, validate_config
+from isac_sim.coherent_oracle import (
+    coherent_group_gamma,
+    coherent_oracle_information,
+)
 from isac_sim.llr import llr_delta, llr_jeffreys, llr_kld, llr_reverse_kld
 from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry
 from isac_sim.reporting import ReportingPlan, is_local_observation
@@ -281,6 +286,97 @@ class ActiveObservationPricingTests(unittest.TestCase):
             calibration_samples=2048, evaluation_samples=4096, seed=77,
         )
         self.assertEqual(left, right)
+
+    def test_receiver_local_llr_is_exactly_equivalent_when_reports_are_lossless(self) -> None:
+        cfg, base, coarse, refined = self._problem()
+        cfg.detect.comm_error_model = "erasure"
+        cfg.detect.soft_stat_model = "llr"
+        reliable_coarse = dataclasses.replace(
+            coarse, chi_comm=np.ones_like(coarse.chi_comm)
+        )
+        reliable_refined = dataclasses.replace(
+            refined, chi_comm=np.ones_like(refined.chi_comm)
+        )
+        observations = (
+            ActiveObservation((0, 1), SensingMode("short", 0.5, 3, False)),
+            ActiveObservation((2, 1), SensingMode("long", 1.0, 19, True)),
+        )
+        direct = evaluate_active_detection(
+            cfg, base, reliable_coarse, reliable_refined, 0, 2, observations,
+            calibration_samples=2048, evaluation_samples=4096, seed=78,
+            transport_mode="direct_llr",
+        )
+        locally_aggregated = evaluate_active_detection(
+            cfg, base, reliable_coarse, reliable_refined, 0, 2, observations,
+            calibration_samples=2048, evaluation_samples=4096, seed=78,
+            transport_mode="receiver_local_llr",
+        )
+        self.assertEqual(direct, locally_aggregated)
+
+    def test_receiver_local_llr_collapses_reports_and_final_fusion_inputs(self) -> None:
+        cfg, base, coarse, refined = self._problem()
+        cfg.detect.comm_error_model = "erasure"
+        cfg.detect.soft_stat_model = "llr"
+        observations = (
+            ActiveObservation((0, 1), SensingMode("nominal", 1.0, 16, True)),
+            ActiveObservation((2, 1), SensingMode("nominal", 1.0, 16, True)),
+        )
+        common = dict(
+            cfg=cfg, base=base, envelope_coarse=coarse,
+            envelope_refined=refined, q=0, fusion=2,
+            observations=observations, reference_scales=np.ones(cfg.scale.M),
+            calibration_samples=128, evaluation_samples=256, seed=79,
+        )
+        direct = _make_active_column(**common, transport_mode="direct_llr")
+        locally_aggregated = _make_active_column(
+            **common, transport_mode="receiver_local_llr"
+        )
+        self.assertEqual(direct.remote_reports, 2)
+        self.assertEqual(locally_aggregated.remote_reports, 1)
+        self.assertEqual(direct.fusion_inputs, 2)
+        self.assertEqual(locally_aggregated.fusion_inputs, 1)
+        self.assertLess(locally_aggregated.fusion_cpu_cycles, direct.fusion_cpu_cycles)
+        self.assertAlmostEqual(locally_aggregated.cpu_cycles, direct.cpu_cycles)
+        self.assertGreater(
+            sum(locally_aggregated.local_aggregation_cpu_cycles), 0.0
+        )
+
+    def test_unknown_transport_mode_is_rejected(self) -> None:
+        cfg, base, coarse, refined = self._problem()
+        cfg.detect.comm_error_model = "erasure"
+        with self.assertRaisesRegex(ValueError, "transport_mode"):
+            evaluate_active_detection(
+                cfg, base, coarse, refined, 0, 0, (),
+                transport_mode="raw_iq",
+            )
+
+    def test_coherent_oracle_has_no_singleton_gain_and_bounded_phase_gain(self) -> None:
+        singleton = coherent_group_gamma(np.asarray([0.2]), 0.0)
+        perfect = coherent_group_gamma(np.asarray([0.2, 0.2]), 0.0)
+        uncertain = coherent_group_gamma(np.asarray([0.2, 0.2]), 10.0)
+        self.assertAlmostEqual(float(singleton), 0.2)
+        self.assertAlmostEqual(float(perfect), 0.8)
+        self.assertAlmostEqual(float(uncertain), 0.4, places=12)
+
+    def test_coherent_oracle_information_dominates_direct_for_shared_receiver(self) -> None:
+        cfg, base, coarse, refined = self._problem()
+        cfg.detect.comm_error_model = "erasure"
+        observations = (
+            ActiveObservation((0, 1), SensingMode("nominal", 1.0, 16, True)),
+            ActiveObservation((2, 1), SensingMode("nominal", 1.0, 16, True)),
+        )
+        result = coherent_oracle_information(
+            cfg, base, coarse, refined, 0, 2, observations,
+            phase_error_std_rad=0.0,
+        )
+        self.assertGreaterEqual(
+            result.robust_coherent_information,
+            result.robust_direct_information,
+        )
+
+    def test_negative_coherent_phase_uncertainty_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "phase_error_std_rad"):
+            coherent_group_gamma(np.asarray([0.2, 0.2]), -0.1)
 
     def test_invalid_active_mode_configuration_is_rejected(self) -> None:
         cfg = Config()

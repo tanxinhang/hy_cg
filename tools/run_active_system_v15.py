@@ -21,6 +21,9 @@ from isac_sim.active_information import (  # noqa: E402
     evaluate_active_detection,
 )
 from isac_sim.active_statistics import paired_cluster_summary  # noqa: E402
+from isac_sim.coherent_oracle import (  # noqa: E402
+    evaluate_coherent_tx_detection_oracle,
+)
 from isac_sim.active_system import (  # noqa: E402
     evaluate_active_transport_headroom,
     generate_active_columns,
@@ -128,6 +131,7 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                 calibration_samples=args.calibration_samples,
                 evaluation_samples=args.evaluation_samples,
                 seed=experiment_seed + 1009 * trial,
+                transport_mode=args.transport_mode,
             )
             fixed_columns = generate_active_columns(
                 cfg, base, coarse, refined, modes=(nominal,),
@@ -136,6 +140,7 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                 calibration_samples=args.calibration_samples,
                 evaluation_samples=args.evaluation_samples,
                 seed=experiment_seed + 1009 * trial,
+                transport_mode=args.transport_mode,
             )
             results = {
                 "fixed_nominal_global": solve_global_active_master(
@@ -184,6 +189,7 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                             calibration_samples=args.calibration_samples,
                             evaluation_samples=args.validation_samples,
                             seed=experiment_seed + 1009 * trial + 0x51A7E,
+                            transport_mode=args.transport_mode,
                         )
                         for column in result.columns
                     ]
@@ -199,6 +205,7 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                             evaluation_samples=args.validation_samples,
                             seed=experiment_seed + 1009 * trial + 0x51A7E,
                             transmitter_reference_scales=reference,
+                            transport_mode=args.transport_mode,
                         )
                         for column in result.columns
                     ]
@@ -208,6 +215,25 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                     [item.lossless_report.robust_pd for item in headroom]
                     if headroom is not None else []
                 )
+                coherent_heldout = (
+                    [
+                        evaluate_coherent_tx_detection_oracle(
+                            cfg, base, envelope_coarse, envelope_refined,
+                            column.target, column.fusion, column.observations,
+                            calibration_samples=args.calibration_samples,
+                            evaluation_samples=args.validation_samples,
+                            seed=experiment_seed + 1009 * trial + 0xC0E2E17,
+                            transmitter_reference_scales=reference,
+                            phase_error_std_rad=np.deg2rad(
+                                args.coherent_phase_error_deg
+                            ),
+                            transport_mode=args.transport_mode,
+                        )
+                        for column in result.columns
+                    ]
+                    if args.coherent_tx_oracle else []
+                )
+                coherent_worst = [item.worst_pd for item in coherent_heldout]
                 row: dict[str, object] = {
                     "method": method,
                     "experiment_seed": experiment_seed,
@@ -220,6 +246,7 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                     "design_mean_pd": result.objective["mean_pd"],
                     "target_rcs_m2": float(cfg.detect.target_rcs),
                     "fusion_candidate_limit": args.fusion_candidate_limit,
+                    "transport_mode": args.transport_mode,
                     "heldout_worst_pd": float(min(heldout_worst_pd)),
                     "heldout_mean_pd": float(np.mean(heldout_worst_pd)),
                     "heldout_scenario_pfa_mean": float(np.mean([
@@ -236,6 +263,21 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                         float(min(lossless_worst) - min(heldout_worst_pd))
                         if lossless_worst else ""
                     ),
+                    "coherent_tx_oracle": bool(args.coherent_tx_oracle),
+                    "coherent_phase_error_deg": (
+                        float(args.coherent_phase_error_deg)
+                        if args.coherent_tx_oracle else ""
+                    ),
+                    "coherent_oracle_worst_pd": (
+                        float(min(coherent_worst)) if coherent_worst else ""
+                    ),
+                    "coherent_oracle_mean_pd": (
+                        float(np.mean(coherent_worst)) if coherent_worst else ""
+                    ),
+                    "coherent_oracle_worst_pd_gain": (
+                        float(min(coherent_worst) - min(heldout_worst_pd))
+                        if coherent_worst else ""
+                    ),
                     "columns": json.dumps([
                         {
                             "target": column.target,
@@ -247,6 +289,10 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                             "robust_evidence_retention": column.robust_evidence_retention,
                             "receiver_cpu_cycles": column.receiver_cpu_cycles,
                             "fusion_cpu_cycles": column.fusion_cpu_cycles,
+                            "local_aggregation_cpu_cycles": (
+                                column.local_aggregation_cpu_cycles
+                            ),
+                            "fusion_inputs": column.fusion_inputs,
                             "bundle": [
                                 [obs.link[0], obs.link[1], obs.mode.name]
                                 for obs in column.observations
@@ -299,6 +345,13 @@ def summarize(rows: list[dict[str, object]], args: argparse.Namespace) -> dict[s
             summary[method]["lossless_worst_pd_headroom_mean"] = float(np.mean([
                 float(row["lossless_worst_pd_headroom"]) for row in group
             ]))
+        if args.coherent_tx_oracle:
+            summary[method]["coherent_oracle_worst_pd_mean"] = float(np.mean([
+                float(row["coherent_oracle_worst_pd"]) for row in group
+            ]))
+            summary[method]["coherent_oracle_worst_pd_gain_mean"] = float(np.mean([
+                float(row["coherent_oracle_worst_pd_gain"]) for row in group
+            ]))
     fixed = [row for row in rows if row["method"] == "fixed_nominal_global"]
     active = [row for row in rows if row["method"] == "active_modes_global"]
     clusters = [f"{row['experiment_seed']}:{row['trial']}" for row in fixed]
@@ -334,6 +387,13 @@ def main() -> None:
     parser.add_argument("--rescue-looks", type=int)
     parser.add_argument("--rescue-power-scale", type=float, default=1.25)
     parser.add_argument("--lossless-report-headroom", action="store_true")
+    parser.add_argument(
+        "--transport-mode",
+        choices=("direct_llr", "receiver_local_llr"),
+        default="direct_llr",
+    )
+    parser.add_argument("--coherent-tx-oracle", action="store_true")
+    parser.add_argument("--coherent-phase-error-deg", type=float, default=0.0)
     parser.add_argument("--max-observations", type=int, default=3)
     parser.add_argument("--target-energy", type=float, default=48.0)
     parser.add_argument("--uav-energy", type=float, default=96.0)
