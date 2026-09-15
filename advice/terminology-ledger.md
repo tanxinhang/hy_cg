@@ -21,3 +21,12 @@
 | active column | one target--fusion mixed-mode observation bundle with resource and detector values | bundle/column used interchangeably without definition |
 | operational detection metric | calibrated worst-scenario $P_D$ at the target $P_{FA}$ | optimizing KL and reporting it as $P_D$ |
 | full-load interference envelope | conservative column-separable sensing-power externality model | exact selected-load interference |
+| low-RCS evidence rescue | acquisition–transport–fusion co-design that lowers a constrained detectable-RCS threshold | cooperative illumination used as the novelty by itself |
+| minimum detectable RCS | smallest RCS meeting worst-target $P_D$ and $P_{FA}$ requirements under declared constraints | an interpolated threshold from sparse or non-monotone points |
+| generated evidence | scenario-wise exact-LLR information available before report loss | received information |
+| received evidence | generated evidence retained at the final fusion UAV after report erasures | raw echo power |
+| network evidence loss | generated minus received detector-consistent information | generic packet count |
+| robust evidence retention | minimum scenario-wise received/generated evidence ratio | detection probability |
+| receiver-side processing | matched filtering, local exact LLR, and optional DD refinement at the echo receiver | charging all processing to fusion |
+| fusion-side processing | fixed, per-observation, and aggregation computation at the final fusion UAV | receiver signal processing |
+| receiver-local micro-fusion | local summation of same-receiver exact LLRs before one protected aggregate report | a current performance claim without packet-reliability modelling |

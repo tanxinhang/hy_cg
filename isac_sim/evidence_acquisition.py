@@ -22,6 +22,7 @@ from .active_system import (
     ActiveColumn,
     GlobalActiveMasterResult,
     generate_active_columns,
+    screen_fusion_candidates,
     solve_global_active_master,
 )
 from .config import Config, validate_config
@@ -66,6 +67,7 @@ def solve_active_evidence_acquisition(
     modes: Sequence[SensingMode] | None = None,
     candidate_limit: int = 4,
     allowed_fusions: dict[int, Sequence[int]] | None = None,
+    fusion_candidate_limit: int | None = None,
     calibration_samples: int = 512,
     evaluation_samples: int = 1024,
     seed: int = 0xE71D3,
@@ -90,6 +92,20 @@ def solve_active_evidence_acquisition(
         raise ValueError("active evidence acquisition requires detect.comm_error_model='erasure'")
 
     chosen_modes = tuple(modes) if modes is not None else configured_sensing_modes(cfg)
+    if allowed_fusions is not None and fusion_candidate_limit is not None:
+        raise ValueError(
+            "allowed_fusions and fusion_candidate_limit are mutually exclusive"
+        )
+    screened_fusions = allowed_fusions
+    if fusion_candidate_limit is not None:
+        screened_fusions = screen_fusion_candidates(
+            cfg,
+            base,
+            coarse_tables,
+            refined_tables,
+            modes=chosen_modes,
+            information_limit=fusion_candidate_limit,
+        )
     columns = tuple(generate_active_columns(
         cfg,
         base,
@@ -97,7 +113,7 @@ def solve_active_evidence_acquisition(
         refined_tables,
         modes=chosen_modes,
         candidate_limit=candidate_limit,
-        allowed_fusions=allowed_fusions,
+        allowed_fusions=screened_fusions,
         calibration_samples=calibration_samples,
         evaluation_samples=evaluation_samples,
         seed=seed,

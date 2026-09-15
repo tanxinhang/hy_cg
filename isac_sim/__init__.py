@@ -82,11 +82,21 @@ from .theory import (
 from .waveform import psf_local_capture, psf_main_bin, sweep_compare_analytic_vs_psf
 from .active_system import (
     ActiveColumn,
+    ActiveTransportHeadroom,
     GlobalActiveMasterResult,
     active_column_cpu_cycles,
+    active_fusion_cpu_cycles,
     active_observation_cpu_cycles,
+    active_receiver_cpu_cycles,
+    evaluate_active_transport_headroom,
     generate_active_columns,
+    screen_fusion_candidates,
     solve_global_active_master,
+)
+from .low_rcs_rescue import (
+    DetectableRcsBracket,
+    RcsOperatingPoint,
+    bracket_minimum_detectable_rcs,
 )
 from .active_statistics import paired_cluster_summary
 from .evidence_acquisition import (
@@ -165,11 +175,19 @@ __all__ = [
     "price_active_information_bundle",
     "received_information",
     "ActiveColumn",
+    "ActiveTransportHeadroom",
     "GlobalActiveMasterResult",
     "active_column_cpu_cycles",
+    "active_fusion_cpu_cycles",
     "active_observation_cpu_cycles",
+    "active_receiver_cpu_cycles",
+    "evaluate_active_transport_headroom",
     "generate_active_columns",
+    "screen_fusion_candidates",
     "solve_global_active_master",
+    "DetectableRcsBracket",
+    "RcsOperatingPoint",
+    "bracket_minimum_detectable_rcs",
     "paired_cluster_summary",
     "EvidenceAcquisitionResult",
     "EvidenceAcquisitionScope",

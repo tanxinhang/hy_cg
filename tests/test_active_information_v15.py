@@ -19,6 +19,8 @@ from isac_sim.active_information import (
 from isac_sim.active_system import (
     ActiveColumn,
     active_column_cpu_cycles,
+    evaluate_active_transport_headroom,
+    screen_fusion_candidates,
     solve_global_active_master,
 )
 from isac_sim.config import Config, apply_overrides, apply_preset, validate_config
@@ -91,6 +93,41 @@ class ActiveObservationPricingTests(unittest.TestCase):
         )
         self.assertGreater(factors[0, 0], factors[0, 1])
         self.assertLess(factors[2, 0], factors[2, 1])
+
+    def test_lossless_report_oracle_holds_acquisition_fixed(self) -> None:
+        cfg, base, coarse, refined = self._problem()
+        cfg.detect.soft_stat_model = "llr"
+        cfg.detect.comm_error_model = "erasure"
+        observation = ActiveObservation(
+            (0, 1), SensingMode("nominal", 1.0, 16, True)
+        )
+        result = evaluate_active_transport_headroom(
+            cfg, base, coarse, refined, 0, 2, (observation,),
+            np.ones(cfg.scale.M),
+            calibration_samples=512,
+            evaluation_samples=1024,
+            seed=91,
+        )
+        self.assertEqual(result.current.observations, result.lossless_report.observations)
+        np.testing.assert_allclose(
+            result.current.scenario_generated_information,
+            result.lossless_report.scenario_information,
+        )
+        self.assertAlmostEqual(result.lossless_report.network_evidence_loss, 0.0)
+        self.assertGreaterEqual(
+            result.lossless_report.robust_information,
+            result.current.robust_information,
+        )
+
+    def test_fusion_screen_keeps_information_and_locality_candidates(self) -> None:
+        cfg, base, coarse, refined = self._problem()
+        screened = screen_fusion_candidates(
+            cfg, base, coarse, refined, information_limit=1
+        )
+        self.assertEqual(set(screened), {0})
+        self.assertGreaterEqual(len(screened[0]), 1)
+        self.assertLessEqual(len(screened[0]), 2)
+        self.assertTrue(all(0 <= fusion < cfg.scale.M for fusion in screened[0]))
 
     def test_branch_and_bound_matches_complete_small_enumeration(self) -> None:
         cfg, base, coarse, refined = self._problem()
@@ -272,6 +309,56 @@ class GlobalActiveMasterTests(unittest.TestCase):
             - active_column_cpu_cycles(cfg, (coarse,))
         )
         self.assertAlmostEqual(difference, cfg.active_sensing.dd_refine_cycles)
+
+    def test_cpu_budget_is_charged_to_receiver_and_final_fusion(self) -> None:
+        cfg = Config()
+        cfg.scale.M = 2
+        cfg.scale.Q = 1
+        cfg.active_sensing.aspect_enable = False
+        cfg.fusion.cpu_rate_cycles_per_s = 3.0
+        cfg.fusion.processing_window_s = 1.0
+        cfg.detect.pd_required = 0.9
+        common = dict(
+            target=0, fusion=1, observations=(), scenario_information=(1.0,),
+            scenario_pfa=(0.05,), energy_by_tx=(0.0, 0.0), tx_load=(0, 0),
+            receiver_load=(0, 0), remote_reports=0,
+            scenario_generated_information=(1.0,),
+            scenario_network_information_loss=(0.0,),
+        )
+        overloaded_receiver = ActiveColumn(
+            **common, scenario_pd=(0.95,), cpu_cycles=5.0,
+            receiver_cpu_cycles=(4.0, 0.0), fusion_cpu_cycles=1.0,
+        )
+        feasible = ActiveColumn(
+            **common, scenario_pd=(0.80,), cpu_cycles=2.0,
+            receiver_cpu_cycles=(0.0, 1.0), fusion_cpu_cycles=1.0,
+        )
+        result = solve_global_active_master(cfg, [overloaded_receiver, feasible])
+        self.assertEqual(result.columns, (feasible,))
+        self.assertLessEqual(result.objective["max_uav_cpu_cycles"], 3.0)
+
+    def test_network_evidence_loss_precedes_energy_tie_break(self) -> None:
+        cfg = Config()
+        cfg.scale.M = 2
+        cfg.scale.Q = 1
+        cfg.active_sensing.aspect_enable = False
+        cfg.detect.pd_required = 0.9
+        high_loss = self._column(0, 0.9, 0.0, 0.0)
+        low_loss = ActiveColumn(
+            target=0, fusion=0, observations=(),
+            scenario_information=(0.9,), scenario_pd=(0.9,), scenario_pfa=(0.05,),
+            energy_by_tx=(1.0, 0.0), tx_load=(0, 0), receiver_load=(0, 0),
+            remote_reports=0, cpu_cycles=0.0,
+            scenario_generated_information=(1.0,),
+            scenario_network_information_loss=(0.1,),
+        )
+        high_loss = ActiveColumn(
+            **{**high_loss.__dict__,
+               "scenario_generated_information": (1.0,),
+               "scenario_network_information_loss": (0.5,)}
+        )
+        result = solve_global_active_master(cfg, [high_loss, low_loss])
+        self.assertEqual(result.columns, (low_loss,))
 
 
 if __name__ == "__main__":

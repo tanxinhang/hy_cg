@@ -1,5 +1,10 @@
 # Paper release contract
 
+> The current integrated theory/model/algorithm direction is documented in
+> [LOW_RCS_EVIDENCE_RESCUE.md](LOW_RCS_EVIDENCE_RESCUE.md). Earlier release
+> evidence remains historical unless the new claim--evidence boundary marks it
+> as supported.
+
 The only configuration authorized to generate headline paper results is
 `PRESETS["paper-canonical"]` in `isac_sim/config.py`.  `tools/rerun_paper.py`
 applies this preset before any experiment-specific override.

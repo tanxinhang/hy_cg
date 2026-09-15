@@ -22,7 +22,9 @@ from isac_sim.active_information import (  # noqa: E402
 )
 from isac_sim.active_statistics import paired_cluster_summary  # noqa: E402
 from isac_sim.active_system import (  # noqa: E402
+    evaluate_active_transport_headroom,
     generate_active_columns,
+    screen_fusion_candidates,
     solve_global_active_master,
 )
 from isac_sim.config import Config, apply_overrides, apply_preset, validate_config  # noqa: E402
@@ -39,7 +41,7 @@ def implementation_digest() -> str:
 
 def configured(args: argparse.Namespace) -> Config:
     cfg = apply_preset(Config(), args.preset)
-    cfg = apply_overrides(cfg, {
+    overrides = {
         "scale.M": args.uavs,
         "scale.Q": args.targets,
         "prior.belief_mode": False,
@@ -62,7 +64,10 @@ def configured(args: argparse.Namespace) -> Config:
         "selector.max_total_links": args.total_observation_cap,
         "run.seed": args.seed,
         "run.verbose": False,
-    })
+    }
+    if args.target_rcs is not None:
+        overrides["detect.target_rcs"] = args.target_rcs
+    cfg = apply_overrides(cfg, overrides)
     validate_config(cfg)
     return cfg
 
@@ -82,9 +87,20 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
             base = build_base_gains(cfg, geom, rng, rcs_view="mean")
             coarse = compute_link_tables(cfg, base)
             refined = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
+            allowed_fusions = None
+            if args.fusion_candidate_limit is not None:
+                allowed_fusions = screen_fusion_candidates(
+                    cfg,
+                    base,
+                    coarse,
+                    refined,
+                    modes=modes,
+                    information_limit=args.fusion_candidate_limit,
+                )
             columns = generate_active_columns(
                 cfg, base, coarse, refined, modes=modes,
                 candidate_limit=args.candidate_limit,
+                allowed_fusions=allowed_fusions,
                 calibration_samples=args.calibration_samples,
                 evaluation_samples=args.evaluation_samples,
                 seed=experiment_seed + 1009 * trial,
@@ -110,17 +126,40 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                 sensing_power_scale_by_uav=reference,
             )
             for method, result in results.items():
-                heldout = [
-                    evaluate_active_detection(
-                        cfg, base, envelope_coarse, envelope_refined,
-                        column.target, column.fusion, column.observations,
-                        calibration_samples=args.calibration_samples,
-                        evaluation_samples=args.validation_samples,
-                        seed=experiment_seed + 1009 * trial + 0x51A7E,
-                        transmitter_reference_scales=reference,
-                    )
-                    for column in result.columns
-                ]
+                headroom = None
+                if args.lossless_report_headroom:
+                    headroom = [
+                        evaluate_active_transport_headroom(
+                            cfg, base, envelope_coarse, envelope_refined,
+                            column.target, column.fusion, column.observations,
+                            reference,
+                            calibration_samples=args.calibration_samples,
+                            evaluation_samples=args.validation_samples,
+                            seed=experiment_seed + 1009 * trial + 0x51A7E,
+                        )
+                        for column in result.columns
+                    ]
+                    heldout = [item.current for item in headroom]
+                    heldout_worst_pd = [item.robust_pd for item in heldout]
+                    heldout_pfa = [item.scenario_pfa for item in heldout]
+                else:
+                    heldout = [
+                        evaluate_active_detection(
+                            cfg, base, envelope_coarse, envelope_refined,
+                            column.target, column.fusion, column.observations,
+                            calibration_samples=args.calibration_samples,
+                            evaluation_samples=args.validation_samples,
+                            seed=experiment_seed + 1009 * trial + 0x51A7E,
+                            transmitter_reference_scales=reference,
+                        )
+                        for column in result.columns
+                    ]
+                    heldout_worst_pd = [item.worst_pd for item in heldout]
+                    heldout_pfa = [item.scenario_pfa for item in heldout]
+                lossless_worst = (
+                    [item.lossless_report.robust_pd for item in headroom]
+                    if headroom is not None else []
+                )
                 row: dict[str, object] = {
                     "method": method,
                     "experiment_seed": experiment_seed,
@@ -131,20 +170,35 @@ def run(cfg: Config, args: argparse.Namespace) -> list[dict[str, object]]:
                     **result.objective,
                     "design_worst_pd": result.objective["worst_pd"],
                     "design_mean_pd": result.objective["mean_pd"],
-                    "heldout_worst_pd": float(min(item.worst_pd for item in heldout)),
-                    "heldout_mean_pd": float(np.mean([
-                        item.worst_pd for item in heldout
-                    ])),
+                    "target_rcs_m2": float(cfg.detect.target_rcs),
+                    "fusion_candidate_limit": args.fusion_candidate_limit,
+                    "heldout_worst_pd": float(min(heldout_worst_pd)),
+                    "heldout_mean_pd": float(np.mean(heldout_worst_pd)),
                     "heldout_scenario_pfa_mean": float(np.mean([
-                        value for item in heldout for value in item.scenario_pfa
+                        value for values in heldout_pfa for value in values
                     ])),
-                    "heldout_max_pfa": float(max(item.worst_pfa for item in heldout)),
+                    "heldout_max_pfa": float(max(max(values) for values in heldout_pfa)),
+                    "lossless_heldout_worst_pd": (
+                        float(min(lossless_worst)) if lossless_worst else ""
+                    ),
+                    "lossless_heldout_mean_pd": (
+                        float(np.mean(lossless_worst)) if lossless_worst else ""
+                    ),
+                    "lossless_worst_pd_headroom": (
+                        float(min(lossless_worst) - min(heldout_worst_pd))
+                        if lossless_worst else ""
+                    ),
                     "columns": json.dumps([
                         {
                             "target": column.target,
                             "fusion": column.fusion,
                             "robust_pd": column.robust_pd,
                             "robust_information": column.robust_information,
+                            "generated_information": column.scenario_generated_information,
+                            "network_evidence_loss": column.network_evidence_loss,
+                            "robust_evidence_retention": column.robust_evidence_retention,
+                            "receiver_cpu_cycles": column.receiver_cpu_cycles,
+                            "fusion_cpu_cycles": column.fusion_cpu_cycles,
                             "bundle": [
                                 [obs.link[0], obs.link[1], obs.mode.name]
                                 for obs in column.observations
@@ -180,7 +234,23 @@ def summarize(rows: list[dict[str, object]], args: argparse.Namespace) -> dict[s
             "energy_mean": float(np.mean([float(row["total_energy"]) for row in group])),
             "cpu_cycles_mean": float(np.mean([float(row["cpu_cycles"]) for row in group])),
             "remote_reports_mean": float(np.mean([float(row["remote_reports"]) for row in group])),
+            "network_evidence_loss_mean": float(np.mean([
+                float(row["network_evidence_loss"]) for row in group
+            ])),
+            "worst_evidence_retention_mean": float(np.mean([
+                float(row["worst_evidence_retention"]) for row in group
+            ])),
+            "max_uav_cpu_cycles_mean": float(np.mean([
+                float(row["max_uav_cpu_cycles"]) for row in group
+            ])),
         }
+        if args.lossless_report_headroom:
+            summary[method]["lossless_heldout_worst_pd_mean"] = float(np.mean([
+                float(row["lossless_heldout_worst_pd"]) for row in group
+            ]))
+            summary[method]["lossless_worst_pd_headroom_mean"] = float(np.mean([
+                float(row["lossless_worst_pd_headroom"]) for row in group
+            ]))
     fixed = [row for row in rows if row["method"] == "fixed_nominal_global"]
     active = [row for row in rows if row["method"] == "active_modes_global"]
     clusters = [f"{row['experiment_seed']}:{row['trial']}" for row in fixed]
@@ -208,6 +278,9 @@ def main() -> None:
     parser.add_argument("--seed-count", type=int, default=3)
     parser.add_argument("--seed", type=int, default=20250915)
     parser.add_argument("--candidate-limit", type=int, default=3)
+    parser.add_argument("--fusion-candidate-limit", type=int)
+    parser.add_argument("--target-rcs", type=float)
+    parser.add_argument("--lossless-report-headroom", action="store_true")
     parser.add_argument("--max-observations", type=int, default=3)
     parser.add_argument("--target-energy", type=float, default=48.0)
     parser.add_argument("--uav-energy", type=float, default=96.0)
@@ -228,7 +301,7 @@ def main() -> None:
     scientific = {key: value for key, value in vars(args).items() if key != "out"}
     manifest = {
         "artifact": "active_system_v15",
-        "implementation_version": "1.5-system.2",
+        "implementation_version": "low-rcs-evidence-rescue.1",
         "implementation_digest": implementation_digest(),
         "scope": "global active-column master with full-load interference envelope",
         "arguments": scientific,

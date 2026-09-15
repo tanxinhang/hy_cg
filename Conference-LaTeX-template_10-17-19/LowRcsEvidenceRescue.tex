@@ -1,0 +1,93 @@
+\section{Low-RCS Evidence Rescue}
+\label{sec:low-rcs-rescue}
+
+The proposed contribution is not cooperative illumination by itself. Existing
+multi-static and cell-free ISAC studies already coordinate transmitters,
+receivers, beamformers, groups, and power. We instead ask whether a constrained
+multi-UAV network can create, preserve, and fuse sufficient
+hypothesis-separating evidence to detect a target with smaller radar cross
+section (RCS). This yields the end-to-end chain
+\begin{equation}
+\text{weak-echo deficit}\rightarrow\text{evidence formation}
+\rightarrow\text{evidence transport}\rightarrow\text{likelihood fusion}
+\rightarrow P_D@P_{FA}.
+\end{equation}
+
+\subsection{Minimum detectable RCS}
+
+For feasible network decisions $\mathcal X$, required worst-target detection
+probability $P_D^{\rm req}$, and false-alarm limit $\alpha$, we define
+\begin{equation}
+\sigma_{\rm det}^{\star}=\inf\left\{\sigma>0:\exists\mathbf{x}\in\mathcal X,
+\min_qP_{D,q}(\sigma;\mathbf{x})\ge P_D^{\rm req},\quad
+\max_qP_{FA,q}(\sigma;\mathbf{x})\le\alpha\right\}.
+\end{equation}
+A finite RCS sweep reports the conservative bracket
+$\sigma_{\rm det}^{\star}\in(\sigma^-,\sigma^+]$, where $\sigma^-$ is the
+largest tested failure below the first tested pass $\sigma^+$. No interpolation
+is used when the empirical sweep is sparse or non-monotone.
+
+\subsection{Formation, transport, and fusion}
+
+An observation $a=(i,j,q,m)$ selects an illuminating UAV $i$, echo receiver
+$j$, target $q$, and acquisition mode $m$. For scenario $s$, its local exact-LLR
+information is $D_{a,s}$. For bundle $B_q$ and final fusion UAV $f_q$, define
+\begin{align}
+I_{q,s}^{\rm gen}(B_q)&=\sum_{a\in B_q}D_{a,s},\\
+I_{q,s}^{\rm rx}(B_q,f_q)&=\sum_{a\in B_q}
+\chi_{j(a)f_q}D_{a,s},\\
+\mathcal L_{q,s}^{\rm net}&=I_{q,s}^{\rm gen}-I_{q,s}^{\rm rx},\\
+\rho_q^{\rm net}&=\min_s\frac{I_{q,s}^{\rm rx}}
+{I_{q,s}^{\rm gen}+\epsilon}.
+\end{align}
+Here $\chi_{j(a)f_q}$ is the observed, hypothesis-independent report-success
+probability. A lossless-report diagnostic sets $\chi=1$ while preserving the
+sensing bundle and modes. It therefore separates evidence-formation headroom
+from transport headroom without changing the physical sensing decision.
+
+Observation processing is charged to its actual receiver,
+\begin{equation}
+C_j^{\rm rx}=\sum_{a:j(a)=j}
+\left[L_m(C_{\rm MF}+C_{\rm LLR})+
+\mathbf 1_{r_m}C_{\rm DD}\right],
+\end{equation}
+whereas aggregation is charged to the final fusion UAV,
+\begin{equation}
+C_f^{\rm fus}=C_0+C_1|B_f|+C_3|B_f|^3.
+\end{equation}
+Every UAV obeys $C_u^{\rm rx}+C_u^{\rm fus}\le\bar C_u$.
+
+\subsection{Integrated algorithm}
+
+The local pricing oracle constructs aspect-robust link--mode bundles using KL
+or Jeffreys information derived from the implemented exact LLR. Before costly
+Monte Carlo column evaluation, an optional analytical fusion screen retains
+the strongest destinations by robust received information and one
+communication-locality anchor. The global binary master selects one column per
+target and solves
+\begin{equation}
+\operatorname{lexmin}\left(d_{\max},\sum_qd_q,
+\sum_q\max_s\mathcal L_{q,s}^{\rm net},E,N_{\rm remote},C\right),
+\end{equation}
+subject to transmitter, receiver, reporting, final-fusion, computation, and
+energy limits. Detection fairness therefore remains primary, while evidence
+loss breaks statistical ties before resource cost.
+
+The analytical fusion screen is not a certificate over removed destinations.
+The local solver may be exact over its declared candidate pool, and the master
+is exact over generated columns; neither statement establishes full
+action-space optimality. Receiver-local aggregation and multi-tier fusion are
+deferred until a lossless-report oracle demonstrates material transport
+headroom and an aggregate-packet reliability model is available.
+
+\subsection{Current evidence and claim boundary}
+
+In one corrected 15-UAV/10-target instance, active acquisition achieved
+mean/worst target $P_D=0.78951/0.20776$, compared with
+$0.77596/0.20776$ for fixed nominal acquisition, while mean $P_{FA}$ remained
+near $0.05$. Physical-statistic random streams were common across fusion
+destinations, so routing no longer resamples the echo. The result validates the
+execution path and a mean improvement in that instance; it does not demonstrate
+a fleet-population effect, a worst-target advantage, or a reduced minimum
+detectable RCS. Those claims require paired multi-seed RCS sweeps and the
+formation-versus-transport headroom ablation.

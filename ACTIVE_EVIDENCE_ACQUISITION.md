@@ -1,5 +1,10 @@
 # Active Evidence Acquisition for Resource-Constrained Multi-UAV OTFS-ISAC
 
+> **Integrated successor.** The definitive research line is now
+> [Low-RCS Evidence Rescue](LOW_RCS_EVIDENCE_RESCUE.md). This document remains
+> the detector-consistent active-acquisition foundation; novelty and system
+> claims should follow the successor's formation–transport–fusion boundary.
+
 ## Draft
 
 ### Recommended title
@@ -43,7 +48,7 @@ where (i) transmits the sensing waveform, (j) receives the echo, (m) selects sen
 P_{FA,q}(\mathbf{x};s)\le \alpha,
 \]
 
-with shared sensing, reporting, computation, receiver, and energy constraints in (\mathcal X). The implementation uses lexicographic fairness: minimize the worst target detection deficit, then the total deficit, energy, remote reports, and CPU cycles.
+with shared sensing, reporting, computation, receiver, and energy constraints in (\mathcal X). The implementation uses lexicographic fairness: minimize the worst target detection deficit, then the total deficit, network evidence loss, energy, remote reports, and CPU cycles.
 
 ## Theory: one ladder, not a collection of metrics
 
@@ -142,7 +147,7 @@ C_a=L_m(C_{\mathrm{MF}}+C_{\mathrm{LLR}})
 +\mathbf 1_{r_m}C_{\mathrm{DD}}.
 \]
 
-The active column additionally records per-transmitter energy and load, receiver load, fusion load, remote reports, and fusion computation. This representation is the contract between physical sensing and network optimization.
+The active column additionally records per-transmitter energy and load, receiver load, remote reports, generated and received information, network evidence loss, receiver-side observation processing, and final-fusion aggregation. This representation is the contract between physical sensing and network optimization.
 
 ## Algorithm: evolution and integrated implementation
 

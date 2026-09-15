@@ -10,7 +10,7 @@ global master while exposing rather than ignoring the power externality.
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Sequence
 
 import numpy as np
@@ -43,6 +43,15 @@ class ActiveColumn:
     receiver_load: tuple[int, ...]
     remote_reports: int
     cpu_cycles: float
+    # ``scenario_information`` is the evidence that reaches the final fusion
+    # node.  The generated quantity removes report erasures while preserving
+    # the sensing action, so their difference isolates transport loss.
+    scenario_generated_information: tuple[float, ...] = ()
+    scenario_network_information_loss: tuple[float, ...] = ()
+    # Observation processing runs at each receiver; only aggregation runs at
+    # the final fusion UAV.  Keeping ``cpu_cycles`` preserves the public total.
+    receiver_cpu_cycles: tuple[float, ...] = ()
+    fusion_cpu_cycles: float = 0.0
 
     @property
     def robust_pd(self) -> float:
@@ -60,6 +69,23 @@ class ActiveColumn:
     def total_energy(self) -> float:
         return float(sum(self.energy_by_tx))
 
+    @property
+    def network_evidence_loss(self) -> float:
+        """Worst-scenario KL/Jeffreys information lost during reporting."""
+        return float(max(self.scenario_network_information_loss, default=0.0))
+
+    @property
+    def robust_evidence_retention(self) -> float:
+        """Minimum scenario-wise received/generated evidence ratio."""
+        if not self.scenario_generated_information:
+            return 1.0
+        ratios = []
+        for generated, received in zip(
+            self.scenario_generated_information, self.scenario_information
+        ):
+            ratios.append(1.0 if generated <= 1e-15 else received / generated)
+        return float(np.clip(min(ratios, default=1.0), 0.0, 1.0))
+
 
 @dataclass(frozen=True)
 class GlobalActiveMasterResult:
@@ -68,6 +94,25 @@ class GlobalActiveMasterResult:
     candidate_column_count: int
     exact_over_columns: bool
     power_externality_model: str = "full_load_envelope"
+
+
+@dataclass(frozen=True)
+class ActiveTransportHeadroom:
+    """Fixed-acquisition comparison between current and lossless reporting."""
+
+    current: ActiveColumn
+    lossless_report: ActiveColumn
+
+    @property
+    def worst_pd_headroom(self) -> float:
+        return float(self.lossless_report.robust_pd - self.current.robust_pd)
+
+    @property
+    def mean_pd_headroom(self) -> float:
+        return float(
+            np.mean(self.lossless_report.scenario_pd)
+            - np.mean(self.current.scenario_pd)
+        )
 
 
 def active_observation_cpu_cycles(cfg: Config, observation: ActiveObservation) -> float:
@@ -85,15 +130,35 @@ def active_observation_cpu_cycles(cfg: Config, observation: ActiveObservation) -
 def active_column_cpu_cycles(
     cfg: Config, observations: Sequence[ActiveObservation]
 ) -> float:
+    """Total receiver-side observation and final-fusion processing cycles."""
     if not observations:
         return 0.0
-    size = len(observations)
+    return float(
+        sum(active_observation_cpu_cycles(cfg, obs) for obs in observations)
+        + active_fusion_cpu_cycles(cfg, len(observations))
+    )
+
+
+def active_fusion_cpu_cycles(cfg: Config, observation_count: int) -> float:
+    """Aggregation cycles executed only by the selected final fusion UAV."""
+    if observation_count <= 0:
+        return 0.0
+    size = int(observation_count)
     return float(
         cfg.fusion.cpu_fixed_cycles
         + cfg.fusion.cpu_per_observation_cycles * size
         + cfg.fusion.cpu_cubic_cycles * size ** 3
-        + sum(active_observation_cpu_cycles(cfg, obs) for obs in observations)
     )
+
+
+def active_receiver_cpu_cycles(
+    cfg: Config, observations: Sequence[ActiveObservation]
+) -> tuple[float, ...]:
+    """Per-UAV cycles for matched filtering, exact LLRs, and DD refinement."""
+    cycles = np.zeros(cfg.scale.M, dtype=float)
+    for observation in observations:
+        cycles[observation.link[1]] += active_observation_cpu_cycles(cfg, observation)
+    return tuple(float(value) for value in cycles)
 
 
 def _make_active_column(
@@ -143,6 +208,7 @@ def _make_active_column(
             reference_scales,
         )
         information = np.zeros(gammas.shape[0], dtype=float)
+        generated_information = np.zeros(gammas.shape[0], dtype=float)
         for index, observation in enumerate(chosen):
             chi = float(np.clip(
                 report_chi(envelope_coarse, plan, observation.link, q), 0.0, 1.0
@@ -151,13 +217,27 @@ def _make_active_column(
                 gammas[:, index], observation.mode.looks, chi,
                 cfg.active_sensing.information_metric,
             )
+            generated_information += received_information(
+                gammas[:, index], observation.mode.looks, 1.0,
+                cfg.active_sensing.information_metric,
+            )
         scenario_pd = detection.scenario_pd
         scenario_pfa = detection.scenario_pfa
         scenario_information = tuple(float(x) for x in information)
+        scenario_generated_information = tuple(
+            float(x) for x in generated_information
+        )
+        scenario_network_information_loss = tuple(
+            float(x) for x in np.maximum(generated_information - information, 0.0)
+        )
     else:
         scenario_pd = (0.0,) * scenario_count
         scenario_pfa = (float(cfg.detect.Pfa_target),) * scenario_count
         scenario_information = (0.0,) * scenario_count
+        scenario_generated_information = (0.0,) * scenario_count
+        scenario_network_information_loss = (0.0,) * scenario_count
+    receiver_cpu = active_receiver_cpu_cycles(cfg, chosen)
+    fusion_cpu = active_fusion_cpu_cycles(cfg, len(chosen))
     return ActiveColumn(
         target=q,
         fusion=fusion,
@@ -169,8 +249,57 @@ def _make_active_column(
         tx_load=tuple(int(x) for x in tx_load),
         receiver_load=tuple(int(x) for x in receiver),
         remote_reports=int(remote),
-        cpu_cycles=active_column_cpu_cycles(cfg, chosen),
+        cpu_cycles=float(sum(receiver_cpu) + fusion_cpu),
+        scenario_generated_information=scenario_generated_information,
+        scenario_network_information_loss=scenario_network_information_loss,
+        receiver_cpu_cycles=receiver_cpu,
+        fusion_cpu_cycles=fusion_cpu,
     )
+
+
+def evaluate_active_transport_headroom(
+    cfg: Config,
+    base: BaseGains,
+    envelope_coarse: LinkTables,
+    envelope_refined: LinkTables,
+    q: int,
+    fusion: int,
+    observations: Sequence[ActiveObservation],
+    reference_scales: np.ndarray,
+    *,
+    calibration_samples: int = 2048,
+    evaluation_samples: int = 4096,
+    seed: int = 0x10A55,
+) -> ActiveTransportHeadroom:
+    """Evaluate report-only headroom with the sensing bundle held fixed.
+
+    The counterfactual changes only report success probabilities to one.  The
+    same seed and fusion-independent physical random stream ensure that the
+    comparison does not resample the echo or change acquisition decisions.
+    """
+    current = _make_active_column(
+        cfg, base, envelope_coarse, envelope_refined, q, fusion, observations,
+        reference_scales,
+        calibration_samples=calibration_samples,
+        evaluation_samples=evaluation_samples,
+        seed=seed,
+    )
+    lossless_coarse = replace(
+        envelope_coarse,
+        chi_comm=np.ones_like(envelope_coarse.chi_comm, dtype=float),
+    )
+    lossless_refined = replace(
+        envelope_refined,
+        chi_comm=np.ones_like(envelope_refined.chi_comm, dtype=float),
+    )
+    lossless = _make_active_column(
+        cfg, base, lossless_coarse, lossless_refined, q, fusion, observations,
+        reference_scales,
+        calibration_samples=calibration_samples,
+        evaluation_samples=evaluation_samples,
+        seed=seed,
+    )
+    return ActiveTransportHeadroom(current=current, lossless_report=lossless)
 
 
 def generate_active_columns(
@@ -240,6 +369,49 @@ def generate_active_columns(
     return columns
 
 
+def screen_fusion_candidates(
+    cfg: Config,
+    base: BaseGains,
+    coarse_tables: LinkTables,
+    refined_tables: LinkTables,
+    *,
+    modes: Sequence[SensingMode] | None = None,
+    information_limit: int = 3,
+) -> dict[int, tuple[int, ...]]:
+    """Analytically shortlist final fusion UAVs before Monte Carlo columns.
+
+    For each target, the shortlist retains the strongest fusion destinations
+    by robust received information and one communication-locality anchor (the
+    priced bundle requiring the fewest remote reports).  This is a screening
+    rule, not a certificate over discarded fusion destinations.
+    """
+    validate_config(cfg)
+    if information_limit < 1:
+        raise ValueError("information_limit must be positive")
+    chosen_modes = tuple(modes or configured_sensing_modes(cfg))
+    screened: dict[int, tuple[int, ...]] = {}
+    for q in range(cfg.scale.Q):
+        priced = [
+            price_active_information_bundle(
+                cfg, base, coarse_tables, refined_tables, q, fusion,
+                modes=chosen_modes,
+            )
+            for fusion in range(cfg.scale.M)
+        ]
+        ranked = sorted(
+            priced,
+            key=lambda item: (-item.robust_information, item.remote_reports, item.fusion),
+        )
+        retained = {item.fusion for item in ranked[:information_limit]}
+        locality_anchor = min(
+            priced,
+            key=lambda item: (item.remote_reports, -item.robust_information, item.fusion),
+        )
+        retained.add(locality_anchor.fusion)
+        screened[q] = tuple(sorted(retained))
+    return screened
+
+
 def solve_global_active_master(
     cfg: Config,
     columns: Sequence[ActiveColumn],
@@ -300,6 +472,14 @@ def solve_global_active_master(
         cfg.fusion.cpu_rate_cycles_per_s * cfg.fusion.processing_window_s
         if cfg.fusion.cpu_rate_cycles_per_s > 0.0 else None
     )
+    def cpu_at_uav(column: ActiveColumn, uav: int) -> float:
+        if len(column.receiver_cpu_cycles) == M:
+            receiver_cycles = column.receiver_cpu_cycles[uav]
+            fusion_cycles = column.fusion_cpu_cycles if column.fusion == uav else 0.0
+            return float(receiver_cycles + fusion_cycles)
+        # Compatibility for externally constructed pre-upgrade columns.
+        return float(column.cpu_cycles if column.fusion == uav else 0.0)
+
     for fusion in range(M):
         if cfg.selector.max_observations_per_fusion_uav >= 0:
             row = np.zeros(n)
@@ -309,7 +489,7 @@ def solve_global_active_master(
         if cpu_budget is not None:
             row = np.zeros(n)
             for b, column in enumerate(pool):
-                row[b] = column.cpu_cycles if column.fusion == fusion else 0.0
+                row[b] = cpu_at_uav(column, fusion)
             add(row, ub=float(cpu_budget))
     if cfg.selector.max_remote_reports >= 0:
         row = np.zeros(n)
@@ -328,7 +508,11 @@ def solve_global_active_master(
         for column in pool
     ]
     objectives.append(objective)
-    for attribute in ("total_energy", "remote_reports", "cpu_cycles"):
+    # Detection fairness is primary.  Among statistically equivalent columns,
+    # preserve detector-relevant evidence before trading energy/report/compute.
+    for attribute in (
+        "network_evidence_loss", "total_energy", "remote_reports", "cpu_cycles"
+    ):
         objective = np.zeros(n)
         objective[:B] = [float(getattr(column, attribute)) for column in pool]
         objectives.append(objective)
@@ -371,14 +555,34 @@ def solve_global_active_master(
         raise RuntimeError("global active master returned a non-integral assignment")
     robust_pd = np.asarray([column.robust_pd for column in chosen])
     deficits = np.maximum(float(cfg.detect.pd_required) - robust_pd, 0.0)
+    receiver_cpu_total = float(sum(
+        sum(column.receiver_cpu_cycles)
+        if len(column.receiver_cpu_cycles) == M else 0.0
+        for column in chosen
+    ))
+    fusion_cpu_total = float(sum(
+        column.fusion_cpu_cycles
+        if len(column.receiver_cpu_cycles) == M else column.cpu_cycles
+        for column in chosen
+    ))
+    per_uav_cpu = [sum(cpu_at_uav(column, uav) for column in chosen) for uav in range(M)]
     return GlobalActiveMasterResult(
         columns=chosen,
         objective={
             "worst_detection_deficit": float(np.max(deficits)),
             "total_detection_deficit": float(np.sum(deficits)),
+            "network_evidence_loss": float(sum(
+                column.network_evidence_loss for column in chosen
+            )),
+            "worst_evidence_retention": float(min(
+                (column.robust_evidence_retention for column in chosen), default=1.0
+            )),
             "total_energy": float(sum(column.total_energy for column in chosen)),
             "remote_reports": float(sum(column.remote_reports for column in chosen)),
             "cpu_cycles": float(sum(column.cpu_cycles for column in chosen)),
+            "receiver_cpu_cycles": receiver_cpu_total,
+            "fusion_cpu_cycles": fusion_cpu_total,
+            "max_uav_cpu_cycles": float(max(per_uav_cpu, default=0.0)),
             "worst_pd": float(np.min(robust_pd)),
             "mean_pd": float(np.mean(robust_pd)),
             "max_pfa": float(max(max(column.scenario_pfa) for column in chosen)),
