@@ -617,6 +617,7 @@ def select_c2f_adaptive(
     distributed_bids: bool = False,
     refined_table_builder=None,
     shortlist_seed=None,
+    trajectory: "list | None" = None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray, Dict[str, float]]:
     r"""Build a greedy-consistent dynamic shortlist, then replay on fine DD.
 
@@ -845,6 +846,18 @@ def select_c2f_adaptive(
             if active and np.all(D_coarse[active] >= cfg.detect.D_min):
                 break
 
+        if trajectory is not None:
+            # Diagnostic only: records the post-commit coarse utility so the
+            # convergence of the greedy rollout can be measured.  Never read
+            # back into any decision, so default behaviour is unchanged.
+            trajectory.append({
+                "stage": "coarse",
+                "round": int(coarse_rounds),
+                "links": int(total_links),
+                "utility": float(coarse_utility()),
+                "D_sum": float(np.sum(D_coarse)),
+            })
+
     if s.require_local_anchor:
         # Guarantee that the fine replay can see a local anchor even when the
         # coarse dynamic frontier filled its target-specific shortlist with
@@ -895,6 +908,8 @@ def select_c2f_adaptive(
     stats = {
         "fine_eval_full": float(fine_eval_full),
         "fine_eval_c2f": float(sum(len(v) for v in shortlist.values())),
+        "coarse_rounds": float(coarse_rounds),
+        "fine_rounds": float(sum(len(v) for v in selected.values())),
         "selector_score_evaluations": float(
             coarse_score_evaluations + fine_audit.get("score_evaluations", 0.0)
         ),

@@ -711,16 +711,27 @@ def default_config() -> Config:
 # also be composed into an experiment variant.
 PRESETS: Dict[str, Dict[str, Any]] = {
     # The frozen pre-correction model: scale-blind SINR guard plus decoupled
-    # sensing-residual floors.  Kept so that every historical result stays
-    # reproducible, but it is no longer the default.
+    # sensing-residual floors.  It is no longer the default.
+    #
+    # Contract, stated honestly: this preset pins only the two keys below, so it
+    # restores the *interference / SINR-guard* layer and nothing else.  It does
+    # NOT pin the detector-side model, which was revised after this preset was
+    # written (the between-group term of the law of total variance moved from
+    # the deflection denominator into the H1 variance, and ``comm_error_model``
+    # changed value from ``erasure`` to ``gaussian_replacement``).  Historical
+    # CSVs produced before that revision -- including the archived
+    # ``.workbuddy/baseline_historical_603b61d/main/main.csv`` -- are therefore
+    # NOT reproducible from this preset alone.  The frozen regression baseline
+    # ``.workbuddy/baseline/main/main.csv`` was re-frozen against the current
+    # model on 2026-09-16 and is what this preset is checked against.
     "legacy": {
         "interference.coupling": "legacy",
         "radio.eps_mode": "legacy",
     },
     # The corrected coupled model with the historical post-selection active-set
-    # sensitivity path.  It is not the paper-canonical MAC.
-    # is what an experiment that must be immune to future default changes should
-    # use.  ``comm.interference_model`` is set to the paper's active-set form.
+    # sensitivity path.  This is an ABLATION of the paper-canonical MAC, not a
+    # replacement for it.  Use it when an experiment must be immune to future
+    # default changes while varying the active-set assumption.
     "isac-consistent": {
         "interference.coupling": "shared_spectrum",
         "radio.eps_mode": "noise_relative",
