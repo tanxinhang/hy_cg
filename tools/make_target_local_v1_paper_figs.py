@@ -158,7 +158,11 @@ def build_fusion_ablation() -> None:
                 capsize=3, error_kw={"elinewidth": 0.8, "capthick": 0.8})
     axes[0].set_xticks(list(x), names, rotation=18, ha="right")
     axes[0].set_ylabel(r"Detection probability, $P_D$")
-    axes[0].set_ylim(0.78, 1.00)
+    # The axis was originally hard-coded to (0.78, 1.00) for the archived
+    # detection draws.  Keep that framing when the data supports it, but open
+    # the floor automatically so a re-run with different sampling cannot clip a
+    # bar through the axis line.
+    axes[0].set_ylim(min(0.78, min(lo) - 0.02), 1.00)
     panel(axes[0], "a")
 
     reports = [val(data[k], "selected_links_mean") for k in keys]
