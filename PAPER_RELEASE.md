@@ -211,10 +211,10 @@ A target-local candidate instead chooses the UAV nearest to each target's
 *predicted* position (`nearest_target`; the historical configuration spelling
 `nearest_centroid` remains an alias).  It uses the belief geometry and never
 the current-CPI target truth.  In the MC=1000 main gate, the combined adaptive
-C2F method achieved `P_D=0.9762` from 12.101 observations with 0.751 remote
+C2F method achieved `P_D=0.9764` from 12.101 observations with 0.751 remote
 reports, 0.481 kbit, and 0.801 ms. Its paired improvement over exact-marginal
-greedy was 0.0351 (95% CI 0.0310--0.0392). Against Sensing-SINR, the paired
-difference was -0.0021 (95% CI -0.0051--0.0009), so detection was statistically
+greedy was 0.0356 (95% CI 0.0311--0.0401). Against Sensing-SINR, the paired
+difference was -0.0020 (95% CI -0.0050--0.0010), so detection was statistically
 tied while target-local C2F used 83.7% less payload at the same observation count.
 
 The corrected MC=100 target-local screen averages 0.74 remote reports and 0.70

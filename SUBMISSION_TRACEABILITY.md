@@ -63,10 +63,10 @@
 
 | 正文表述 | CSV 列 | 值 |
 |---|---|---|
-| $P_D$ | `P_D` | 0.9762 / 0.9411 / 0.9783 |
-| worst-target | `worst_target_D_mean` | 0.967 / 0.928 / 0.970 |
-| 配对差值 | `paired_reference_delta_P_D` | +0.0351 / −0.0021 |
-| 95% 区间 | `paired_reference_delta_ci95_{low,high}` | [0.0310, 0.0392] / [−0.0051, 0.0009] |
+| $P_D$ | `P_D` | 0.9764 / 0.9408 / 0.9784 |
+| worst-target | `actual_worst_target_P_D` | 0.966 / 0.931 / 0.972 |
+| 配对差值 | `paired_reference_delta_P_D` | +0.0356 / −0.0020 |
+| 95% 区间 | `paired_reference_delta_ci95_{low,high}` | [0.0311, 0.0401] / [−0.0050, 0.0010] |
 | 选中观测数 | `selected_observations_mean` | 12.101（三者相同） |
 | 远程报告数 | `selected_links_mean` | 0.751 / — / 4.595 |
 | payload / 串行时延 | `B_mean_bits` / `T_mean_ms` | 480.64→0.481 kbit、0.801 ms / 2940.8→2.941 kbit、4.901 ms |
@@ -81,8 +81,8 @@
 | 正文表述 | 列 | 值 |
 |---|---|---|
 | C2F vs full 精细评估 | `fine_eval_c2f_mean` / `fine_eval_full_mean` | 61.06 / 853.65（92.85%） |
-| $P_D$ | `P_D` | 0.980 vs 0.973 |
-| 配对差值 | `paired_reference_delta_P_D` 等 | 0.0070 [0.0029, 0.0111] |
+| $P_D$ | `P_D` | 0.9775 vs 0.9715 |
+| 配对差值 | `paired_reference_delta_P_D` 等 | 0.0060 [0.0005, 0.0115] |
 
 full-refinement 是**计算控制组，不是 oracle**。
 
@@ -90,10 +90,27 @@ full-refinement 是**计算控制组，不是 oracle**。
 
 来源：`results_target_local_v1/overview/fusion-rule/fusion-rule.csv`（`fusion_rule` 列区分）
 
+| 正文表述 | 列 | max-in-rate / max-min-rate / nearest-target |
+|---|---|---|
+| $P_D$ | `P_D` | 0.932 / 0.967 / 0.975 |
+| worst-target | `actual_worst_target_P_D` | 0.900 / 0.940 / 0.960 |
+| 观测数 | `selected_observations_mean` | 19.89 / 15.61 / 12.24 |
+| 报告数 | `selected_links_mean` | 6.65 / 6.40 / 0.74 |
+| 时延 | `T_mean_ms` | 7.093 / 6.827 / 0.789 |
+
+融合 UAV 数 7.13、冲突时隙 0.70 来自 `overview/packetization/{key}.json`
+（`assigned_fusion_uavs_mean` / `conflict_graph_slots_mean`），三个规则下**逐位不变**。
+
 ### 运行边界（`Operating Boundaries` 小节）
 
 来源：`results_target_local_v1/overview/geometry/geometry.csv`、
 `results_target_local_v1/prediction-stress/prediction_stress.csv`
+
+| 正文表述 | 来源列 | 值 |
+|---|---|---|
+| 位置误差 50→500 m | `prediction_stress.csv` `P_D`（`proposed_c2f_adaptive_pd`） | 0.988 → 0.906 |
+| 部署边长 2500→5500 m | `geometry.csv` `P_D` | 0.989 → 0.940 |
+| 同上的报告数 | `geometry.csv` `selected_links_mean` | 0.05 → 2.67 |
 
 ### 其余扫描（补充材料）
 
@@ -105,8 +122,19 @@ full-refinement 是**计算控制组，不是 oracle**。
 ## 4. 复现命令
 
 ```bash
-# 主实验 + 全精细控制 + 全部 overview 扫描
-E:/anaconda/3_11_python/python.exe tools/rerun_target_local_v1.py
+# 完整 V1 释放树：main MC=1000 + full-refinement MC=200 + 6 个 overview 扫描 + prediction-stress
+E:/anaconda/3_11_python/python.exe tools/rerun_target_local_v1.py --suite all --workers 8
+
+# 只重跑主比较（--suite 默认 main，保持既有语义）
+E:/anaconda/3_11_python/python.exe tools/rerun_target_local_v1.py --suite main --workers 8
+
+# 重跑后核对"是否只动了检测采样"：选路面必须逐位一致，退出码非 0 即报警
+E:/anaconda/3_11_python/python.exe tools/report_v1_rerun_drift.py \
+    --old archive/results_target_local_v1_pre_rngfix_2026-09-16 \
+    --new results_target_local_v1
+
+# 重出论文图件（fig2/3 主稿 + fig4 补充材料）
+E:/anaconda/3_11_python/python.exe tools/make_target_local_v1_paper_figs.py
 
 # 全量回归测试（当前 180 passed, 6 subtests passed）
 E:/anaconda/3_11_python/python.exe -m pytest tests/ -q
@@ -127,17 +155,20 @@ pdflatex ReproducibilitySupplement.tex && pdflatex ReproducibilitySupplement.tex
 
 ## 5. 尚未收口（本文件不宣称已解决）
 
-> **2026-09-16 更新**：第 1 项已由实测证实为**真实漂移**（不只是"未验证"），
-> 详见 `MANUSCRIPT_CODE_CONSISTENCY_ALERT.md`。第 2 项已完成消融，
+> **2026-09-16 晚更新**：第 1 项**已收口**——主实验已按当前冻结代码完整重跑，
+> 正文、补充材料与 fig2/3/4 已同步（见 §7）。第 2 项已完成消融，
 > 见 `V1_UTILITY_ABLATION.md`。
 
-1. 🔴 **检测数字与当前代码不一致（最高优先级）**：检测阶段的**随机数流**已由共享顺序流
-   改为逐链路键控流（`simulate.py:209` `keyed_rngs`），而正文的 $P_D$ 数字来自
-   2026-09-14 的旧实现。MC=100 实测漂移 −0.007（0.982 → 0.975），**选路面量逐位一致**。
+1. ✅ **检测数字与当前代码不一致——已解决**。检测阶段的**随机数流**由共享顺序流
+   改为逐链路键控流（`simulate.py:209` `keyed_rngs`），正文旧数字来自 2026-09-14 的旧实现。
+   早前 MC=100 测得漂移 −0.007，**该读数本身就在 MC=100 的噪声内（半宽约 ±0.009）**，
+   高估了漂移量级。MC=1000 重跑实测仅 **+0.0002**（0.9762 → 0.9764），
+   三个方法均在 ±0.0003 内，配对差值的符号与显著性**完全未变**。
+   `tools/report_v1_rerun_drift.py` 确认 9 个 CSV 的**选路面量逐位一致**，
+   只有判决计数变化 ⇒ 确为采样路径变更，未动物理/优化模型。
    ⚠️ 早期文档把根因写成"判决门限被替换"，**已证伪**（门限公式与三个组成函数在两版间逐字相同，
    且 `calibrated_fused_threshold` 在 `gaussian_replacement` 下精确退化为该式）。
    完整证据见 `MANUSCRIPT_CODE_CONSISTENCY_ALERT.md` 顶部更正 与 `V1_STABLE_RELEASE.md` §5.1。
-   需要重跑 MC=1000 主实验并更新正文与 fig2。
 2. ✅ **效用两项必要性消融已完成**：MC=100、同场景、trial 配对。移除
    soft-min 项、二次缺口项或两者，对检测**均无可检出影响**，弱目标 $P_D$
    四组完全相同。结论：**不能宣称两项必要**，但也**不足以据此删除**公式
@@ -165,3 +196,42 @@ pdflatex ReproducibilitySupplement.tex && pdflatex ReproducibilitySupplement.tex
   **已过时**：现主稿由 `ReportingArchitecture.tex` 提供架构图，符号为 $i\to q\to j\to f_q$。
 - 同一文档"62 tests"、`ISAC_REVIEW_REVISION.md`"154 passed"——
   均落后于实测 **180 passed, 6 subtests passed**。
+
+---
+
+## 7. 2026-09-16 重跑记录
+
+**起因**：检测阶段的随机数流已由共享顺序流改成逐链路键控流，而正文数字来自旧实现。
+
+**执行**：
+
+```bash
+E:/anaconda/3_11_python/python.exe tools/rerun_target_local_v1.py \
+    --suite all --mc 1000 --full-refinement-mc 200 --overview-mc 100 \
+    --prediction-mc 100 --workers 8 --out results_target_local_v1
+```
+
+| 套件 | 规模 | 产物 |
+|---|---|---|
+| main | MC=1000 × 3 方法 | `main/main.csv` |
+| full-refinement | MC=200 × 2 方法 | `full-refinement-pd/main.csv` |
+| overview | MC=100 × 6 扫描（23 条件） | `overview/<sweep>/<sweep>.csv` |
+| prediction-stress | MC=100 × 5 误差档 × 3 方法 | `prediction-stress/prediction_stress.csv` |
+
+**结果**：选路面量逐位不变；判决计数变动 ≤0.0003（$P_D$）。
+配对差值符号与显著性方向未变（$+0.0356$ 显著、$-0.0020$ 跨零）。
+
+**归档**：
+
+- 重跑前结果树 → `archive/results_target_local_v1_pre_rngfix_2026-09-16/`
+- 重跑前图件 → `archive/paper_figs_pre_rngfix_2026-09-16/`
+
+**已同步文件**：`SimulationResults.tex`（§Detection、§Fusion-Placement、§Operating Boundaries）、
+摘要、`Conclusion.tex`、`ReproducibilitySupplement.tex`、
+`results_target_local_v1/V1_EXPERIMENT_OVERVIEW.md`、`SYSTEM_PERFORMANCE_STATUS.md`、
+`MANUSCRIPT_CODE_CONSISTENCY_ALERT.md`、`V1_STABLE_RELEASE.md` §5.1、
+`PAPER_RELEASE.md`、`TARGET_LOCAL_V1.md`、`CONFERENCE_PAPER_CONVERGENCE.md`。
+
+**未同步（仅标注，未改写）**：`DEPLOYMENT_RANGE_ANALYSIS.md`、`RCS_IMPACT_ANALYSIS.md`、
+`V1_FUSION_THEORY_AND_ALGORITHM.md`、`ppt/*`。这些文档的**结论是定性的**（几何净增益量级、
+RCS 门槛），其引用的主结果数字属重跑前口径，已在文首加注。

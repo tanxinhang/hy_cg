@@ -55,8 +55,8 @@ MAC, while large belief errors and sparse deployments remain limiting cases.
 
 | Claim | Evidence | Status |
 |---|---|---|
-| V1 improves over exact-marginal greedy in mean $P_D$ | MC=1000 paired difference 0.0351, 95% CI [0.0310, 0.0392] | supported at the tested configuration |
-| V1 matches sensing-SINR detection | paired difference -0.0021, 95% CI [-0.0051, 0.0009] | statistically unresolved; no significant difference detected, not established equivalence |
+| V1 improves over exact-marginal greedy in mean $P_D$ | MC=1000 paired difference 0.0356, 95% CI [0.0311, 0.0401] | supported at the tested configuration |
+| V1 matches sensing-SINR detection | paired difference -0.0020, 95% CI [-0.0050, 0.0010] | statistically unresolved; no significant difference detected, not established equivalence |
 | V1 reduces payload and serial delay versus sensing-SINR | 0.751 versus 4.595 remote reports at equal observation count | supported; 83.7% reduction |
 | target-local placement causes the reporting reduction | controlled fusion-rule ablation with the inner selector fixed | supported in MC=100 diagnostic evidence |
 | adaptive C2F reduces waveform-level refinement | 61.3 versus 860.2 fine evaluations in the main experiment | supported; 92.9% reduction |

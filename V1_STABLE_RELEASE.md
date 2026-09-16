@@ -147,9 +147,9 @@ python -m pytest tests/ -q                         # 行为回归              �
 
 ## 5. 已知偏离（本契约不宣称已解决）
 
-### 5.1 🔴 主结果数字与当前代码不可复现 —— 根因已定位到**检测阶段 RNG 流**
+### 5.1 ✅ 主结果数字已与当前代码对齐（2026-09-16 晚重跑收口）
 
-**结论更正**：此前把根因归给"09-15 的判决门限替换"，**这个归因是错的**。
+**根因**：检测阶段的随机数流从**共享顺序流**换成了**逐链路键控流**。
 
 代码级证据（逐字比对 `03f9612^` 与当前 HEAD）：
 
@@ -162,7 +162,7 @@ python -m pytest tests/ -q                         # 行为回归              �
 
 ⇒ 在 `gaussian_replacement` 路径上（= 归档 V1 的等价路径），新门限函数**精确返回旧公式**。
 
-**真正的变化**：检测阶段的随机数流从**共享顺序流**换成了**逐链路键控流**。
+**真正的变化**：
 
 ```
 旧（03f9612^，simulate.py:164）      F += w * draw_h1_soft_stat(cfg, tables, link, q, rng, plan)
@@ -172,13 +172,18 @@ python -m pytest tests/ -q                         # 行为回归              �
 `git show 03f9612^:isac_sim/simulate.py | grep -c keyed_rngs` = **0**。这解释了
 `BASELINE_DRIFT_ATTRIBUTION.md` 里"机制 B（63 格）触发点未隔离"——**触发点就是它**。
 
-**仍成立的实测事实**：MC=100 配对，归档路径 0.982 → 当前 0.975（−0.007），
-而**选择路径量（D / 观测数 / 报告数 / 时延）逐位一致**。选路面一致、只有判决计数变，
-与"检测阶段换 RNG 流"完全吻合。
+**实测漂移（MC=1000，已收口）**：仅 **+0.0002**（0.9762 → 0.9764），三个方法均在 ±0.0003 内；
+早前 MC=100 测得的 −0.007 本身落在 MC=100 的噪声内（$P_D$ 半宽约 ±0.009），**高估了量级**。
+配对差值符号与显著性方向未变（$+0.0356$ 显著、$-0.0020$ 跨零）。
 
-**待办**：主实验 MC=1000 必须重跑（P0）。重跑后正文与 `figs/fig2,3` 需同步；
-`ReproducibilitySupplement.tex` L126-148 已诚实描述该段历史，**无需改写，但要把
-"门限替换"这一归因从 `MANUSCRIPT_CODE_CONSISTENCY_ALERT.md` 中撤回**。
+**验证**：`tools/report_v1_rerun_drift.py` 逐列比对 9 个 CSV，
+**选路面量（偏转、观测数、报告数、payload、时延、精细评估数、belief 捕获）全部逐位一致**，
+只有判决计数变化 ⇒ 确为采样路径变更，**未动物理与优化模型**。
+
+**已同步**：正文（§Detection、§Fusion-Placement、§Operating Boundaries）、摘要、`Conclusion.tex`、
+`ReproducibilitySupplement.tex`、fig2/3/4。重跑前快照见
+`archive/results_target_local_v1_pre_rngfix_2026-09-16/` 与 `archive/paper_figs_pre_rngfix_2026-09-16/`。
+`ReproducibilitySupplement.tex` L126-148 的历史命名说明仍然成立，无需改写。
 
 ### 5.2 `kappa_dc = 40 dB` 的标定语与实测不符
 
@@ -222,9 +227,24 @@ python -m pytest tests/ -q
 # 重冻版本标识（仅在有意变更冻结项后执行）
 python tools/check_release_identity.py --freeze
 
-# 主实验（MC=1000，数小时；必须后台）
-python tools/rerun_target_local_v1.py --out results_target_local_v1
+# 主实验（MC=1000，约 11 min @ 8 workers；长跑建议后台）
+python tools/rerun_target_local_v1.py --suite main --workers 8 --out results_target_local_v1
+
+# 完整 V1 释放树（main + full-refinement + overview + prediction-stress，约 45 min @ 8 workers）
+python tools/rerun_target_local_v1.py --suite all --workers 8 --out results_target_local_v1
+
+# 重跑后核对：选路面必须逐位一致，只有判决计数允许变化
+python tools/report_v1_rerun_drift.py --old <旧快照目录> --new results_target_local_v1
+
+# 重出论文图件（fig2/3 主稿 + fig4 补充材料）
+python tools/make_target_local_v1_paper_figs.py
 ```
+
+`--suite` 默认 `main`，即不带参数时行为与旧版一致（只跑主比较）；
+`--suite all` 才是完整释放树。`tools/rerun_target_local_v1.py` 在开跑前会断言
+`target-local-v1` 解析出的 `detect.comm_error_model` 仍是 `gaussian_replacement`——
+该键在预设表里没有写死、靠 dataclass 默认值继承，一旦默认值变动，整条 V1 会
+**换物理**而不是"漂移"，所以这道断言必须留在入口处。
 
 ---
 
@@ -240,5 +260,17 @@ python tools/rerun_target_local_v1.py --out results_target_local_v1
 3. **改了数值路径？** 那 `parity_check --baseline` 必然红。此时**不许**直接改基线文件：
    先做归因（`BASELINE_DRIFT_ATTRIBUTION.md` 的流程），确认是"对齐论文"还是"回归"，
    再决定重冻。
-4. **改了主结果数字？** 重跑主实验 + 重跑 `tools/make_paper_figs.py`，同步
-   `SUBMISSION_TRACEABILITY.md` 的数字映射表。
+4. **改了主结果数字？** 按顺序：
+   1. 归档旧树：`cp -r results_target_local_v1 archive/results_target_local_v1_pre_<变更名>_<日期>`，
+      并 `md5sum` 双向校验；
+   2. 重跑 `python tools/rerun_target_local_v1.py --suite <受影响的套件> --workers 8`；
+   3. **核对漂移性质**：`python tools/report_v1_rerun_drift.py --old <旧树> --new results_target_local_v1`。
+      退出码非 0（选路面被改动）= 动物理/优化模型，**停下来归因**，不许直接改数字。
+      渲染层套件（`main`、`overview`、`prediction-stress`）都吃判决计数，所以只要检测采样路径变了，
+      就**必须一并重跑**——只重跑 `main` 会让 fig3/fig4 与正文主表数字口径不一致。
+   4. 重出图件：`python tools/make_target_local_v1_paper_figs.py`
+      ⚠️ **不是** `tools/make_paper_figs.py`——后者读的是另一套 `results_release` 协议
+      （`main/main/main.csv`，P_D 量级 0.87），与 V1 释放线无关；
+   5. 同步 `SUBMISSION_TRACEABILITY.md` §3 的数字映射表、`results_target_local_v1/V1_EXPERIMENT_OVERVIEW.md`，
+      以及摘要 / `Conclusion.tex` / 补充材料里所有引用该数字的句子；
+   6. 重编论文确认页数仍在 6 页内。

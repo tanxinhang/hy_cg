@@ -1,8 +1,9 @@
 # ⚠️ 稿件数字与当前代码一致性告警
 
 日期：2026-09-16
-严重级别：**投稿前必须处理**（影响正文检测数字的有效性）
-状态：已定位根因，已实测确认漂移，**尚未重跑修正**
+状态：**✅ 已收口（2026-09-16 晚）**——主实验已按当前冻结代码完整重跑，
+正文、补充材料与 fig2/3/4 已同步。见 `SUBMISSION_TRACEABILITY.md` §7。
+严重级别：历史告警，保留存档价值（"先归因后重冻"的过程可复用；文中两处**已证伪**的归因不要重犯）
 
 > **🔴 归因更正（2026-09-16 晚，冻结 V1 时复核）**
 >
@@ -24,9 +25,17 @@
 > `git show 03f9612^:isac_sim/simulate.py | grep -c keyed_rngs` = **0**。
 > 这也正是 `BASELINE_DRIFT_ATTRIBUTION.md` 中"机制 B 触发点未隔离"的答案。
 >
-> **不改结论的部分**：漂移真实存在（MC=100 配对 0.982 → 0.975），选路面量逐位一致、
+> **不改结论的部分**：漂移真实存在，选路面量逐位一致、
 > 只有判决计数变——与"换 RNG 流"完全吻合。**主实验 MC=1000 仍必须重跑。**
 > 详见 `V1_STABLE_RELEASE.md` §5.1。
+>
+> **🔴 量级更正（2026-09-16 晚，MC=1000 重跑后）**：第 4 节那个 MC=100 的
+> $-0.007$ 读数**本身落在 MC=100 的噪声内**（$P_D$ 95% 半宽约 $\pm0.009$），
+> 高估了漂移量级。MC=1000 实测只有 **$+0.0002$**（0.9762 → 0.9764），
+> 三个方法均在 $\pm0.0003$ 内。**"描述与数据不符"的定性判断成立，
+> 但"数字被改动"的说法不成立**——旧数字与当前代码的差异不超过重采样噪声。
+> 重跑仍然必须做（要的是可复现性，不是"数值近似正确"），只是危害等级从
+> "数字错误"降为"口径不一致"。
 
 ---
 
@@ -57,7 +66,7 @@
 
 ---
 
-## 3. 根因
+## 3. 根因（❌ 本节的"门限替换"归因已被证伪，见文首更正）
 
 判决函数 `isac_sim/simulate.py: evaluate_detection` 的阈值计算被替换。
 
@@ -119,45 +128,44 @@ thr = calibrated_fused_threshold(
 
 | 论文主张 | 是否受影响 | 说明 |
 |---|---|---|
-| 通信效率：83.7% payload/时延下降、0.751 vs 4.595 报告 | **不受影响** | 选择路径未变，报告数/时延逐位一致 |
-| 精细评估 61.278 / 860.244（92.88%） | **不受影响** | 属选择算法的计数，与判决阈值无关 |
-| 主 $P_D$ 0.9762、worst-target 0.967 | **受影响** | MC=100 已实测漂移 −0.007；MC=1000 需重跑确认 |
-| 配对差值 +0.0351 / −0.0021 及其区间 | **受影响** | 由判决结果计算 |
-| 融合位置消融的 $P_D$ 0.919 / 0.969 / 0.982 | **受影响** | 该 CSV 同样是 9/14 生成 |
+| 通信效率：83.7% payload/时延下降、0.751 vs 4.595 报告 | ✅ 不受影响 | 选择路径未变，报告数/时延逐位一致（重跑后仍逐位一致） |
+| 精细评估 61.278 / 860.244（92.88%） | ✅ 不受影响 | 属选择算法的计数，与判决阈值无关（重跑后仍逐位一致） |
+| 主 $P_D$ 0.9762、worst-target 0.967 | ✅ 已重跑更新 | → **0.9764 / 0.966**（MC=1000，漂移 +0.0002） |
+| 配对差值 +0.0351 / −0.0021 及其区间 | ✅ 已重跑更新 | → **+0.0356 [0.0311, 0.0401] / −0.0020 [−0.0050, 0.0010]**，显著性方向未变 |
+| 融合位置消融的 $P_D$ 0.919 / 0.969 / 0.982 | ✅ 已重跑更新 | → **0.932 / 0.967 / 0.975**（MC=100，顺序未变） |
+| 全精细对照 $P_D$ 0.980 vs 0.973 | ✅ 已重跑更新 | → **0.9775 vs 0.9715**，配对 0.0060 [0.0005, 0.0115]（下界贴近 0，但仍排除 0） |
 | "两效用项不宣称必要" | 已由新消融补上 | 见 `V1_UTILITY_ABLATION.md` |
 
 ---
 
-## 6. 建议行动（按优先级）
+## 6. 建议行动（✅ 全部已完成）
 
-1. **用当前代码重跑主实验 MC=1000**（`tools/rerun_target_local_v1.py`），
-   用新 $P_D$/worst-target/配对差值替换正文与 fig2 的数字。
-   通信数字预期不变，可先对比确认后再只改检测部分。
-2. **同步重跑 `overview/fusion-rule`（MC=100）与 `prediction-stress`、`geometry`**，
-   否则 fig3 与运行边界小节的数字仍是旧判决。
-3. 重跑后**重建论文图**（`tools/make_paper_figs.py`）。
-4. 在 `SUBMISSION_TRACEABILITY.md` 中更新 commit 边界，把"结果版本"与"代码版本"
-   重新对齐（当前二者相差 1 天）。
-5. 若因时间不够而无法重跑，则**必须**在正文明确声明数字对应的判决实现版本——
-   但这会削弱稿件可信度，不推荐。
+1. ~~用当前代码重跑主实验 MC=1000~~ → 已完成，`--suite all --mc 1000 --workers 8`。
+2. ~~同步重跑 `overview/fusion-rule`、`prediction-stress`、`geometry`~~ → 已完成（overview 全部 6 个扫描 + prediction-stress + full-refinement）。
+3. ~~重建论文图~~ → 已完成，`tools/make_target_local_v1_paper_figs.py`（fig2/3 主稿 + fig4 补充材料）。
+   ⚠️ 注意本文原稿写的 `tools/make_paper_figs.py` **是错的**：那读的是另一套
+   `results_release` 协议（$P_D$ 量级 0.87），与 V1 释放线无关。
+4. ~~更新 `SUBMISSION_TRACEABILITY.md` 的 commit 边界~~ → 已完成，同日重建。
+5. 不需要走"声明数字对应旧实现"的降级路线。
 
 > 时间压力：ICC 2027 Symposium 投稿截止 **2026-10-02**，剩余约 16 天。
 
 ---
 
-## 7. 复现命令
+## 7. 复现命令（已更新为收口后的入口）
 
 ```bash
-# 判决漂移的最小复现（MC=100，约 2.5 分钟）
-E:/anaconda/3_11_python/python.exe run_isac_sim.py --mode main \
-  --preset target-local-v1 --set detect.comm_error_model=gaussian_replacement \
-  --mc 100 --seed 2026 --methods proposed_c2f_adaptive_pd \
-  --paired-reference proposed_c2f_adaptive_pd \
-  --out results_v1_failure_model_check/gaussian --quiet --no-plots
+# 完整 V1 释放树（main MC=1000 + full-refinement MC=200 + overview + prediction-stress）
+E:/anaconda/3_11_python/python.exe tools/rerun_target_local_v1.py \
+    --suite all --workers 8 --out results_target_local_v1
 
-# 与 9/14 的结果对比
-#   results_target_local_v1/overview/fusion-rule/fusion-rule.csv (condition=nearest_target)
-#   → P_D 0.982   而上面重跑 → P_D 0.975
+# 核对"是否只动了检测采样"：选路面必须逐位一致
+E:/anaconda/3_11_python/python.exe tools/report_v1_rerun_drift.py \
+    --old archive/results_target_local_v1_pre_rngfix_2026-09-16 \
+    --new results_target_local_v1
+
+# 重出图件
+E:/anaconda/3_11_python/python.exe tools/make_target_local_v1_paper_figs.py
 ```
 
 ---

@@ -52,17 +52,17 @@ checked-in MC=1000 release gate.
 
 | Metric | Adaptive detector-PD C2F | Exact-marginal | Sensing-SINR |
 |---|---:|---:|---:|
-| Mean `P_D` | 0.9762 | 0.9411 | 0.9783 |
-| 95% CI | [0.9730, 0.9790] | [0.9363, 0.9455] | [0.9753, 0.9810] |
-| Worst-target `P_D` | 0.967 | 0.928 | 0.970 |
+| Mean `P_D` | 0.9764 | 0.9408 | 0.9784 |
+| 95% CI | [0.9732, 0.9792] | [0.9360, 0.9453] | [0.9754, 0.9811] |
+| Worst-target `P_D` | 0.966 | 0.931 | 0.972 |
 | Selected observations | 12.101 | 11.728 | 12.101 |
 | Remote reports | 0.751 | 5.131 | 4.595 |
 | Payload (kbit) | 0.481 | 3.284 | 2.941 |
 | Serial delay (ms) | 0.801 | 5.473 | 4.901 |
 
-The paired gain over exact-marginal greedy is `+0.0351`, 95% CI
-`[0.0310, 0.0392]`. Against Sensing-SINR it is `-0.0021`, 95% CI
-`[-0.0051, 0.0009]`, so detection performance is statistically tied. At the
+The paired gain over exact-marginal greedy is `+0.0356`, 95% CI
+`[0.0311, 0.0401]`. Against Sensing-SINR it is `-0.0020`, 95% CI
+`[-0.0050, 0.0010]`, so detection performance is statistically tied. At the
 same observation count, V1 uses 83.7% less payload than Sensing-SINR.
 
 ## Full-refinement detector-PD control, MC=200
@@ -70,8 +70,8 @@ same observation count, V1 uses 83.7% less payload than Sensing-SINR.
 Adaptive and full-refinement variants each select 12.055 observations and send
 0.730 reports on average. Adaptive C2F evaluates 61.06 fine DD neighborhoods,
 versus 853.65 for full refinement, a 92.85% reduction. Their `P_D` values are
-0.980 and 0.973; the paired adaptive-minus-full difference is `+0.0070`, 95% CI
-`[0.0029, 0.0111]`. Full refinement is therefore a same-objective computational
+0.9775 and 0.9715; the paired adaptive-minus-full difference is `+0.0060`, 95% CI
+`[0.0005, 0.0115]`. Full refinement is therefore a same-objective computational
 control, not an oracle.
 
 ## Status
