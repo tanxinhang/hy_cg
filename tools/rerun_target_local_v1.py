@@ -5,6 +5,9 @@ This runner never writes to ``results/`` or ``results_release/`` by default.
 It fixes the V1 preset, method roster, paired reference, and seed so that a
 candidate result cannot accidentally be presented under the paper-canonical
 protocol.
+
+The archived label erasure at source 69f3300 denoted Gaussian replacement.
+Pin the current semantic name here; current true erasure is a different model.
 """
 
 from __future__ import annotations
@@ -64,6 +67,8 @@ def main() -> int:
         "main",
         "--preset",
         "target-local-v1",
+        "--set",
+        "detect.comm_error_model=gaussian_replacement",
         "--mc",
         str(args.mc),
         "--seed",
