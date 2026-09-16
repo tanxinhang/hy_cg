@@ -131,12 +131,13 @@ pdflatex ReproducibilitySupplement.tex && pdflatex ReproducibilitySupplement.tex
 > 详见 `MANUSCRIPT_CODE_CONSISTENCY_ALERT.md`。第 2 项已完成消融，
 > 见 `V1_UTILITY_ABLATION.md`。
 
-1. 🔴 **检测数字与当前代码不一致（最高优先级）**：判决阈值已于 2026-09-15
-   （`03f9612`）由 Cornish–Fisher 近似换成 `calibrated_fused_threshold`，
-   而正文的 $P_D$ 数字来自 2026-09-14 的旧判决结果。MC=100 实测漂移
-   −0.007（0.982 → 0.975）。**通信效率数字不受影响**（报告数/时延/观测数逐位一致）。
-   需要重跑 MC=1000 主实验并更新正文与 fig2。⚠️ 注意正文已声明使用
-   "corrected H0 threshold"，因此当前是"描述与数据不符"。
+1. 🔴 **检测数字与当前代码不一致（最高优先级）**：检测阶段的**随机数流**已由共享顺序流
+   改为逐链路键控流（`simulate.py:209` `keyed_rngs`），而正文的 $P_D$ 数字来自
+   2026-09-14 的旧实现。MC=100 实测漂移 −0.007（0.982 → 0.975），**选路面量逐位一致**。
+   ⚠️ 早期文档把根因写成"判决门限被替换"，**已证伪**（门限公式与三个组成函数在两版间逐字相同，
+   且 `calibrated_fused_threshold` 在 `gaussian_replacement` 下精确退化为该式）。
+   完整证据见 `MANUSCRIPT_CODE_CONSISTENCY_ALERT.md` 顶部更正 与 `V1_STABLE_RELEASE.md` §5.1。
+   需要重跑 MC=1000 主实验并更新正文与 fig2。
 2. ✅ **效用两项必要性消融已完成**：MC=100、同场景、trial 配对。移除
    soft-min 项、二次缺口项或两者，对检测**均无可检出影响**，弱目标 $P_D$
    四组完全相同。结论：**不能宣称两项必要**，但也**不足以据此删除**公式

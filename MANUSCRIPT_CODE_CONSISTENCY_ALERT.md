@@ -4,18 +4,42 @@
 严重级别：**投稿前必须处理**（影响正文检测数字的有效性）
 状态：已定位根因，已实测确认漂移，**尚未重跑修正**
 
+> **🔴 归因更正（2026-09-16 晚，冻结 V1 时复核）**
+>
+> 本文第 3 节把漂移根因归给"判决门限被替换"，**该归因已被代码级比对证伪**。
+>
+> | 部件 | 位置 | `03f9612^` vs 当前 HEAD |
+> |---|---|---|
+> | `threshold_from_pfa` | `model.py:112` | **逐字相同** |
+> | `fused_h0_variance` | `fusion.py:252` | **逐字相同** |
+> | `fused_h0_skewness` | `fusion.py:281` | 仅 `corr.enable or` → `corr.enable and len(links)>1`；`corr.enable=False` 时行为相同 |
+> | 门限公式 | 旧 `simulate.py:158-159` vs 新 `fusion.py:350` | 同为 $(z_0+\frac{\kappa_0}{6}(z_0^2-1))\sqrt{v_{q,0}}$ |
+>
+> 且 `calibrated_fused_threshold` 在 `comm_error_model != "erasure"` 时**精确返回该式**
+> （`fusion.py:351-356`）。归档 V1 走的正是 `gaussian_replacement` 路径 ⇒ **门限替换在归档
+> 路径上不改变任何数值**。
+>
+> **真正的变化是检测阶段的随机数流**：旧代码用共享顺序流（`draw_h1_soft_stat(..., rng, ...)`），
+> 新代码改用逐链路键控流（`simulate.py:209` `keyed_rngs(q, ordered_links, True, 0)`）。
+> `git show 03f9612^:isac_sim/simulate.py | grep -c keyed_rngs` = **0**。
+> 这也正是 `BASELINE_DRIFT_ATTRIBUTION.md` 中"机制 B 触发点未隔离"的答案。
+>
+> **不改结论的部分**：漂移真实存在（MC=100 配对 0.982 → 0.975），选路面量逐位一致、
+> 只有判决计数变——与"换 RNG 流"完全吻合。**主实验 MC=1000 仍必须重跑。**
+> 详见 `V1_STABLE_RELEASE.md` §5.1。
+
 ---
 
 ## 1. 结论摘要
 
 论文的**检测性能数字**（$P_D$、worst-target $P_D$、配对差值）来自 2026-09-14
-生成的 CSV，而**判决阈值的实现已在 2026-09-15 被更换**。因此：
+生成的 CSV，而**检测阶段的随机数流已在后续修订中改变**。因此：
 
 - 用**当前代码**跑同样配置，得到的 $P_D$ 与论文数字**不一致**；
 - 论文**通信效率**相关数字（报告数、payload、串行时延、观测数）**不受影响**，
   实测与旧结果**逐位一致**；
-- 论文正文已在声明新模型（"the corrected H0 threshold"），**但数字来自旧模型**——
-  这是"描述与数据不符"，而非"数据错误"。
+- 论文正文已在声明新模型，**但数字来自旧实现**——这是"描述与数据不符"，
+  而非"数据错误"。
 
 ---
 
