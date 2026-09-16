@@ -1,4 +1,36 @@
-# Paper release contract
+# Repository release contract
+
+## 2026-09-16 conference-review clarification
+
+See [ISAC_REVIEW_REVISION.md](ISAC_REVIEW_REVISION.md) for the targeted revision
+and submission checklist. The main conference paper is five pages, with a
+separate reproducibility supplement.
+
+**Historical naming is not current semantics.** Archived target-local V1 JSON
+files name the failure law erasure. Source revision 69f3300 implements that
+branch as Gaussian replacement with variance 9*v0 and a Cornish--Fisher
+threshold. Current code calls this gaussian_replacement; current erasure
+means zero on failure and uses a different calibrated detector. The V1 rerun
+script now pins gaussian_replacement. Do not load old JSON into current code
+and silently claim an unchanged experiment. Original CSVs remain historical
+evidence; mapping this field does not assert bitwise parity across later
+source changes.
+
+New Gaussian-replacement component checks are in results_isac_review_revision;
+the explicit zero-replacement audit is in results_isac_review_revision_erasure.
+Neither replaces the archived MC=1000 headline.
+
+> **Track separation.** The conference manuscript in
+> `Conference-LaTeX-template_10-17-19` is frozen around target-local fusion and
+> communication-efficient adaptive C2F selection. V1.6 below is a separate
+> mechanism-validation track for low-RCS physical headroom. Its oracle chain,
+> rescue controls, and generalization gates are not contributions of the
+> target-local fusion conference manuscript and must not be merged into it.
+
+The conference-paper claim, terminology, evidence, and exclusion rules are
+recorded in `CONFERENCE_PAPER_CONVERGENCE.md`.
+
+## V1.6 mechanism-track contract
 
 > The current integrated theory/model/algorithm direction is documented in
 > [V16_MECHANISM_STABLE_THEORY_MODEL_ALGORITHM.md](V16_MECHANISM_STABLE_THEORY_MODEL_ALGORITHM.md).
@@ -189,3 +221,22 @@ The corrected MC=100 target-local screen averages 0.74 remote reports and 0.70
 conflict slots because local observations create no MAC traffic. The distance
 assignment remains a prediction-only heuristic rather than a jointly optimal
 fusion and selection rule.
+
+### Theory/probability follow-up, 2026-09-16
+
+`V1_THEORY_PROBABILITY_NOVELTY_UPGRADE.md` records the conditional optimal-ROC
+proof, fixed-statistic mixture-probability audit, and targeted novelty comparison.
+Main manuscript: 5 pages; reproducibility supplement: 8 pages. Both were compiled
+twice and visually checked page by page. Full suite: 154 tests and 6 subtests
+passed. Default C2F and archived headline experiments remain unchanged; the new
+audit does not establish improved realized detection or exhaustive novelty.
+
+### Exact/budget audit, 2026-09-16
+
+See `V1_EXACT_BUDGET_REINFORCEMENT.md`. Complete small-system enumeration and
+matched hard-budget controls are isolated exploratory results. Under a 60-observation
+cap, a zero-report SINR baseline attained higher detection than V1; do not claim
+universal communication/detection Pareto dominance. Under a common 12-observation
+cap, coverage-balanced SINR controls provide conditional reporting-efficiency
+support. These results do not replace the archived 83.7% headline, and the
+small-system optimum concerns the fine belief moment objective only.

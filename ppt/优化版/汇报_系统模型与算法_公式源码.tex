@@ -1,0 +1,222 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath,amssymb,bm,xcolor}
+\usepackage[active,tightpage]{preview}
+\setlength\PreviewBorder{2pt}
+\PreviewEnvironment{equation*}
+\definecolor{ink}{HTML}{025483}
+\begin{document}
+\color{ink}
+% nodei
+\begin{equation*}\displaystyle i\end{equation*}
+
+% nodeq
+\begin{equation*}\displaystyle q\end{equation*}
+
+% nodej
+\begin{equation*}\displaystyle j\end{equation*}
+
+% nodef
+\begin{equation*}\displaystyle f_q\end{equation*}
+
+% path
+\begin{equation*}\displaystyle i\longrightarrow q\longrightarrow j\longrightarrow f_q\end{equation*}
+
+% triplet
+\begin{equation*}\displaystyle e=(i,j,q),\qquad f_q\in\mathcal M,\qquad\mathcal S_q\subseteq\mathcal E_q\end{equation*}
+
+% local
+\begin{equation*}\displaystyle j=f_q:\quad\chi_e=1,\quad c_e=0\end{equation*}
+
+% remote
+\begin{equation*}\displaystyle j\ne f_q:\quad\chi_e=\chi_{j f_q},\quad c_e>0\end{equation*}
+
+% prior
+\begin{equation*}\displaystyle b_q=\mathcal N\!\left(\widehat{\mathbf x}_q,\mathbf P_q\right)\end{equation*}
+
+% delay
+\begin{equation*}\displaystyle \tau_{ijq}=\frac{d_{iq}+d_{jq}}{c}\end{equation*}
+
+% doppler
+\begin{equation*}\displaystyle \nu_{ijq}=\frac{(\mathbf v_q-\mathbf v_i)^\mathsf T\mathbf u_{iq}+(\mathbf v_q-\mathbf v_j)^\mathsf T\mathbf u_{jq}}{\lambda}\end{equation*}
+
+% dd
+\begin{equation*}\displaystyle \ell=\tau_{ijq}L\Delta f,\qquad\kappa=\nu_{ijq}NT,\qquad T=\frac1{\Delta f}\end{equation*}
+
+% symprior
+\begin{equation*}\displaystyle \widehat{\mathbf x}_q,\ \mathbf P_q\end{equation*}
+
+% symgeo
+\begin{equation*}\displaystyle d_{iq},d_{jq};\ \mathbf v_q,\mathbf v_i,\mathbf v_j\end{equation*}
+
+% symunit
+\begin{equation*}\displaystyle \mathbf u_{iq},\mathbf u_{jq};\ c,\lambda\end{equation*}
+
+% symdd
+\begin{equation*}\displaystyle \tau\ [\mathrm s],\ \nu\ [\mathrm{Hz}];\ \ell,\kappa\end{equation*}
+
+% coarse
+\begin{equation*}\displaystyle \eta_e^{\mathrm c}=\operatorname{sinc}^2\!\left(\ell-\operatorname{round}\ell\right)\operatorname{sinc}^2\!\left(\kappa-\operatorname{round}\kappa\right)\end{equation*}
+
+% sense
+\begin{equation*}\displaystyle \gamma_e=\frac{P_i^{\mathrm s}g_{ijq}^{\mathrm s}G_{ij}^{\mathrm{hw}}G_{\mathrm p}\,\eta_e^{\mathrm{DD}}\eta_e^{\mathrm{col}}}{N_0+I_j^{\mathrm s}}\end{equation*}
+
+% llr
+\begin{equation*}\displaystyle \ell_e=\frac{\gamma_e}{1+\gamma_e}\left(X-K_{\mathrm{look}}\right)\end{equation*}
+
+% symsense
+\begin{equation*}\displaystyle g_{ijq}^{\mathrm s},\ G_{ij}^{\mathrm{hw}},\ G_{\mathrm p}\end{equation*}
+
+% symsense2
+\begin{equation*}\displaystyle \eta_e^{\mathrm{DD}},\ \eta_e^{\mathrm{col}}\end{equation*}
+
+% symllr
+\begin{equation*}\displaystyle X,\ K_{\mathrm{look}}=16,\ \ell_e\end{equation*}
+
+% rawmoments
+\begin{equation*}\displaystyle \delta_e=\frac{K_{\mathrm{look}}\gamma_e^2}{1+\gamma_e},\quad v_{e,0}=\frac{K_{\mathrm{look}}\gamma_e^2}{(1+\gamma_e)^2},\quad v_{e,1}=K_{\mathrm{look}}\gamma_e^2\end{equation*}
+
+% power
+\begin{equation*}\displaystyle P_i^{\mathrm s}=\rho P_i,\qquad P_i^{\mathrm c}=(1-\rho)P_i\end{equation*}
+
+% rate
+\begin{equation*}\displaystyle \gamma_{ab}^{\mathrm c}=\frac{P_a^{\mathrm c}g_{ab}^{\mathrm c}}{N_0+I_{ab}^{\mathrm{sens}}},\qquad R_{ab}=B_{\mathrm c}\log_2(1+\gamma_{ab}^{\mathrm c})\end{equation*}
+
+% reliability
+\begin{equation*}\displaystyle \chi_{ab}\simeq1-\mathsf Q\!\left(\frac{C(\gamma_{ab}^{\mathrm c})-k/n}{\sqrt{V(\gamma_{ab}^{\mathrm c})/n}}\right)\end{equation*}
+
+% dispersion
+\begin{equation*}\displaystyle C(\gamma)=\log_2(1+\gamma),\quad V(\gamma)=\bigl[1-(1+\gamma)^{-2}\bigr](\log_2\mathrm e)^2\end{equation*}
+
+% packet
+\begin{equation*}\displaystyle k=640\ \mathrm{bit},\quad n=2048,\quad n/B_{\mathrm c}=1.0667\ \mathrm{ms}\end{equation*}
+
+% commcost
+\begin{equation*}\displaystyle c_e=\begin{cases}0,&j=f_q,\\[3pt]10^3n/B_{\mathrm c},&j\ne f_q.\end{cases}\end{equation*}
+
+% symlink
+\begin{equation*}\displaystyle a=j,\quad b=f_q,\quad\chi_{ab}\in[0,1]\end{equation*}
+
+% feasiblelink
+\begin{equation*}\displaystyle d_{ab}\le d_{\max},\qquad R_{ab}\ge R_{\min},\qquad\chi_{ab}\ge\chi_{\min}\end{equation*}
+
+% mixture
+\begin{equation*}\displaystyle Y_e=A_e\ell_e+(1-A_e)Z_e\end{equation*}
+
+% failure
+\begin{equation*}\displaystyle A_e\sim\operatorname{Bernoulli}(\chi_e),\qquad Z_e\sim\mathcal N(0,a v_{e,0}),\quad a=9\end{equation*}
+
+% moments
+\begin{equation*}\displaystyle \begin{aligned}\delta_e^{\mathrm{eff}}&=\chi_e\delta_e,\\[6pt]\bar v_{e,0}&=\bigl[\chi_e+(1-\chi_e)a\bigr]v_{e,0},\\[6pt]\bar v_{e,1}&=\chi_ev_{e,1}+(1-\chi_e)av_{e,0}+\chi_e(1-\chi_e)\delta_e^2.\end{aligned}\end{equation*}
+
+% symraw
+\begin{equation*}\displaystyle \delta_e,\quad v_{e,0},\ v_{e,1}\end{equation*}
+
+% symeff
+\begin{equation*}\displaystyle \delta_e^{\mathrm{eff}},\quad\bar v_{e,0},\ \bar v_{e,1}\end{equation*}
+
+% symhyp
+\begin{equation*}\displaystyle \mathcal H_0,\quad\mathcal H_1\end{equation*}
+
+% fusion
+\begin{equation*}\displaystyle w_e\propto\frac{\delta_e^{\mathrm{eff}}}{\bar v_{e,0}},\qquad T_q=\sum_{e\in\mathcal S_q}w_eY_e\end{equation*}
+
+% fusedmoments
+\begin{equation*}\displaystyle m_{q,1}=\sum_{e\in\mathcal S_q}w_e\delta_e^{\mathrm{eff}},\qquad v_{q,h}=\sum_{e\in\mathcal S_q}w_e^2\bar v_{e,h}\end{equation*}
+
+% threshold
+\begin{equation*}\displaystyle t_q=\sqrt{v_{q,0}}\left[z_0+\frac{\kappa_{q,0}}6(z_0^2-1)\right],\quad z_0=\mathsf Q^{-1}(P_{\mathrm{FA}})\end{equation*}
+
+% pd
+\begin{equation*}\displaystyle \widehat P_{D,q}=\mathsf Q\!\left(\frac{t_q-m_{q,1}}{\sqrt{v_{q,1}}}\right)\end{equation*}
+
+% symfusion
+\begin{equation*}\displaystyle w_e,\ T_q;\quad m_{q,1},\ v_{q,h}\end{equation*}
+
+% symth
+\begin{equation*}\displaystyle P_{\mathrm{FA}},\quad\kappa_{q,0},\quad t_q\end{equation*}
+
+% objective
+\begin{equation*}\displaystyle \max_{\mathcal S}\quad F(\mathcal S)=U\!\left(\widehat{\mathbf P}_D(\mathcal S)\right)-\lambda_c\sum_{e\in\mathcal S}c_e\end{equation*}
+
+% constraints
+\begin{equation*}\displaystyle \mathcal S\subseteq\bigcup_q\mathcal E_q,\qquad |\mathcal S_q|\le L_{\max},\quad |\mathcal S|\le L_{\mathrm{tot}}\end{equation*}
+
+% utility
+\begin{equation*}\displaystyle \begin{aligned}U(\widehat{\mathbf P}_D)=&-Q\tau_\alpha\log\sum\nolimits_q\exp\!\left(-\bar P_{D,q}/\tau_\alpha\right)\\[4pt]&-\tfrac{\mu_\alpha}{2P_D^{\mathrm{req}}}\sum\nolimits_q\bigl[P_D^{\mathrm{req}}-\widehat P_{D,q}\bigr]_+^2.\end{aligned}\end{equation*}
+
+% cap
+\begin{equation*}\displaystyle \bar P_{D,q}=\min\!\left(\widehat P_{D,q},P_D^{\mathrm{req}}\right)\end{equation*}
+
+% symopt
+\begin{equation*}\displaystyle \mathcal S,\mathcal S_q;\quad\mathcal E_q\end{equation*}
+
+% symcaps
+\begin{equation*}\displaystyle L_{\max}=6,\quad L_{\mathrm{tot}}=60\end{equation*}
+
+% symprice
+\begin{equation*}\displaystyle \lambda_c=0.005/\mathrm{ms}\end{equation*}
+
+% symu
+\begin{equation*}\displaystyle P_D^{\mathrm{req}}=0.95,\quad\tau_\alpha=0.1,\quad\mu_\alpha=1\end{equation*}
+
+% stagesA
+\begin{equation*}\displaystyle \{f_q,\mathcal E_q\}_{q=1}^Q\end{equation*}
+
+% stagesB
+\begin{equation*}\displaystyle \mathcal H=\bigcup_q\mathcal H_q,\quad |\mathcal H_q|\le J\end{equation*}
+
+% stagesC
+\begin{equation*}\displaystyle \mathcal S\subseteq\mathcal H\end{equation*}
+
+% marginal
+\begin{equation*}\displaystyle \Delta F(e\mid\mathcal S)=F(\mathcal S\cup\{e\})-F(\mathcal S)\end{equation*}
+
+% nearest
+\begin{equation*}\displaystyle f_q=\underset{m\in\mathcal M}{\arg\min}\;\left\|\widehat{\mathbf p}_q-\mathbf p_m^{\mathrm{UAV}}\right\|_2\end{equation*}
+
+% localcase
+\begin{equation*}\displaystyle j=f_q\quad\Longrightarrow\quad\chi_e=1,\ c_e=0\end{equation*}
+
+% remotecase
+\begin{equation*}\displaystyle j\ne f_q\quad\Longrightarrow\quad\operatorname{ReportOK}(j,f_q)\end{equation*}
+
+% eset
+\begin{equation*}\displaystyle \mathcal E_q=\left\{(i,j,q):\operatorname{DDvalid}(e)\ \land\ \bigl[j=f_q\ \lor\ \operatorname{ReportOK}(j,f_q)\bigr]\right\}\end{equation*}
+
+% symlocation
+\begin{equation*}\displaystyle \widehat{\mathbf p}_q,\quad\mathbf p_m^{\mathrm{UAV}}\end{equation*}
+
+% init
+\begin{equation*}\displaystyle \mathcal S=\varnothing,\qquad\mathcal H_q=\varnothing\end{equation*}
+
+% choose
+\begin{equation*}\displaystyle e^*=\underset{e\,\text{admissible}}{\arg\max}\ \Delta F^{\mathrm c}(e\mid\mathcal S)\end{equation*}
+
+% commit
+\begin{equation*}\displaystyle \mathcal S\leftarrow\mathcal S\cup\{e^*\}\end{equation*}
+
+% frontiercap
+\begin{equation*}\displaystyle |\mathcal H_q|\le\min(J,|\mathcal E_q|),\qquad J=25\end{equation*}
+
+% filter
+\begin{equation*}\displaystyle \Delta D_q>0,\qquad D_q=\sum_{e\in\mathcal S_q}d(\chi_e)\end{equation*}
+
+% deflection
+\begin{equation*}\displaystyle d(\chi)=\frac{\chi^2\delta^2}{v_0\,[a+(1-a)\chi]}\end{equation*}
+
+% fine
+\begin{equation*}\displaystyle \eta_e^{\mathrm f}=\sum_{(b,d)\in\mathcal W_1(\kappa,\ell)}p_N(b;\kappa)\,p_L(d;\ell),\qquad e\in\mathcal H\end{equation*}
+
+% reset
+\begin{equation*}\displaystyle \mathcal S\leftarrow\varnothing\end{equation*}
+
+% finechoose
+\begin{equation*}\displaystyle e^*=\underset{e\in\mathcal H\cap\mathcal A(\mathcal S)}{\arg\max}\ \Delta F^{\mathrm f}(e\mid\mathcal S)\end{equation*}
+
+% fullwork
+\begin{equation*}\displaystyle E\,C_{\mathrm f}\end{equation*}
+
+% c2fwork
+\begin{equation*}\displaystyle E\,C_{\mathrm c}+r\,C_{\mathrm f},\qquad r=|\mathcal H|\le E\end{equation*}
+
+\end{document}
