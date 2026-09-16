@@ -69,10 +69,10 @@ six per target. ``Exact'' refers to marginal evaluation, not global optimality.
 Sensing-SINR ranks coarse sensing SINR and matches V1's per-target observation
 counts. Both use V1's fusion graph and feasibility checks; remote-report counts
 are intentionally outcomes, not matched constraints. V1 attains
-$P_D=0.9762$ (95\% CI: $[0.9730,0.9790]$), versus 0.9411 for exact-marginal
-greedy and 0.9783 for Sensing-SINR. Worst-target values are 0.967, 0.928, and
-0.970. The paired V1-minus-baseline intervals are $+0.0351$
-($[0.0310,0.0392]$) and $-0.0021$ ($[-0.0051,0.0009]$), respectively.
+$P_D=0.9764$ (95\% CI: $[0.9732,0.9792]$), versus 0.9408 for exact-marginal
+greedy and 0.9784 for Sensing-SINR. Worst-target values are 0.966, 0.931, and
+0.972. The paired V1-minus-baseline intervals are $+0.0356$
+($[0.0311,0.0401]$) and $-0.0020$ ($[-0.0050,0.0010]$), respectively.
 Thus, V1 improved on exact-marginal selection; its detection difference from
 Sensing-SINR was not statistically resolved. This does not establish
 equivalence or non-inferiority. The supported headline is communication
@@ -86,15 +86,15 @@ by 83.7\% without a significant $P_D$ change. Both savings follow from the
 same report-count reduction under fixed packet size and serial MAC. A separate
 MC=200 full-refinement control uses the same detector-PD greedy rule.
 Adaptive C2F uses 61.06 versus 853.65 fine evaluations (92.85\% fewer),
-with $P_D=0.980$ versus 0.973. The paired difference is 0.0070
-($[0.0029,0.0111]$); full refinement is a computational control, not an oracle.
+with $P_D=0.9775$ versus 0.9715. The paired difference is 0.0060
+($[0.0005,0.0115]$); full refinement is a computational control, not an oracle.
 
 \subsection{Fusion-Placement Ablation}
 
 Figure~\ref{fig:fusion_ablation} changes only the fusion destination rule. The
-target-agnostic max-in-rate rule gives $P_D=0.919$, worst-target $P_D=0.870$,
-6.65 remote reports, and 7.093~ms. A max-min-rate alternative gives 0.969,
-0.940, 6.40, and 6.827~ms. Nearest-target fusion reaches 0.982 and 0.950 with
+target-agnostic max-in-rate rule gives $P_D=0.932$, worst-target $P_D=0.900$,
+6.65 remote reports, and 7.093~ms. A max-min-rate alternative gives 0.967,
+0.940, 6.40, and 6.827~ms. Nearest-target fusion reaches 0.975 and 0.960 with
 only 0.74 remote reports and 0.789~ms. It also reduces selected observations
 from 19.89 and 15.61 to 12.24. The nearest-target rule therefore converted more
 selected evidence into local observations with unit reliability and no packet
@@ -106,9 +106,9 @@ parallelism, not achieved delay; all reported delays use serial MAC.
 
 \subsection{Operating Boundaries}
 
-Increasing position error from 50 to 500~m reduced $P_D$ from about 0.99 to
-0.900. Increasing deployment side from 2500 to 5500~m reduced it from 0.992
-to 0.932 and increased reports from 0.05 to 2.67. Other 100-trial scans in
+Increasing position error from 50 to 500~m reduced $P_D$ from 0.988 to
+0.906. Increasing deployment side from 2500 to 5500~m reduced it from 0.989
+to 0.940 and increased reports from 0.05 to 2.67. Other 100-trial scans in
 the supplement calibrate parameters without supporting universal recommendations.
 
 \subsection{Component Validation and Runtime}

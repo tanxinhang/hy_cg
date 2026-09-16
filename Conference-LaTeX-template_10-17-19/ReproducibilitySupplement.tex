@@ -12,8 +12,10 @@
 \begin{document}
 \maketitle
 \noindent This supplement supplies derivations and implementation details without
-adding a new sensing mechanism. The main results remain the archived V1
-experiments. New component audits are labeled separately and do not replace the
+adding a new sensing mechanism. The main results are the V1 experiments,
+regenerated in full under the current frozen release so that the reported
+numbers and the code that produces them agree. New component audits are
+labeled separately and do not replace the
 1000-trial comparison. File paths below are relative to the repository root.
 
 \section{Reporting semantics and information available to the scheduler}
@@ -145,7 +147,12 @@ explicitly selects \path{detect.comm_error_model=gaussian_replacement}.
 This maps the failure semantics; it is not a claim that all current source
 changes reproduce historical detection draws bit for bit. Archive data are
 preserved. A full replacement of the headline evidence requires a new paired
-main run, not relabeling an audit.
+main run, not relabeling an audit. That rerun has since been performed: the
+regenerated tree reproduces every selection-path quantity of the archived tree
+bit for bit (deflection, selected observations and reports, payload, serial
+delay, refinement counts, belief capture), while the detection counts move by
+at most 0.0003 in $P_D$ at 1000 trials. That signature is the sampling-path
+change alone and not a changed physical or optimisation model.
 
 \section{Conditional guarantees and algorithm boundary}
 \subsection{What local delivery guarantees}
@@ -314,14 +321,14 @@ Wilson intervals are retained in \texttt{waveform\_llr.csv}.
 Archived headline $P_D$ bars are pooled Wilson intervals. They do not model
 within-scenario target dependence; the paired method-difference intervals
 are the relevant comparison reported in the main text. A confidence interval
-crossing zero is not proof of equivalence or non-inferiority. The archived
-V1 active-target false-alarm estimate is 0.04975, near the specified 0.05.
+crossing zero is not proof of equivalence or non-inferiority. The regenerated
+V1 active-target false-alarm estimate is 0.04868, near the specified 0.05.
 This aggregate observation does not guarantee exact false-alarm control
 for every selected set or every operating condition.
 
 \subsection{Source data and supplementary scans}
 \begin{itemize}
-\item \texttt{results\_target\_local\_v1/main/main.csv}: archived 1000-trial main comparison.
+\item \texttt{results\_target\_local\_v1/main/main.csv}: regenerated 1000-trial main comparison.
 \item \texttt{results\_target\_local\_v1/full-refinement-pd}: 200-trial computational control.
 \item \texttt{results\_target\_local\_v1/overview}: 100-trial fusion and parameter scans.
 \item \texttt{results\_target\_local\_v1/prediction-stress}: position-belief scan.
@@ -337,11 +344,11 @@ new algorithmic contributions.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figs/fig4_v1_operating_envelope.pdf}
-\caption{Archived exploratory envelope, 100 trials per condition.
+\caption{Operating envelope, 100 trials per condition.
 (a) Position-belief error, (b) minimum reporting rate, (c) deployment side,
 (d) communication price, (e) blocklength, (f) fleet size. Blue denotes
 detection probability and orange the named secondary metric.
-No additional uncertainty bands are inferred from unavailable trial-level data.}
+No additional uncertainty bands are shown for these diagnostic scans.}
 \end{figure}
 \clearpage
 \section{Stronger detection guarantee and probability refinement}
@@ -435,8 +442,8 @@ detection-performance experiment.
 
 The current use is final-set verification and inspection of close decisions.
 Convolution inside every coarse greedy score would change runtime and
-requires a separate benchmark. Released C2F and the MC=1000 headline
-remain unchanged.
+requires a separate benchmark. Released C2F and the MC=1000 headline are
+unaffected by this verification path.
 
 \subsection{Novelty boundary after targeted literature search}
 Primary versions checked include Chen et al.'s shared-backhaul selection
