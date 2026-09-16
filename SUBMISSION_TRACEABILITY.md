@@ -127,15 +127,34 @@ pdflatex ReproducibilitySupplement.tex && pdflatex ReproducibilitySupplement.tex
 
 ## 5. 尚未收口（本文件不宣称已解决）
 
-1. **改码未重跑回归**：9/16 的 `isac_sim` 门控改动尚未通过实跑确认主 CSV 可复现。
-   这是唯一的技术风险点，优先级最高。
-2. **效用两项必要性消融未做**：soft-min 与二次缺口项保留为"被测效用"，
-   不能宣称二者均不可缺少。正文口径已按此收紧。
+> **2026-09-16 更新**：第 1 项已由实测证实为**真实漂移**（不只是"未验证"），
+> 详见 `MANUSCRIPT_CODE_CONSISTENCY_ALERT.md`。第 2 项已完成消融，
+> 见 `V1_UTILITY_ABLATION.md`。
+
+1. 🔴 **检测数字与当前代码不一致（最高优先级）**：判决阈值已于 2026-09-15
+   （`03f9612`）由 Cornish–Fisher 近似换成 `calibrated_fused_threshold`，
+   而正文的 $P_D$ 数字来自 2026-09-14 的旧判决结果。MC=100 实测漂移
+   −0.007（0.982 → 0.975）。**通信效率数字不受影响**（报告数/时延/观测数逐位一致）。
+   需要重跑 MC=1000 主实验并更新正文与 fig2。⚠️ 注意正文已声明使用
+   "corrected H0 threshold"，因此当前是"描述与数据不符"。
+2. ✅ **效用两项必要性消融已完成**：MC=100、同场景、trial 配对。移除
+   soft-min 项、二次缺口项或两者，对检测**均无可检出影响**，弱目标 $P_D$
+   四组完全相同。结论：**不能宣称两项必要**，但也**不足以据此删除**公式
+   （MC=100 单配置、检测接近饱和、`no_softmin` 变体语义不纯）。
 3. **全面新颖性查新未做**：仅在有限文献内比较，未宣称完成查新。
 4. **完整多目标波形 / 编码 / 量化 / 硬件验证未做**：已在正文与补充材料声明边界。
 5. **V1.6 机制轨门禁悬置**：G1–G3 pass，G4 仅 `infrastructure_pass`，
    G5 恒为 `pending_frozen_holdout`。该轨道已排除出会议稿，不阻塞投稿。
 6. 补充材料当前 8 页，投稿时需按 ICC 政策确认其是否作为附件单独提交。
+
+### 顺带发现（非缺陷）
+
+现有结果目录的 `config.json` 记 `detect.comm_error_model = erasure`，而当前
+`erasure` 已改指"真零擦除"。这**不是**模型写错——源版本 `69f3300` 的
+`soft_channel.py:142` 中 `erasure` 分支返回的正是 $\mathcal N(0,3\sqrt{v_0})$
+（方差 $9v_0$，$a=9$），即当时 `erasure` ≡ 当前 `gaussian_replacement`。
+论文声明与当时执行一致，`rerun_target_local_v1.py` 固定 `gaussian_replacement`
+也是正确的复现入口。属历史命名债。
 
 ---
 
