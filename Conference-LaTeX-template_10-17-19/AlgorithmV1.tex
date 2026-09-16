@@ -1,0 +1,22 @@
+\begin{table}[t]
+\caption{Prediction-only adaptive C2F (released V1)}
+\label{alg:adaptive_c2f}
+\footnotesize
+\begin{algorithmic}[1]
+\REQUIRE Belief-side tables, $f_q$, caps, $J=25$, $W=1$
+\STATE Build triplet sets $\mathcal E_q$; set $S=\varnothing$, $H_q=\varnothing$.
+\WHILE{$|S|<L_{\rm tot}$}
+\STATE Compute coarse $\Delta F(e\mid S)$ for unselected candidates
+satisfying caps and $\Delta D_q>0$.
+\STATE For each target, add its highest positive-gain candidate outside
+$H_q$ if $|H_q|<\min(J,|\mathcal E_q|)$.
+\STATE Let $e^*$ have largest positive gain; stop if none exists.
+\STATE Commit $e^*$ to $S$. Insert it into $H_q$ if absent,
+replacing the last entry when full.
+\ENDWHILE
+\STATE Evaluate $\eta^{\rm loc}$ only on $H=\bigcup_q H_q$.
+\STATE Reset $S=\varnothing$; greedily add the largest positive fine
+$\Delta F$ on $H$, checking caps and $\Delta D_q>0$ each time.
+\RETURN $S$ when no admissible positive gain remains or the total cap binds.
+\end{algorithmic}
+\end{table}

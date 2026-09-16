@@ -1,91 +1,107 @@
 \section{Target-Local Adaptive C2F Selection}
 \label{sec:proposed_algorithm}
 
-\subsection{Prediction-Only Fusion Planning}
+\subsection{Prediction-Only Fusion Placement}
 
-Let $\widehat{\mathbf p}_q$ be the predicted position supplied by the upstream
-tracker. V1 assigns target $q$ to
+The outer stage assigns each target to the UAV nearest its predicted position:
 \begin{equation}
 	f_q=\arg\min_{m\in\mathcal M}
-	\left\|\widehat{\mathbf p}_q-\mathbf p_m^{\mathrm{UAV}}\right\|_2 .
+	\|\widehat{\mathbf p}_q-\mathbf p_m^{\mathrm{UAV}}\|_2 .
 	\label{eq:nearest_target_fusion}
 \end{equation}
-The assignment is recomputed from the predicted belief; the true target state
-and current-CPI RCS realization are unavailable to the scheduler. Unlike the
-previous target-agnostic rule
-$\arg\max_m\sum_j R_{jm}$, \eqref{eq:nearest_target_fusion} can map different targets to different fusion
-UAVs. It therefore changes the reporting quantities $R_{j f_q}$ and
-$\chi_{j f_q}$ before link selection begins.
-
-For target $q$, the resulting feasible candidate set is
+The rule uses neither the current target truth nor its realized RCS. It is a
+low-complexity placement heuristic, not a jointly optimal fusion solution.
+Given $f_q$, the feasible observation set is
 \begin{equation}
-	\begin{aligned}
-	\mathcal{E}_q=\{(i,j):{}&(l_{ijq},k_{ijq})~\text{is DD-valid},\\
-	&j=f_q\ \text{or}\ (j,f_q)\in\mathcal E_{\mathrm c}\}.
-	\end{aligned}
+\begin{aligned}
+	\mathcal E_q=\{(i,j,q):{}&(i,j,q)\text{ is DD-valid},\\
+	&j=f_q\text{ or }(j,f_q)\text{ is feasible}\}.
+\end{aligned}
 	\label{eq:feasible_candidate_set}
 \end{equation}
-For a remote edge, $R_{j f_q}\geq R_{\min}$ and
-$\chi_{j f_q}\geq\chi_{\min}$ are also required. If $j=f_q$, the statistic
-is already local: $B_e=T_e=0$ and $\chi_e=1$. Otherwise, the released serial
-finite-blocklength MAC charges 640 bits and $n/B_{\mathrm c}$ seconds per report.
 
-\subsection{Fair Detector-Aligned Marginal}
+\noindent\textit{Local-delivery bound.}
+Under \eqref{eq:received_moments}, the single-observation deflection is
+$d(\chi)=\chi^2\delta^2/[v_0(a+(1-a)\chi)]$. Its derivative is nonnegative
+for $a\ge0$, so local delivery maximizes this quantity for the same observation.
+This does not imply monotonicity of the approximate $P_D$ or optimality of
+nearest-target placement when other report links change.
+
+For fixed observation laws and hypothesis-independent replacement, lower
+reliability is a random degradation of higher reliability. Optimal detection
+at fixed false alarm is therefore nondecreasing with reliability
+~\cite{blackwell_experiments}. The supplementary proof concerns the optimal
+ROC envelope, not the implemented linear detector.
+
+For a fixed $\mathcal S_q$, let $a_{qm}$ count selected observations received
+at UAV $m$. Every fusion choice obeys
+$N_{{\rm rem},q}\ge |\mathcal S_q|-\max_m a_{qm}$.
+This follows because only observations produced at the fusion UAV avoid a
+packet. A feasible nearest-target assignment attaining the bound is
+report-minimal for that fixed set; no joint selection optimum is implied.
+
+\subsection{Communication-Constrained Selection}
 
 Let $\widehat{\mathbf P}_D(\mathcal S)$ denote the detector-predicted target
-probabilities obtained from the same post-channel moments and threshold used
-in evaluation. Define $\bar P_{D,q}=\min(\widehat P_{D,q},P_D^{\rm req})$.
-We use the weak-target potential
+probabilities from \eqref{eq:detector_prediction}. We cap each target probability
+at the design requirement and define a smooth weak-target utility
 \begin{equation}
-\begin{split}
-	U(\widehat{\mathbf P}_D)=&-Q\tau_\alpha\log\!\sum_{q\in\mathcal Q}
+\begin{aligned}
+	U(\widehat{\mathbf P}_D)=&-Q\tau_\alpha\log\sum_q
 	\exp[-\bar P_{D,q}/\tau_\alpha]\\
 	&-\frac{\mu_\alpha}{2P_D^{\rm req}}
-	\sum_{q\in\mathcal Q}[P_D^{\rm req}-\widehat P_{D,q}]^2_+ .
-\end{split}
+	\sum_q[P_D^{\rm req}-\widehat P_{D,q}]_+^2,
+\end{aligned}
 	\label{eq:fair_sensing_utility}
 \end{equation}
-Saturation at $P_D^{\rm req}$ prevents the selector from spending observation
-or communication resources on numerically tiny gains after a target has
-reached the declared design point.
-
-For candidate $e=(i,j,q)$ and current selection $\mathcal S$, the implemented
-greedy replay evaluates
+where $\bar P_{D,q}=\min(\widehat P_{D,q},P_D^{\rm req})$. The first term
+prioritizes weak targets, while the second penalizes unresolved detection gaps.
+The selector heuristically seeks a high value of the capped objective:
 \begin{equation}
-	\Delta\mathcal L_e=
-	U\!\left(\widehat{\mathbf P}_D(\mathcal S\cup\{e\})\right)
-	-U\!\left(\widehat{\mathbf P}_D(\mathcal S)\right)
-	-\lambda_c c_e,
-	\label{eq:lagrangian_score_compact}
-\end{equation}
-where $c_e=\mathbf 1\{j\ne f_q\}n/B_{\mathrm c}$ is the per-report
-communication price in milliseconds. Because $n$ is fixed, this is a remote-
-report cardinality price rather than a link-dependent delay optimizer. The replay
-uses the same post-channel moments and threshold correction as the Monte-Carlo
-detector. Starting from $\mathcal S=\varnothing$, it commits the largest
-positive marginal while enforcing $|\mathcal S_q|\le L_{\max}$ and
-$|\mathcal S|\le L_{\mathrm{tot}}$.
-
-\subsection{Adaptive Two-Stage Refinement}
-
-Computing waveform-derived local DD energy for every feasible triplet is
-unnecessary. The coarse stage evaluates candidates using
-$\eta_{ijq}^{\mathrm c}$ and maintains a dynamic frontier. Promising candidates
-are refined with $\eta_{ijq}^{\mathrm f}=\eta_{ijq}^{\mathrm{loc}}$; after each
-commit, affected marginals are refreshed and the fine stage replays the exact
-detector-aligned rule in \eqref{eq:lagrangian_score_compact}. This is an
-adaptive shortlist rather than a fixed one-shot top-$K$ filter. In the V1 main
-experiment, the procedure evaluates 117.7 local DD neighborhoods per trial,
-versus 509.3 under full refinement, a 76.9\% reduction.
-
-The implemented task objective is
-\begin{equation}
-	F(\mathcal S)=U\!\left(\widehat{\mathbf P}_D(\mathcal S)\right)
-	-\lambda_c\sum_{e\in\mathcal S}c_e .
+\begin{aligned}
+	\max_{\mathcal S\subseteq\cup_q\mathcal E_q}\quad
+	&F(\mathcal S)=U(\widehat{\mathbf P}_D(\mathcal S))
+	-\lambda_c\sum_{e\in\mathcal S}c_e,\\
+	\mathrm{s.t.}\quad&|\mathcal S_q|\le L_{\max},\quad
+	|\mathcal S|\le L_{\mathrm{tot}},
+\end{aligned}
 	\label{eq:task_objective}
 \end{equation}
-The cost term can make $F$ non-monotone, while the soft minimum couples targets
-and the constraints combine per-target and total caps. We therefore make no
-universal submodular approximation claim. V1 is an architectural extension of
-the existing selector: its principal new variable is $f_q$ in
-\eqref{eq:nearest_target_fusion}, not a new greedy score.
+where $c_e=10^3\mathbf1\{j\ne f_q\}n/B_{\mathrm c}$ is measured in
+milliseconds, matching the implemented price $\lambda_c$. Fixed blocklength makes
+$c_e$ a remote-report cardinality price rather than a link-dependent delay.
+The caps limit observations, including local ones; the price does not enforce
+a prescribed hard communication budget. They imply payload at most
+$kL_{\rm tot}$ and serial delay at most $nL_{\rm tot}/B_{\rm c}$.
+The greedy replay repeatedly commits the feasible candidate with the largest
+positive marginal $F(\mathcal S\cup\{e\})-F(\mathcal S)$. Because the objective
+can be non-monotone and the constraints combine target and total caps, we claim
+neither global optimality nor a universal submodular approximation ratio.
+
+\subsection{Adaptive C2F Acceleration}
+\input{AlgorithmV1.tex}
+
+The pseudocode in Table~\ref{alg:adaptive_c2f} constructs a per-target frontier,
+then replays the same objective on its fine estimates. The per-target
+shortlist cap is $J=25$ and the observation cap is six. A positive-deflection
+filter uses $D_q=\sum_{e\in S_q}d(\chi_e)$ under independence.
+Cached moments are invalidated when their target's selected set changes.
+Ties retain the first candidate in target/transmitter/receiver order.
+
+Let $E$ be the number of feasible candidates and $r$ the number refined. If a
+coarse evaluation costs $C_{\mathrm c}$ and a fine evaluation costs
+$C_{\mathrm f}$, full refinement costs $EC_{\mathrm f}$, whereas adaptive C2F
+has DD evaluation cost approximately
+\begin{equation}
+	EC_{\mathrm c}+rC_{\mathrm f},\qquad r\le E.
+	\label{eq:c2f_complexity}
+\end{equation}
+This excludes greedy scoring and frontier maintenance. With at most
+$L_{\mathrm{tot}}$ commits per stage, scanning requires
+$O(L_{\mathrm{tot}}(E+r))$ candidate-score evaluations; a direct implementation costs
+$O(L_{\rm tot}(E+r)(L_{\max}+Q))$ for moments and global utility evaluation,
+before caching. Nearest placement costs $O(QM)$ and the shortlist stores
+at most $QJ$ triplets. When fine DD refinement dominates, the fractional reduction approaches $1-r/E$.
+The main experiment used 61.3 refinements for 860.2 feasible candidates
+(92.9\% fewer). This is a work-count ratio, not a wall-clock speedup.
+No bound on omitted candidates is available, so C2F is not claimed lossless.

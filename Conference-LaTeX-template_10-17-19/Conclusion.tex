@@ -1,27 +1,10 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-This paper presented target-local fusion V1 for prior-assisted multi-UAV
-OTFS-ISAC sensing. The outer planner assigns each target to the UAV nearest its
-predicted position, while the existing communication-calibrated adaptive C2F
-selector performs detector-aligned greedy replay. The formulation therefore
-changes where reports meet while the detector-PD objective independently
-chooses its observation set under fixed packet, blocklength, and resource caps.
-
-In 1000 paired trials, V1 achieved $P_D=0.9762$ and worst-target
-$P_D=0.967$ from 12.101 observations, with only 0.751 remote reports,
-0.481~kbit, and 0.801~ms of serial reporting. Its paired gain over
-exact-marginal greedy was 0.0351. Its detection rate was statistically tied
-with Sensing-SINR, while using 83.7\% less payload. A controlled fusion-rule
-ablation showed that target-local planning disperses targets across fusion UAVs
-and exposes shorter, more reliable reporting edges to the inner selector. The
-evidence therefore supports a combined architectural conclusion: target-related
-fusion planning plus adaptive two-stage selection---rather than attributing the
-full improvement to a new greedy criterion.
-
-V1 is a stable nominal version, not a universal endpoint. Large prediction
-errors and sparse deployments remain its principal boundaries. The present
-rate-threshold scan is weak because local evidence dominates remote reporting.
-Future work will add fusion capacity and sensing-acquisition costs, validate the
-analytic DD proxy at waveform level, model obstruction and correlated reports,
-and optimize link-dependent blocklengths instead of a fixed report price.
+Target-local fusion retains evidence at its producing UAV before adaptive C2F
+selects remote reports. In 1000 paired trials, it achieved $P_D=0.9762$ with
+no statistically resolved detection difference from Sensing-SINR and 83.7\%
+less payload and serial reporting delay. The contribution is architectural
+communication efficiency under independent LLRs, fixed packets, and
+prior-assisted sensing. Placement remains heuristic, detector prediction
+approximate, and performance sensitive to belief error and sparse deployment.

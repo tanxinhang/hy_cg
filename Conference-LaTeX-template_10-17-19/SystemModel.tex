@@ -1,568 +1,160 @@
-\begin{figure*}[t]
-	\centering
-	\includegraphics[width=\textwidth]{figs/fig1_uav_otfs_isac_framework.pdf}
-	\caption{Multi-UAV OTFS-ISAC cooperative sensing and target-specific
-	reporting framework. Each target's reports meet at one fusion UAV selected
-	from the predicted target belief.}
-	\label{fig:system_framework}
-\end{figure*}
 \section{System Model}
-
 \label{sec:system_model}
+\input{ReportingArchitecture.tex}
 
-We consider a sensing-centric multi-UAV OTFS-ISAC network, as shown in
-Fig.~\ref{fig:system_framework}(a). The UAV and target sets are denoted by
-$\mathcal M=\{1,\ldots,M\}$ and $\mathcal Q=\{1,\ldots,Q\}$, respectively.
-UAV $i$ and target $q$ have position--velocity pairs
-$(\mathbf p_i,\mathbf v_i)$ and $(\mathbf p_q,\mathbf v_q)$. A cooperative
-candidate is indexed by the target-dependent triplet $(i,j,q)$, where UAV $i$
-transmits an OTFS-ISAC probing signal, target $q$ reflects it, and UAV $j$
-receives the bistatic echo. The inter-UAV reporting topology is represented by
-a directed graph $\mathcal G=(\mathcal M,\mathcal E)$, where
-$(i,j)\in\mathcal E$ if $\|\mathbf p_i-\mathbf p_j\|\le d_{\max}$ and
-$i\ne j$.
+\subsection{Task, Prior Information, and Reporting Graph}
 
-We explicitly separate the \emph{sensing} topology from the
-\emph{reporting} topology. The sensing chain is
-$i\rightarrow q\rightarrow j$: UAV $j$ receives the echo and therefore
-\emph{produces} the soft statistic. The statistic is then reported over the
-link $j\rightarrow f_q$ to a target-specific fusion UAV $f_q\in\mathcal M$,
-which is the single node where all soft statistics about target $q$ meet.
-Accordingly, a sensing-reporting candidate is the quadruple
-$(i,j,q;f_q)$, and the communication quantities that matter---reliability
-$\chi_{j f_q}$, rate $R_{j f_q}$ and delay $T_{j f_q}$---are properties of the
-reporting leg $(j,f_q)$ alone, with no dependence on the illuminator $i$.
-Every ordered pair $i\ne j$ is a potential bistatic sensing pair; communication
-range constrains only the remote reporting leg. If $j=f_q$, the fusion UAV
-retains its locally produced statistic without transmitting a packet.
-This separation ensures that the fused statistic is physically well
-defined: with a naive $j\rightarrow i$ reporting rule, three selected links
-$(i_1,j_1,q)$, $(i_2,j_2,q)$, $(i_3,j_3,q)$ would deliver their statistics to
-three different UAVs while the fusion step implicitly assumed they had already
-met. We use a geometry-driven soft-information abstraction rather than a full
-waveform-level OTFS receiver model. The OTFS structure enters the scheduling
-problem through DD-bin validity, fractional DD energy loss, same-bin collision,
-and local DD-grid refinement. These DD-domain quantities determine whether a
-target-dependent triplet provides useful soft information after reporting and
-fusion.
-
-\subsection{Communication and Reporting Model}
-\label{subsec:comm_model}
-
-The transmit power of UAV $i$ is split into sensing and communication parts,
-i.e.,
+Let $\mathcal M=\{1,\ldots,M\}$ and $\mathcal Q=\{1,\ldots,Q\}$ denote
+UAVs and targets. Observation $e=(i,j,q)$ is generated at echo receiver $j$:
 \begin{equation}
-	P_i^{\mathrm s}=\rho P_i,\qquad
-	P_i^{\mathrm c}=(1-\rho)P_i .
-	\label{eq:power_split}
+ i\rightarrow q\rightarrow j\rightarrow f_q .
+ \label{eq:information_path}
 \end{equation}
-For a directed inter-UAV link $(a,b)$, the communication-channel power gain is
-\begin{equation}
-	g_{ab}^{\mathrm c}
-	=
-	\left(\frac{\lambda}{4\pi}\right)^2
-	d_{ab}^{-\alpha_{\mathrm c}}
-	\zeta_{ab}|h_{ab}^{\mathrm c}|^2,
-	\qquad
-	d_{ab}=\|\mathbf p_a-\mathbf p_b\|.
-	\label{eq:comm_channel_gain}
-\end{equation}
-Here $\lambda$, $\alpha_{\mathrm c}$, $\zeta_{ab}$, and $h_{ab}^{\mathrm c}$
-denote the carrier wavelength, path-loss exponent, shadowing, and small-scale
-fading, respectively.
+The sensing pair is $(i,j)$, whereas its reporting link is $(j,f_q)$.
+All statistics for target $q$ meet at one fusion UAV $f_q$.
+When $j=f_q$, no report is transmitted (Fig.~\ref{fig:system_framework}).
 
-The conference release uses orthogonal inter-UAV reporting. The communication
-SINR from UAV $i$ to UAV $j$ is therefore
-\begin{equation}
-	\gamma_{ij}^{\mathrm c}
-	=
-	\frac{P_i^{\mathrm c}g_{ij}^{\mathrm c}}
-	{N_0+
-		\epsilon_{\mathrm s}\!\sum_{k\in\mathcal M\setminus\{i,j\}}
-		P_k^{\mathrm s}g_{kj}^{\mathrm c}
-		+\epsilon_{\mathrm d}P_i^{\mathrm s}g_{ij}^{\mathrm c}} .
-	\label{eq:comm_sinr}
-\end{equation}
-The coefficients $\epsilon_{\mathrm s}$ and $\epsilon_{\mathrm d}$ represent
-neighbor-induced sensing-to-communication leakage and intra-link leakage,
-respectively. Other report payloads do not enter \eqref{eq:comm_sinr}, because
-strictly serial reports cannot interfere with one another.
+The task is confirmation or re-detection after upstream acquisition.
+An external tracker supplies $b_q=\mathcal N(\widehat{\mathbf x}_q,\mathbf P_q)$;
+we simulate its output with noisy horizontal position and velocity estimates,
+keeping nominal target altitude known. Only this belief and the mean RCS
+enter planning. The unknown current state enters echo generation and final
+detection. The DD search gate propagates $\mathbf P_q$ through the bistatic
+Jacobian and uses three standard deviations per DD coordinate. This gate
+models search coverage, not a posterior tracker or blind initial acquisition.
 
-\emph{Shared-spectrum coupling with an orthogonal reporting phase.} All UAVs
-continuously radiate their sensing components over the same propagation field.
-Soft reports are then exchanged in orthogonal slots. Thus, the communication
-receiver sees sensing-waveform leakage, while the sensing receiver is limited by
-residual direct paths from the concurrently radiated sensing waveforms:
-\begin{equation}
-	\begin{aligned}
-		I_{ij}^{\mathrm c}
-		&=
-		\epsilon_{\mathrm s}
-		\sum_{k\in\mathcal M\setminus\{i,j\}}
-		P_k^{\mathrm s}g_{kj}^{\mathrm c}, \\[2pt]
-		I_{j}^{\mathrm s}
-		&=
-		\kappa_{\mathrm{self}}P_j
-		+
-		\kappa_{\mathrm{dc}}
-		\sum_{k\in\mathcal M\setminus\{j\}}
-		P_k^{\mathrm s}g_{kj}^{\mathrm c}.
-	\end{aligned}
-	\label{eq:shared_interference_field}
-\end{equation}
-The phase separation removes circular payload interference without removing
-ISAC coupling: sensing waveforms still leak into the report receiver and their
-residual direct paths limit sensing. Here $\kappa_{\mathrm{dc}}$ denotes the
-residual after reconstructing and cancelling the known illuminator waveforms.
+\subsection{Reporting Reliability and Cost}
 
-With communication bandwidth $B_{\mathrm c}=N\Delta f$, the reporting rate is
-\begin{equation}
-	R_{ij}=B_{\mathrm c}\log_2(1+\gamma_{ij}^{\mathrm c}),
-	\label{eq:rate_delay}
-\end{equation}
-and a remote reporting link is feasible when $R_{ij}\ge R_{\min}$ and
-$\chi_{ij}\ge\chi_{\min}$. For local evidence we define
-$T_{j f_q}=B_{j f_q}=0$ and $\chi_{j f_q}=1$ when $j=f_q$.
-
-\emph{Finite-blocklength reliability.} A soft sensing report is a short control
-packet. The canonical simulation uses the normal approximation
-\begin{equation}
-	\epsilon_{ij}
-	\approx
-	\mathsf Q
-	\left(
-	\frac{
-		C(\gamma_{ij}^{\mathrm c})-\frac{k}{n}
-	}{
-		\sqrt{V(\gamma_{ij}^{\mathrm c})/n}
-	}
-	\right),
-	\qquad
-	\chi_{ij}=1-\epsilon_{ij},
-	\label{eq:fbl_reliability}
-\end{equation}
-where $C(\gamma)=\log_2(1+\gamma)$,
-$V(\gamma)=\left(1-(1+\gamma)^{-2}\right)(\log_2 e)^2$, $k=B_q$ is the payload
-in bits, and $n$ is the blocklength. Reliability, payload, and latency are then
-coupled through $\chi_{ij}=1-\epsilon_{ij}$ and $T_{ij}=n/B_{\mathrm c}$.
-The heuristic reliability map is retained only for legacy-result reproduction.
-
-\subsection{DD-Domain Bistatic Sensing Model}
-\label{subsec:dd_sensing_model}
-
-For triplet $(i,j,q)$, define
-$d_{iq}=\|\mathbf p_q-\mathbf p_i\|$,
-$d_{jq}=\|\mathbf p_q-\mathbf p_j\|$,
-$\mathbf u_{iq}=(\mathbf p_q-\mathbf p_i)/d_{iq}$, and
-$\mathbf u_{jq}=(\mathbf p_q-\mathbf p_j)/d_{jq}$. The bistatic delay and
-Doppler shift are
+Sensing and reporting share power, $P_i^{\mathrm s}=\rho P_i$ and
+$P_i^{\mathrm c}=(1-\rho)P_i$. The UAV channel gain is
+$g_{ab}^{\mathrm c}=(\lambda/4\pi)^2d_{ab}^{-\alpha_{\mathrm c}}
+\zeta_{ab}|h_{ab}^{\mathrm c}|^2$, with shadowing $\zeta_{ab}$ and fading
+$h_{ab}^{\mathrm c}$. Under orthogonal serial reporting,
 \begin{equation}
 \begin{aligned}
-	\tau_{ijq}&=\frac{d_{iq}+d_{jq}}{c},\\
-	\nu_{ijq}&=
-	\frac{(\mathbf v_q-\mathbf v_i)^T\mathbf u_{iq}}
-	{\lambda}
-	+\frac{(\mathbf v_q-\mathbf v_j)^T\mathbf u_{jq}}
-	{\lambda}.
+ \gamma_{ab}^{\mathrm c}&=
+ \frac{P_a^{\mathrm c}g_{ab}^{\mathrm c}}
+ {N_0+\epsilon_{\mathrm s}\sum_{k\ne a,b}P_k^{\mathrm s}g_{kb}^{\mathrm c}
+ +\epsilon_{\mathrm d}P_a^{\mathrm s}g_{ab}^{\mathrm c}},\\
+ R_{ab}&=B_{\mathrm c}\log_2(1+\gamma_{ab}^{\mathrm c}).
 \end{aligned}
-	\label{eq:bistatic_delay_doppler}
+ \label{eq:comm_sinr_rate}
 \end{equation}
+Here $N_0$ is receiver noise power over $B_{\mathrm c}$, and
+$\epsilon_{\mathrm s},\epsilon_{\mathrm d}$ are residual sensing leakage factors.
+Reports do not mutually interfere; sensing transmissions remain concurrent.
 
-The corresponding DD-grid indices are
+For a $k$-bit packet in $n$ channel uses, we adopt the normal approximation
+for a complex AWGN-equivalent reporting channel~\cite{polyanskiy_fbl}:
 \begin{equation}
-	l_{ijq}=\operatorname{round}(\tau_{ijq}L\Delta f),\qquad
-	k_{ijq}=\operatorname{round}(\nu_{ijq}NT).
-	\label{eq:dd_grid_mapping}
+ \chi_{ab}\simeq1-\mathsf Q\!\left(
+ \frac{C(\gamma_{ab}^{\mathrm c})-k/n}
+ {\sqrt{V(\gamma_{ab}^{\mathrm c})/n}}\right),
+ \label{eq:fbl_reliability}
 \end{equation}
-A triplet is DD-valid if $0\le l_{ijq}<L$ and
-$-N/2\le k_{ijq}<N/2$. The fractional DD offsets are
+where $C(\gamma)=\log_2(1+\gamma)$ and
+$V(\gamma)=[1-(1+\gamma)^{-2}](\log_2 e)^2$.
+This conditional packet-success approximation replaces the heuristic
+$\gamma/(\gamma+\gamma_{\rm req})$; it is not a measured code-specific error curve.
+A remote link must satisfy the range mask, $R_{ab}\ge R_{\min}$, and
+$\chi_{ab}\ge\chi_{\min}$. Each selected remote observation reserves one
+fixed padded $k$-bit report and $n/B_{\mathrm c}$ seconds, without aggregation
+or retransmission. Thus $N_{\rm rem}$ reports cost $kN_{\rm rem}$ bits and
+$nN_{\rm rem}/B_{\mathrm c}$ serial delay. Local delivery has $\chi=1$ and zero
+reporting cost; sensing, processing, and unmodeled control traffic are not free.
+
+\subsection{DD Energy and Local Statistic}
+
+With $\mathbf u_{iq}$ pointing from UAV $i$ to target $q$, the bistatic
+coordinates are
 \begin{equation}
-	\varepsilon_{ijq}^{\tau}=\tau_{ijq}L\Delta f-l_{ijq},\qquad
-	\varepsilon_{ijq}^{\nu}=\nu_{ijq}NT-k_{ijq}.
-	\label{eq:dd_fractional_offsets}
+\begin{aligned}
+ \tau_{ijq}&=(d_{iq}+d_{jq})/c,\\
+ \nu_{ijq}&=\lambda^{-1}\!\left[(\mathbf v_q-\mathbf v_i)^T\mathbf u_{iq}
+ +(\mathbf v_q-\mathbf v_j)^T\mathbf u_{jq}\right].
+\end{aligned}
+ \label{eq:bistatic_delay_doppler}
 \end{equation}
-
-Using the normalized sinc function, the coarse DD-domain gain is
+Let $\ell=\tau L\Delta f$ and $\kappa=\nu NT$, with $T=1/\Delta f$.
+The coarse estimate is $\eta^{\mathrm c}=\mathrm{sinc}^2(\ell-\mathrm{round}\ell)
+\mathrm{sinc}^2(\kappa-\mathrm{round}\kappa)$.
+For a periodic $A$-bin axis define
 \begin{equation}
-	\eta_{ijq}^{\mathrm c}
-	=
-	\operatorname{sinc}^2(\varepsilon_{ijq}^{\tau})
-	\operatorname{sinc}^2(\varepsilon_{ijq}^{\nu}).
-	\label{eq:coarse_dd_gain}
+\begin{aligned}
+ D_A(x)&=\frac{\sin(\pi x)}{A\sin(\pi x/A)},\quad
+ p_A(b;z)=\frac{|D_A(b-z)|^2}{\sum_{a=0}^{A-1}|D_A(a-z)|^2},\\
+ \eta^{\mathrm{loc}}_{ijq}
+ &=\sum_{(b,d)\in\mathcal W_W(\kappa,\ell)}p_N(b;\kappa)p_L(d;\ell).
+\end{aligned}
+ \label{eq:local_dd_energy}
 \end{equation}
-For C2F DD refinement, a local $(2W+1)\times(2W+1)$ DD neighborhood provides
-the waveform-derived recoverable energy $\eta_{ijq}^{\mathrm{loc}}$. The refined
-gain is
+The window contains $(2W+1)^2$ bins around the rounded center, with indices
+wrapped modulo $(N,L)$. The removable singularity of $D_A$ is evaluated by
+continuity. This normalized finite-grid leakage model gives
+$0\le\eta^{\mathrm{loc}}\le1$. We use $W=1$ (nine bins) and
+$\eta^{\mathrm f}=\eta^{\mathrm{loc}}$, with no interpolation coefficient or gain
+floor. The fractional-center cache resolution is $10^{-3}$ bin.
+The compact OTFS chain~\cite{hadani_otfs} is checked separately below;
+$W=1$ is a fixed processing choice, not a proved optimal window.
+
+With mean target RCS $\bar\sigma_q$,
+$g_{ijq}^{\mathrm s}=\lambda^2\bar\sigma_q/[(4\pi)^3d_{iq}^2d_{jq}^2]$,
+and
 \begin{equation}
-	\eta_{ijq}^{\mathrm f}
-	=
-	\eta_{ijq}^{\mathrm{loc}}.
-	\label{eq:fine_dd_gain}
+ \gamma_{ijq}^{\mathrm s}=
+ \frac{P_i^{\mathrm s}g_{ijq}^{\mathrm s}G_{ij}^{\mathrm{hw}}G_{\mathrm p}
+ \eta_{ijq}^{\mathrm{DD}}\eta_{ijq}^{\mathrm{col}}}
+ {N_0+I_j^{\mathrm s}}.
+ \label{eq:sensing_sinr}
 \end{equation}
-Thus, C2F changes computational effort rather than introducing a hand-set
-sensing-gain interpolation.
+Here $G_{ij}^{\mathrm{hw}}$ contains antenna gains and losses, and $I_j^{\mathrm s}$
+includes residual self-interference and concurrent direct paths.
+The collision surrogate is $\eta^{\mathrm{col}}=1/n_{ijq}$, where $n_{ijq}$
+counts targets in the same rounded DD bin for pair $(i,j)$.
+It is an occupancy penalty, not a coherent multi-target interference law.
 
-If multiple DD-valid targets observed by the same UAV pair fall into the same
-DD bin, we use the collision penalty
+For $K_{\rm look}$ independent looks, normalized energy $X$ has Gamma shape
+$K_{\rm look}$ and scale $1$ under $\mathcal H_0$, or $1+\gamma$ under
+$\mathcal H_1$. The centered LLR is
 \begin{equation}
-	\eta_{ijq}^{\mathrm{col}}
-	=
-	\frac{1}{n_{ijq}^{\alpha_{\mathrm{col}}}},
-	\label{eq:dd_collision_penalty}
+ \ell_e=\frac{\gamma}{1+\gamma}(X-K_{\rm look}).
+ \label{eq:local_llr}
 \end{equation}
-where $n_{ijq}$ is the number of targets sharing bin $(l_{ijq},k_{ijq})$.
+Consequently, $\delta_e=K_{\rm look}\gamma^2/(1+\gamma)$,
+$v_{e,0}=K_{\rm look}\gamma^2/(1+\gamma)^2$, and
+$v_{e,1}=K_{\rm look}\gamma^2$. Look-to-look fluctuation is marginalized by
+this energy law rather than sampled again in the mean-RCS link budget.
 
-The bistatic target gain is
+For successful delivery $A_e\sim\mathrm{Bernoulli}(\chi_e)$, set
+$Y_e=A_e\ell_e+(1-A_e)Z_e$, with independent
+$Z_e\sim\mathcal N(0,a v_{e,0})$. Total expectation and variance give
 \begin{equation}
-	g_{ijq}^{\mathrm s}
-	=
-	\frac{\lambda^2\sigma_q}{(4\pi)^3d_{iq}^2d_{jq}^2},
-	\label{eq:bistatic_target_gain}
+\begin{aligned}
+ \delta_e^{\rm eff}&=\chi_e\delta_e,\\
+ \bar v_{e,0}&=[\chi_e+(1-\chi_e)a]v_{e,0},\\
+ \bar v_{e,1}&=\chi_ev_{e,1}+(1-\chi_e)av_{e,0}
+ +\chi_e(1-\chi_e)\delta_e^2.
+\end{aligned}
+ \label{eq:received_moments}
 \end{equation}
-where $\sigma_q$ denotes the target RCS. The desired-path radar hardware factor is
+The archived V1 implementation uses $a=9$: failed reports are replaced by
+zero-mean uncertainty. This Gaussian replacement is an explicit surrogate,
+not a consequence of finite blocklength or a true erasure ($a=0$).
+The between-component term in $\bar v_{e,1}$ cannot be omitted.
+
+For independent selected observations, use
+$w_e\propto\delta_e^{\rm eff}/\bar v_{e,0}$,
+$m_{q,1}=\sum_{e\in\mathcal S_q}w_e\delta_e^{\rm eff}$, and
+$v_{q,h}=\sum_{e\in\mathcal S_q}w_e^2\bar v_{e,h}$. The selector predicts
 \begin{equation}
-	G_{ij}^{\mathrm{hw}}
-	=
-	\frac{G_i^{\mathrm{tx}}G_j^{\mathrm{rx}}}{L_{ij}^{\mathrm{sys}}},
-	\label{eq:radar_hardware_gain}
+\begin{aligned}
+ t_q&=\sqrt{v_{q,0}}\left[z_0+\frac{\kappa_{q,0}}6(z_0^2-1)\right],\\
+ \widehat P_{D,q}&=\mathsf Q\!\left(\frac{t_q-m_{q,1}}{\sqrt{v_{q,1}}}\right),
+\end{aligned}
+ \label{eq:detector_prediction}
 \end{equation}
-where $G_i^{\mathrm{tx}}$ and $G_j^{\mathrm{rx}}$ are the directional radar
-antenna gains and $L_{ij}^{\mathrm{sys}}\geq 1$ collects implementation losses.
-Thus, $\sigma_q$ remains an RCS in $\mathrm{m}^2$ rather than serving as an
-implicit antenna-gain parameter. Combining these terms gives
-\begin{equation}
-	\gamma_{ijq}^{\mathrm s}
-	=
-	\frac{
-		\widetilde P_i^{\mathrm s}
-		g_{ijq}^{\mathrm s}
-		G_{ij}^{\mathrm{hw}}
-		G_{\mathrm p}
-		\eta_{ijq}^{\mathrm{DD}}
-		\eta_{ijq}^{\mathrm{col}}
-	}
-	{N_0+I_{j}^{\mathrm s}},
-	\qquad
-	\eta_{ijq}^{\mathrm{DD}}
-	\in
-	\{\eta_{ijq}^{\mathrm c},\eta_{ijq}^{\mathrm f}\}.
-	\label{eq:sensing_sinr}
-\end{equation}
-In the sensing-only power model, $\widetilde P_i^{\mathrm s}=P_i^{\mathrm s}$
-and $G_{\mathrm p}=NL$. Both receivers use the shared propagation field in
-\eqref{eq:shared_interference_field}, with receiver-specific suppression. The
-illuminator's direct path remains in $I_j^{\mathrm s}$, which makes
-\eqref{eq:sensing_sinr} near--far limited rather than interference free.
-
-\subsection{Soft-Information Fusion Model}
-\label{subsec:soft_fusion_model}
-
-Each feasible triplet produces a waveform-derived local log-likelihood ratio
-(LLR). After OTFS matched filtering, let $x_r=|z_r|^2/\sigma_n^2$ denote the
-normalised delay--Doppler-bin energy in look $r$ under an independent
-fast-fluctuation, Swerling-II-like model. Then
-$x_r\sim\mathsf{Exp}(1)$ under $\mathcal H_0$ and
-$x_r\sim\mathsf{Exp}(1+\gamma_{ijq}^{\mathrm s})$ under $\mathcal H_1$.
-For $K_{\rm look}=16$ incoherently integrated looks, define
-$X=\sum_{r=1}^{K_{\rm look}}x_r$. The local log-likelihood ratio, centred
-under $\mathcal H_0$, is
-\begin{equation}
-	\ell_{ijq}
-	=
-	\frac{\gamma_{ijq}^{\mathrm s}}{1+\gamma_{ijq}^{\mathrm s}}
-	\left(X-K_{\rm look}\right),
-	\label{eq:local_llr}
-\end{equation}
-where $X$ is Gamma distributed. Its moments are
-\begin{equation}
-	\begin{aligned}
-		\delta_{ijq}
-		&= \mathbb E_1[\ell]-\mathbb E_0[\ell]
-		= \frac{K_{\rm look}(\gamma_{ijq}^{\mathrm s})^2}{1+\gamma_{ijq}^{\mathrm s}}, \\[2pt]
-		\sigma_{ij,0}^2
-		&= \mathrm{Var}_0[\ell]
-		= \frac{K_{\rm look}(\gamma_{ijq}^{\mathrm s})^2}{(1+\gamma_{ijq}^{\mathrm s})^2},
-	\end{aligned}
-	\label{eq:llr_moments}
-\end{equation}
-The LLR carries no free scale parameter, and its single-link deflection
-$\delta_{ijq}^2/\sigma_{ij,0}^2=K_{\rm look}(\gamma_{ijq}^{\mathrm s})^2$ follows directly
-from this independent-look model.
-
-Communication-error calibration acts on the soft statistic through the
-reporting leg $j\rightarrow f_q$:
-\begin{equation}
-	\delta_{ijq}^{\mathrm{eff}}=\chi_{j f_q}\delta_{ijq},\qquad
-	\bar{\sigma}_{ij,0}^2
-	=
-	\chi_{j f_q}\sigma_{ij,0}^2
-	+
-	(1-\chi_{j f_q})\sigma_{\mathrm{err}}^2,
-	\label{eq:comm_error_calibration}
-\end{equation}
-where $\chi_{j f_q}$ is the success probability \eqref{eq:fbl_reliability} of
-the report $j\rightarrow f_q$. The same post-channel moments generate the
-selection metric, the detection threshold, and the Monte Carlo samples.
-
-For selected set $\mathcal S_q$, the released V1 model assumes conditionally
-independent local statistics, giving
-\begin{equation}
-	D_q(\mathcal S_q)
-	=
-	\sum_{(i,j)\in\mathcal S_q}
-	\frac{(\delta_{ijq}^{\mathrm{eff}})^2}{\bar\sigma_{ij,0}^2}.
-	\label{eq:independent_deflection}
-\end{equation}
-Modeling correlated reports is left to future work.
-
-Using the Gaussian deflection approximation, the detection probability is
-\begin{equation}
-	P_{D,q}
-	\approx
-	\mathsf Q
-	\left(
-	\mathsf Q^{-1}(P_{\mathrm{FA}})
-	-
-	\sqrt{D_q(\mathcal S_q)}
-	\right),
-	\label{eq:pd_approx}
-\end{equation}
-where $\mathsf Q(\cdot)$ denotes the Gaussian $Q$-function. Because the local
-LLR has a positively skewed centred-Gamma null distribution, the Monte Carlo
-detector calibrates the threshold with the Cornish--Fisher correction
-$z_{\mathrm{CF}}=z+(\gamma_{1,0}/6)(z^2-1)$, where $\gamma_{1,0}$ is computed
-from the same post-report moments used by fusion.
-
-\subsection{Truth, Belief and the Scheduling Loop}
-\label{subsec:truth_belief}
-
-We study prior-assisted confirmation or re-detection after a coarse acquisition
-stage; blind first acquisition is outside the present scope. The scheduler
-therefore receives an upstream predicted belief but cannot access the true target
-state. We carry two states side by side. The \emph{truth}
-$(\mathbf p_{q,t},\mathbf v_{q,t})$ drives echo
-generation, the true delay-Doppler, the true sensing gain and the detector;
-the \emph{belief} $b_{q,t}=\mathcal N(\hat{\mathbf x}_{q,t},\mathbf P_{q,t})$
-drives link selection and the DD search window. The intended tracking loop is
-\begin{equation}
-	\begin{aligned}
-		&\text{predict}
-		\;\rightarrow\;
-		\text{schedule}
-		\;\rightarrow\;
-		\text{sense}
-		\;\rightarrow\;
-		\text{update}, \\[2pt]
-		&\hat{\mathbf x}_{t|t-1}
-		=
-		\mathbf F\hat{\mathbf x}_{t-1|t-1},\\[2pt]
-		&\mathbf P_{t|t-1}
-		=
-		\mathbf F\mathbf P_{t-1|t-1}\mathbf F^T+\mathbf Q .
-	\end{aligned}
-	\label{eq:belief_loop}
-\end{equation}
-The simulator instantiates this belief as an upstream Gaussian snapshot rather
-than implementing the posterior update. Its covariance is propagated through
-the bistatic DD Jacobian to form a three-sigma gate. Scheduling uses mean RCS;
-the fast look-to-look fluctuation is marginalized by \eqref{eq:local_llr}.
-Thus, neither target-state truth nor a realized scattering coefficient enters
-scheduling.
-
-
-
-
-%\begin{figure*}[t]
-%	\centering
-%	\includegraphics[width=\textwidth]{figs/fig1_uav_otfs_isac_framework.pdf}
-%	\caption{Multi-UAV OTFS-ISAC cooperative sensing scenario and C2F DD-aware link-selection framework.}
-%	\label{fig:system_framework}
-%\end{figure*}
-%\section{System Model}
-%\label{sec:system_model}
-%
-%As shown in Fig.~\ref{fig:system_framework}(a), we consider a sensing-centric
-%multi-UAV OTFS-ISAC network with UAV set
-%$\mathcal{M}=\{1,\ldots,M\}$ and target set
-%$\mathcal{Q}=\{1,\ldots,Q\}$. UAV $i$ and target $q$ have position and velocity
-%$(\mathbf p_i,\mathbf v_i)$ and $(\mathbf p_q,\mathbf v_q)$, respectively. A
-%cooperative sensing-reporting candidate is indexed by the triplet $(i,j,q)$,
-%where UAV $i$ transmits an OTFS-ISAC probing signal, target $q$ reflects it,
-%and UAV $j$ receives the bistatic echo. The associated soft statistic is then
-%made available for distributed fusion through the corresponding pairwise
-%reporting link. For compactness, the same ordered pair $(i,j)$ is used to index
-%both the bistatic sensing pair and the effective reporting link. The inter-UAV
-%topology is $\mathcal{G}=(\mathcal{M},\mathcal{E})$, where
-%$(i,j)\in\mathcal{E}$ if $\|\mathbf p_i-\mathbf p_j\|\le d_{\max}$ and
-%$i\ne j$. This work adopts a geometry-driven soft-information abstraction of
-%OTFS-ISAC cooperative sensing and link selection.
-%
-%\subsection{Communication and Reporting Model}
-%\label{subsec:comm_model}
-%
-%The transmit power of UAV $i$ is split as
-%$P_i^{\mathrm s}=\rho P_i$ and $P_i^{\mathrm c}=(1-\rho)P_i$. For a directed
-%inter-UAV link $(a,b)$, the communication-channel power gain is modeled as
-%\begin{equation}
-%	g_{ab}^{\mathrm c}
-%	=
-%	\left(\frac{\lambda}{4\pi}\right)^2
-%	d_{ab}^{-\alpha_{\mathrm c}}
-%	\zeta_{ab}|h_{ab}^{\mathrm c}|^2,
-%	\qquad
-%	d_{ab}=\|\mathbf p_a-\mathbf p_b\|,
-%	\label{eq:comm_channel_gain}
-%\end{equation}
-%where $\lambda$ is the carrier wavelength, $\alpha_{\mathrm c}$ is the path-loss
-%exponent, $\zeta_{ab}$ denotes shadowing, and $h_{ab}^{\mathrm c}$ denotes
-%small-scale fading. The communication SINR from UAV $i$ to UAV $j$ is
-%\begin{equation}
-%	\gamma_{ij}^{\mathrm c}
-%	=
-%	\frac{P_i^{\mathrm c}g_{ij}^{\mathrm c}}
-%	{N_0+
-%		\sum_{k\in\mathcal M\setminus\{i,j\}}
-%		(P_k^{\mathrm c}+\epsilon_{\mathrm s}P_k^{\mathrm s})g_{kj}^{\mathrm c}
-%		+\epsilon_{\mathrm d}P_i^{\mathrm s}g_{ij}^{\mathrm c}},
-%	\label{eq:comm_sinr}
-%\end{equation}
-%where $N_0$ is the noise power, $\epsilon_{\mathrm s}$ models neighbor-induced
-%sensing-to-communication leakage, and $\epsilon_{\mathrm d}$ models residual
-%intra-link ISAC leakage. The reporting rate, reliability, and delay are
-%\begin{equation}
-%	R_{ij}=B_{\mathrm{c}}\log_2(1+\gamma_{ij}^{\mathrm{c}}),\quad
-%	\chi_{ij}=\frac{\gamma_{ij}^{\mathrm{c}}}
-%	{\gamma_{ij}^{\mathrm{c}}+\gamma_{\mathrm{req}}},\quad
-%	c_{ijq}=\frac{B_q}{R_{ij}},
-%	\label{eq:rate_reliability_delay}
-%\end{equation}
-%where $B_{\mathrm{c}}=L\Delta f$ is the reporting bandwidth,
-%$\gamma_{\mathrm{req}}=2^{R_{\min}/B_{\mathrm{c}}}-1$, and
-%$B_q=K_{\mathrm{pkt}}b_{\mathrm{d}}$ is the soft-information payload. A reporting
-%link is feasible if $R_{ij}\ge R_{\min}$.
-%
-%\subsection{DD-Domain Bistatic Sensing Model}
-%\label{subsec:dd_sensing_model}
-%
-%For candidate $(i,j,q)$, define
-%$d_{iq}=\|\mathbf p_q-\mathbf p_i\|$,
-%$d_{jq}=\|\mathbf p_q-\mathbf p_j\|$,
-%$\mathbf u_{iq}=(\mathbf p_q-\mathbf p_i)/d_{iq}$, and
-%$\mathbf u_{jq}=(\mathbf p_q-\mathbf p_j)/d_{jq}$. The bistatic delay and
-%Doppler shift are
-%\begin{equation}
-%	\tau_{ijq}=\frac{d_{iq}+d_{jq}}{c},\qquad
-%	\nu_{ijq}
-%	=
-%	\frac{
-%		(\mathbf v_q-\mathbf v_i)^T\mathbf u_{iq}
-%		+
-%		(\mathbf v_q-\mathbf v_j)^T\mathbf u_{jq}
-%	}{\lambda}.
-%	\label{eq:bistatic_dd}
-%\end{equation}
-%They are mapped to the OTFS DD grid as
-%$l_{ijq}=\operatorname{round}(\tau_{ijq}L\Delta f)$ and
-%$k_{ijq}=\operatorname{round}(\nu_{ijq}NT)$. A candidate is DD-valid if
-%$0\le l_{ijq}<L$ and $-N/2\le k_{ijq}<N/2$.
-%
-%Let
-%$\varepsilon_{ijq}^{\tau}=\tau_{ijq}L\Delta f-l_{ijq}$ and
-%$\varepsilon_{ijq}^{\nu}=\nu_{ijq}NT-k_{ijq}$. The coarse main-bin DD gain is
-%\begin{equation}
-%	\eta_{ijq}^{\mathrm c}
-%	=
-%	\operatorname{sinc}^2(\varepsilon_{ijq}^{\tau})
-%	\operatorname{sinc}^2(\varepsilon_{ijq}^{\nu}).
-%	\label{eq:coarse_dd_gain}
-%\end{equation}
-%When local DD refinement is invoked, a $(2W+1)\times(2W+1)$ neighborhood is used
-%to obtain a refined gain
-%\begin{equation}
-%	\eta_{ijq}^{\mathrm f}
-%	=
-%	\min\!\left\{
-%	1,\,
-%	\max\!\left[
-%	\eta_{\min},
-%	\eta_{ijq}^{\mathrm c}
-%	+
-%	\kappa_{\mathrm{dd}}
-%	(\eta_{ijq}^{\mathrm{loc}}-\eta_{ijq}^{\mathrm c})
-%	\right]
-%	\right\},
-%	\label{eq:fine_dd_gain}
-%\end{equation}
-%where $\eta_{ijq}^{\mathrm{loc}}$ is the recoverable local DD energy,
-%$\kappa_{\mathrm{dd}}\in[0,1]$, and $\eta_{\min}$ is a floor value. If multiple
-%targets observed by the same UAV pair fall into the same DD bin, a collision
-%penalty $\eta_{ijq}^{\mathrm{col}}=1/n_{ijq}^{\alpha_{\mathrm{col}}}$ is
-%applied, where $n_{ijq}$ is the number of DD-valid targets sharing
-%$(l_{ijq},k_{ijq})$.
-%
-%With bistatic target gain
-%$g_{ijq}^{\mathrm s}=\lambda^2\sigma_q/[(4\pi)^3d_{iq}^2d_{jq}^2]$, sensing
-%processing gain $G_{\mathrm p}$, residual interference $I_{ij}^{\mathrm{res}}$,
-%and $\eta_{ijq}^{\mathrm{DD}}\in\{\eta_{ijq}^{\mathrm c},\eta_{ijq}^{\mathrm f}\}$,
-%the DD-aware sensing SINR is
-%\begin{equation}
-%	\gamma_{ijq}^{\mathrm s}
-%	=
-%	\frac{
-%		P_i^{\mathrm s}g_{ijq}^{\mathrm s}G_{\mathrm p}
-%		\eta_{ijq}^{\mathrm{DD}}\eta_{ijq}^{\mathrm{col}}
-%	}
-%	{N_0+I_{ij}^{\mathrm{res}}}.
-%	\label{eq:sensing_sinr}
-%\end{equation}
-%Here $I_{ij}^{\mathrm{res}}$ summarizes residual self-interference, direct
-%leakage, and multi-UAV sensing leakage at the sensing receiver.
-%
-%\subsection{Soft-Information Fusion and Detection}
-%\label{subsec:soft_fusion_model}
-%
-%Each feasible triplet produces a scalar soft statistic $s_{ijq}$. Its
-%target-present mean and $\mathcal H_0$-side variance are modeled as
-%\begin{equation}
-%	\mu_{ijq}=\kappa_\mu\log(1+\gamma_{ijq}^{\mathrm s}),\qquad
-%	\sigma_{ij,0}^2
-%	=
-%	\sigma_0^2\left(1+\xi I_{ij}^{\mathrm{res}}/N_0\right).
-%	\label{eq:soft_stat_model}
-%\end{equation}
-%To account for unreliable reporting, we use
-%\begin{equation}
-%	\mu_{ijq}^{\mathrm{eff}}=\chi_{ij}\mu_{ijq},\qquad
-%	\bar{\sigma}_{ij,0}^2
-%	=
-%	\chi_{ij}\sigma_{ij,0}^2
-%	+
-%	(1-\chi_{ij})\sigma_{\mathrm{err}}^2.
-%	\label{eq:comm_error_calibration}
-%\end{equation}
-%For the selected link set $\mathcal S_q$, the fused statistic is
-%$F_q=\sum_{(i,j)\in\mathcal S_q}w_{ijq}s_{ijq}$. With deflection-optimal weights
-%$w_{ijq}\propto \mu_{ijq}^{\mathrm{eff}}/\bar{\sigma}_{ij,0}^2$, the composite
-%deflection coefficient becomes
-%\begin{equation}
-%	D_q(\mathcal S_q)
-%	=
-%	\sum_{(i,j)\in\mathcal S_q}
-%	\frac{(\mu_{ijq}^{\mathrm{eff}})^2}{\bar{\sigma}_{ij,0}^2}.
-%	\label{eq:deflection}
-%\end{equation}
-%Under a Gaussian approximation of the fused statistic, the detection probability
-%is approximated as
-%\begin{equation}
-%	P_{D,q}
-%	\approx
-%	\mathsf Q
-%	\left(
-%	\mathsf Q^{-1}(P_{\mathrm{FA}})
-%	-
-%	\sqrt{D_q(\mathcal S_q)}
-%	\right),
-%	\label{eq:pd_approx}
-%\end{equation}
-%where $\mathsf Q(\cdot)$ is the Gaussian $Q$-function.
-%
+where $z_0=\mathsf Q^{-1}(P_{\mathrm{FA}})$ and $\kappa_{q,0}$ is null skewness.
+Empty-set prediction is zero. Scheduling uses belief-based moments; final
+Monte Carlo detection uses truth-side observations and the same threshold
+rule. This remains a moment approximation, not an exact detection probability.
+The supplement documents the archived failure-model naming and validation.

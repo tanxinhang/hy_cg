@@ -6,6 +6,7 @@
 \usepackage{graphicx}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
+\usepackage{tikz}
 \usepackage{textcomp} 
 \usepackage{xcolor}
 \usepackage{cite}
@@ -17,7 +18,7 @@
 \begin{document}
 	
 	% ===================== 标题 =====================
-	\title{Target-Local Soft-Information Fusion for Communication-Constrained Multi-UAV OTFS-ISAC Sensing}
+	\title{Target-Local Fusion for Communication-Efficient Multi-UAV OTFS-ISAC Sensing}
 	
 	% ===================== 作者（标准格式） =====================
 	\author{
@@ -38,24 +39,20 @@
 	% ===================== 摘要（纯净版） =====================
 
 	\begin{abstract}
-		Multi-UAV cooperative sensing gains depend not only on which observations are
-		selected, but also on where their soft reports are fused. We propose a
-		target-local fusion architecture for prior-assisted OTFS-ISAC sensing. Each
-		target is assigned to the UAV nearest its predicted position; a communication-
-		error-calibrated, adaptive coarse-to-fine (C2F) selector then screens and
-		replays target-dependent sensing--reporting candidates using the implemented
-		detector. The fusion rule uses predicted beliefs only and preserves the same
-		finite-blocklength model, 640-bit packet, 2048 channel uses, and resource
-		caps as the canonical system. In 1000 paired trials with 15 UAVs and 10
-		targets, V1 attains $P_D=0.9762$ (95\% CI: $[0.9730,0.9790]$) and
-		worst-target $P_D=0.967$. It selects 12.101 sensing observations but sends
-		only 0.751 remote reports, corresponding to 0.481~kbit and 0.801~ms.
-		Its paired gain over exact-marginal greedy is 0.0351, while its $P_D$ is
-		statistically tied with sensing-SINR selection and uses 83.7\% less payload.
-		A fusion-rule ablation and six operating-
-		boundary sweeps show that the gain arises from target-related fusion planning
-		jointly with two-stage selection, while large belief errors, strict rate
-		thresholds, and sparse deployments remain the principal limitations.
+		Communication-constrained cooperative sensing depends on both the selected
+		observations and the locations where their soft information is fused. We
+		propose target-local fusion for prior-assisted multi-UAV OTFS-ISAC sensing.
+		Each target is assigned to the UAV nearest its predicted position, after
+		which a detector-aligned adaptive coarse-to-fine (C2F) selector chooses local
+		observations and finite-blocklength remote reports. In 1000 paired trials with
+		15 UAVs and 10 targets, the proposed method achieved $P_D=0.9762$ and a
+		worst-target $P_D$ of 0.967. Its detection difference from sensing-SINR
+		selection was not statistically significant, while it reduced the mean payload and serial
+		reporting delay by 83.7\%. A fusion-rule ablation showed that this saving
+		primarily arose because target-local planning retained more evidence at its
+		fusion UAV. The result is limited to prior-assisted sensing with the stated
+		finite-blocklength and serial-reporting model; performance decreased under
+		large prediction errors and sparse deployments.
 	\end{abstract}
 
 	\begin{IEEEkeywords}
@@ -69,7 +66,6 @@
 	\input{ProposedMethod.tex}  % 已修复无空格
 	\input{SimulationResults.tex}
 	
-	\balance
 	\input{Conclusion.tex}
 	% ===================== 参考文献（IEEE 标准格式） =====================
 	\input{References.tex}
