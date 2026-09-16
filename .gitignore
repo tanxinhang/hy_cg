@@ -63,3 +63,14 @@ archive/results_preview_*/
 
 # --- 离线传输包（git bundle 产物）---
 *.bundle
+
+# --- 图表 / PPT 构建中间产物（可由源脚本重生成）---
+/.codex-*-build/
+/.chart-data-*/
+/ppt/.build_*/
+
+# --- PPT 二进制（体积大且非论文源；ppt/ 下的 .py 脚本与 .md 母稿仍入库）---
+/ppt/**/*.pptx
+
+# --- 冒烟 / 预览跑（小 MC，非论文结果）---
+/results_*_smoke/
