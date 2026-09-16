@@ -1,0 +1,1155 @@
+{
+  "rcs1_k0": {
+    "v1": {
+      "pd": 0.9050000000000001,
+      "pfa": 0.049766666666666674,
+      "reports": 0.0,
+      "observations": 20.67,
+      "active_targets": 10.0,
+      "capture": 0.9835776323249646,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 1.4958119970024564,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.9120000000000001,
+      "pfa": 0.04973333333333334,
+      "reports": 0.0,
+      "observations": 19.67,
+      "active_targets": 10.0,
+      "capture": 0.9827978445400928,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 1.5953700730029958,
+      "objective_gain": 0.308946858286812,
+      "extra_pd_evaluations": 304.77,
+      "accepted_moves": 0.44
+    },
+    "balanced": {
+      "pd": 0.9610000000000001,
+      "pfa": 0.05083333333333333,
+      "reports": 0.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9833333333333333,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.8275058140000329,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.95,
+      "pfa": 0.048933333333333336,
+      "reports": 0.0,
+      "observations": 45.84,
+      "active_targets": 10.0,
+      "capture": 0.9807605302145498,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 4.183829902003054,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.006999999999999999,
+      "ci95": [
+        -0.0011029861184168929,
+        0.015102986118416891
+      ],
+      "family_ci95": [
+        -0.006537004293231851,
+        0.02053700429323185
+      ]
+    },
+    "balanced_minus_v1": {
+      "mean": 0.05599999999999999,
+      "ci95": [
+        0.03900350088365085,
+        0.07299649911634912
+      ],
+      "family_ci95": [
+        0.027605322020114537,
+        0.08439467797988544
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.04499999999999999,
+      "ci95": [
+        0.027758416221725746,
+        0.06224158377827424
+      ],
+      "family_ci95": [
+        0.016195878875056604,
+        0.07380412112494338
+      ]
+    }
+  },
+  "rcs1_k8": {
+    "v1": {
+      "pd": 0.907,
+      "pfa": 0.050333333333333334,
+      "reports": 3.8,
+      "observations": 19.78,
+      "active_targets": 10.0,
+      "capture": 0.9832859174546119,
+      "bits": 2432.0,
+      "delay_ms": 4.053333333333333,
+      "selector_seconds": 2.0029815889976454,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.9110000000000003,
+      "pfa": 0.050133333333333335,
+      "reports": 2.84,
+      "observations": 19.56,
+      "active_targets": 10.0,
+      "capture": 0.9834141243821048,
+      "bits": 1817.6,
+      "delay_ms": 3.029333333333333,
+      "selector_seconds": 2.2549861359898933,
+      "objective_gain": 0.24396191649595544,
+      "extra_pd_evaluations": 801.47,
+      "accepted_moves": 1.51
+    },
+    "balanced": {
+      "pd": 0.9670000000000002,
+      "pfa": 0.05163333333333333,
+      "reports": 8.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9818333333333332,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 0.8435870699991938,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.9550000000000002,
+      "pfa": 0.0499,
+      "reports": 7.61,
+      "observations": 44.17,
+      "active_targets": 10.0,
+      "capture": 0.9799292274212666,
+      "bits": 4870.4,
+      "delay_ms": 8.117333333333331,
+      "selector_seconds": 5.041120325000957,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.004,
+      "ci95": [
+        -0.0028619477917803636,
+        0.010861947791780364
+      ],
+      "family_ci95": [
+        -0.0074637018205100745,
+        0.015463701820510075
+      ]
+    },
+    "balanced_minus_v1": {
+      "mean": 0.05999999999999999,
+      "ci95": [
+        0.043315216399855666,
+        0.07668478360014432
+      ],
+      "family_ci95": [
+        0.03212607995052007,
+        0.08787392004947991
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.048,
+      "ci95": [
+        0.02961859050894142,
+        0.06638140949105859
+      ],
+      "family_ci95": [
+        0.017291664139648402,
+        0.0787083358603516
+      ]
+    }
+  },
+  "rcs5_k0": {
+    "v1": {
+      "pd": 0.9740000000000001,
+      "pfa": 0.05023333333333333,
+      "reports": 0.0,
+      "observations": 11.34,
+      "active_targets": 10.0,
+      "capture": 0.9890316350316352,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.7623644859995693,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.9740000000000001,
+      "pfa": 0.05043333333333334,
+      "reports": 0.0,
+      "observations": 11.05,
+      "active_targets": 10.0,
+      "capture": 0.9890316350316352,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.8491127970058006,
+      "objective_gain": 0.07958515431758358,
+      "extra_pd_evaluations": 283.35,
+      "accepted_moves": 0.07
+    },
+    "balanced": {
+      "pd": 0.996,
+      "pfa": 0.05083333333333333,
+      "reports": 0.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9833333333333333,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.8517171239992604,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.99,
+      "pfa": 0.04796666666666667,
+      "reports": 0.0,
+      "observations": 20.69,
+      "active_targets": 10.0,
+      "capture": 0.9839045631182703,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 1.6725482079992071,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.0,
+      "ci95": null,
+      "family_ci95": null
+    },
+    "balanced_minus_v1": {
+      "mean": 0.021999999999999992,
+      "ci95": [
+        0.0124028819745351,
+        0.03159711802546489
+      ],
+      "family_ci95": [
+        0.005966870235888638,
+        0.03803312976411134
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.015999999999999997,
+      "ci95": [
+        0.007207351972443874,
+        0.024792648027556118
+      ],
+      "family_ci95": [
+        0.0013108332707895184,
+        0.030689166729210474
+      ]
+    }
+  },
+  "rcs5_k8": {
+    "v1": {
+      "pd": 0.9740000000000001,
+      "pfa": 0.05033333333333334,
+      "reports": 0.72,
+      "observations": 11.01,
+      "active_targets": 10.0,
+      "capture": 0.9897459207459208,
+      "bits": 460.8,
+      "delay_ms": 0.768,
+      "selector_seconds": 1.0656791250023525,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.9740000000000001,
+      "pfa": 0.05033333333333334,
+      "reports": 0.26,
+      "observations": 10.79,
+      "active_targets": 10.0,
+      "capture": 0.9898100233100233,
+      "bits": 166.4,
+      "delay_ms": 0.2773333333333333,
+      "selector_seconds": 1.2412567299918738,
+      "objective_gain": 0.0524595756510016,
+      "extra_pd_evaluations": 662.32,
+      "accepted_moves": 0.39
+    },
+    "balanced": {
+      "pd": 0.996,
+      "pfa": 0.05163333333333333,
+      "reports": 8.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9818333333333332,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 0.9119747510005254,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.99,
+      "pfa": 0.048433333333333335,
+      "reports": 3.79,
+      "observations": 19.39,
+      "active_targets": 10.0,
+      "capture": 0.9844774494373578,
+      "bits": 2425.6,
+      "delay_ms": 4.042666666666666,
+      "selector_seconds": 2.2722156930004713,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.0,
+      "ci95": null,
+      "family_ci95": null
+    },
+    "balanced_minus_v1": {
+      "mean": 0.021999999999999992,
+      "ci95": [
+        0.0124028819745351,
+        0.03159711802546489
+      ],
+      "family_ci95": [
+        0.005966870235888638,
+        0.03803312976411134
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.015999999999999997,
+      "ci95": [
+        0.007207351972443874,
+        0.024792648027556118
+      ],
+      "family_ci95": [
+        0.0013108332707895184,
+        0.030689166729210474
+      ]
+    }
+  },
+  "rcs20_k0": {
+    "v1": {
+      "pd": 0.9890000000000001,
+      "pfa": 0.04956666666666667,
+      "reports": 0.0,
+      "observations": 10.12,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.6650531920022331,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.9890000000000001,
+      "pfa": 0.04956666666666667,
+      "reports": 0.0,
+      "observations": 10.12,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.7504498020198662,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 280.8,
+      "accepted_moves": 0.0
+    },
+    "balanced": {
+      "pd": 0.9969999999999999,
+      "pfa": 0.05083333333333333,
+      "reports": 0.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9833333333333333,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.8691595679929014,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.99,
+      "pfa": 0.050333333333333334,
+      "reports": 0.0,
+      "observations": 11.23,
+      "active_targets": 10.0,
+      "capture": 0.9881550116550116,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.7881760320032482,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.0,
+      "ci95": null,
+      "family_ci95": null
+    },
+    "balanced_minus_v1": {
+      "mean": 0.007999999999999998,
+      "ci95": [
+        0.0025898355611898337,
+        0.013410164438810164
+      ],
+      "family_ci95": [
+        -0.0010383246577216326,
+        0.017038324657721628
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.0009999999999999998,
+      "ci95": [
+        -0.0024483167556548485,
+        0.0044483167556548485
+      ],
+      "family_ci95": [
+        -0.004760824224988676,
+        0.0067608242249886765
+      ]
+    }
+  },
+  "rcs20_k8": {
+    "v1": {
+      "pd": 0.9880000000000001,
+      "pfa": 0.04946666666666667,
+      "reports": 0.05,
+      "observations": 10.09,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 32.0,
+      "delay_ms": 0.05333333333333334,
+      "selector_seconds": 0.9116529899998568,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.9890000000000001,
+      "pfa": 0.049433333333333336,
+      "reports": 0.0,
+      "observations": 10.1,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 1.063119865001645,
+      "objective_gain": 0.0002666666666666817,
+      "extra_pd_evaluations": 633.52,
+      "accepted_moves": 0.05
+    },
+    "balanced": {
+      "pd": 0.998,
+      "pfa": 0.05163333333333333,
+      "reports": 8.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9818333333333332,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 0.8689523910044227,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.99,
+      "pfa": 0.0502,
+      "reports": 0.67,
+      "observations": 10.88,
+      "active_targets": 10.0,
+      "capture": 0.9894125874125873,
+      "bits": 428.8,
+      "delay_ms": 0.7146666666666667,
+      "selector_seconds": 1.0311500429932494,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.0009999999999999998,
+      "ci95": [
+        -0.0009842169515086824,
+        0.002984216951508682
+      ],
+      "family_ci95": [
+        -0.002314870962227964,
+        0.004314870962227964
+      ]
+    },
+    "balanced_minus_v1": {
+      "mean": 0.009999999999999998,
+      "ci95": [
+        0.004017360790166258,
+        0.01598263920983374
+      ],
+      "family_ci95": [
+        5.287990768612638e-06,
+        0.019994712009231384
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.0019999999999999996,
+      "ci95": [
+        -0.0019684339030173648,
+        0.005968433903017364
+      ],
+      "family_ci95": [
+        -0.004629741924455928,
+        0.008629741924455928
+      ]
+    }
+  },
+  "rcs50_k0": {
+    "v1": {
+      "pd": 0.9890000000000001,
+      "pfa": 0.049266666666666674,
+      "reports": 0.0,
+      "observations": 10.0,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.6401715159998276,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.9890000000000001,
+      "pfa": 0.049266666666666674,
+      "reports": 0.0,
+      "observations": 10.0,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.7233818080066703,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 280.49,
+      "accepted_moves": 0.0
+    },
+    "balanced": {
+      "pd": 0.9969999999999999,
+      "pfa": 0.05083333333333333,
+      "reports": 0.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9833333333333333,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.8481418719945941,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.9890000000000001,
+      "pfa": 0.05053333333333335,
+      "reports": 0.0,
+      "observations": 10.21,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.6836708750005346,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.0,
+      "ci95": null,
+      "family_ci95": null
+    },
+    "balanced_minus_v1": {
+      "mean": 0.007999999999999998,
+      "ci95": [
+        0.0025898355611898337,
+        0.013410164438810164
+      ],
+      "family_ci95": [
+        -0.0010383246577216326,
+        0.017038324657721628
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.0,
+      "ci95": [
+        -0.0028202431697773103,
+        0.0028202431697773103
+      ],
+      "family_ci95": [
+        -0.004711552425156091,
+        0.004711552425156091
+      ]
+    }
+  },
+  "rcs50_k8": {
+    "v1": {
+      "pd": 0.9890000000000001,
+      "pfa": 0.049266666666666674,
+      "reports": 0.0,
+      "observations": 10.0,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.9022789130010642,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.9890000000000001,
+      "pfa": 0.049266666666666674,
+      "reports": 0.0,
+      "observations": 10.0,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 1.0498826190026012,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 629.71,
+      "accepted_moves": 0.0
+    },
+    "balanced": {
+      "pd": 0.998,
+      "pfa": 0.05163333333333333,
+      "reports": 8.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9818333333333332,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 0.8659685730095953,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.9890000000000001,
+      "pfa": 0.05030000000000001,
+      "reports": 0.15,
+      "observations": 10.15,
+      "active_targets": 10.0,
+      "capture": 0.9890000000000001,
+      "bits": 96.0,
+      "delay_ms": 0.16,
+      "selector_seconds": 0.950033014996443,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.0,
+      "ci95": null,
+      "family_ci95": null
+    },
+    "balanced_minus_v1": {
+      "mean": 0.008999999999999998,
+      "ci95": [
+        0.0032929259298054934,
+        0.014707074070194502
+      ],
+      "family_ci95": [
+        -0.0005343475924785464,
+        0.01853434759247854
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.0,
+      "ci95": [
+        -0.0028202431697773103,
+        0.0028202431697773103
+      ],
+      "family_ci95": [
+        -0.004711552425156091,
+        0.004711552425156091
+      ]
+    }
+  },
+  "d800_rcs0.2_k8": {
+    "v1": {
+      "pd": 0.6880000000000002,
+      "pfa": 0.050133333333333335,
+      "reports": 7.05,
+      "observations": 35.86,
+      "active_targets": 10.0,
+      "capture": 0.9844939618247718,
+      "bits": 4512.0,
+      "delay_ms": 7.52,
+      "selector_seconds": 3.8758059299923477,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.6930000000000001,
+      "pfa": 0.049733333333333345,
+      "reports": 6.44,
+      "observations": 35.49,
+      "active_targets": 10.0,
+      "capture": 0.9835734109095301,
+      "bits": 4121.6,
+      "delay_ms": 6.8693333333333335,
+      "selector_seconds": 4.141636787018506,
+      "objective_gain": 0.14493514747382538,
+      "extra_pd_evaluations": 723.68,
+      "accepted_moves": 2.76
+    },
+    "balanced": {
+      "pd": 0.762,
+      "pfa": 0.04966666666666665,
+      "reports": 8.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9841666666666667,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 0.8060211749887094,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.7410000000000001,
+      "pfa": 0.05109999999999999,
+      "reports": 8.0,
+      "observations": 56.84,
+      "active_targets": 10.0,
+      "capture": 0.984135123291951,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 6.1394542730005925,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.004999999999999999,
+      "ci95": [
+        -0.004921084757543413,
+        0.014921084757543411
+      ],
+      "family_ci95": [
+        -0.011574354811139826,
+        0.021574354811139826
+      ]
+    },
+    "balanced_minus_v1": {
+      "mean": 0.07400000000000001,
+      "ci95": [
+        0.04836524616150692,
+        0.0996347538384931
+      ],
+      "family_ci95": [
+        0.031174087713305806,
+        0.11682591228669421
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.053000000000000005,
+      "ci95": [
+        0.027236032844430578,
+        0.07876396715556944
+      ],
+      "family_ci95": [
+        0.009958221463204547,
+        0.09604177853679546
+      ]
+    }
+  },
+  "d1000_rcs0.2_k8": {
+    "v1": {
+      "pd": 0.6599999999999998,
+      "pfa": 0.049733333333333324,
+      "reports": 7.19,
+      "observations": 38.25,
+      "active_targets": 10.0,
+      "capture": 0.9882090005640124,
+      "bits": 4601.6,
+      "delay_ms": 7.6693333333333324,
+      "selector_seconds": 4.098566500996239,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.67,
+      "pfa": 0.04963333333333333,
+      "reports": 6.95,
+      "observations": 37.33,
+      "active_targets": 10.0,
+      "capture": 0.9875640784899582,
+      "bits": 4448.0,
+      "delay_ms": 7.413333333333335,
+      "selector_seconds": 4.351009015997406,
+      "objective_gain": 0.14167398074989832,
+      "extra_pd_evaluations": 682.67,
+      "accepted_moves": 2.68
+    },
+    "balanced": {
+      "pd": 0.7290000000000001,
+      "pfa": 0.05030000000000001,
+      "reports": 8.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9881666666666667,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 0.7888738839863799,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.7310000000000001,
+      "pfa": 0.04946666666666667,
+      "reports": 8.0,
+      "observations": 57.37,
+      "active_targets": 10.0,
+      "capture": 0.9867071925575808,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 6.2057025130128025,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.010000000000000004,
+      "ci95": [
+        -0.0014558819108415628,
+        0.021455881910841572
+      ],
+      "family_ci95": [
+        -0.009138416423711894,
+        0.0291384164237119
+      ]
+    },
+    "balanced_minus_v1": {
+      "mean": 0.06899999999999999,
+      "ci95": [
+        0.0438231093537077,
+        0.09417689064629228
+      ],
+      "family_ci95": [
+        0.026939002759185933,
+        0.11106099724081406
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.07100000000000001,
+      "ci95": [
+        0.048740615509920204,
+        0.09325938449007981
+      ],
+      "family_ci95": [
+        0.033813044598208004,
+        0.10818695540179202
+      ]
+    }
+  },
+  "d1500_rcs0.2_k8": {
+    "v1": {
+      "pd": 0.5760000000000001,
+      "pfa": 0.05083333333333333,
+      "reports": 7.75,
+      "observations": 45.2,
+      "active_targets": 10.0,
+      "capture": 0.9935145508296043,
+      "bits": 4960.0,
+      "delay_ms": 8.266666666666666,
+      "selector_seconds": 4.73934421400656,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.586,
+      "pfa": 0.050499999999999996,
+      "reports": 7.61,
+      "observations": 44.43,
+      "active_targets": 10.0,
+      "capture": 0.9929683401216229,
+      "bits": 4870.4,
+      "delay_ms": 8.117333333333333,
+      "selector_seconds": 4.969819592002313,
+      "objective_gain": 0.0969424271861162,
+      "extra_pd_evaluations": 600.95,
+      "accepted_moves": 2.41
+    },
+    "balanced": {
+      "pd": 0.6190000000000001,
+      "pfa": 0.04953333333333334,
+      "reports": 8.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9908333333333332,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 0.7511755759979133,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.6060000000000001,
+      "pfa": 0.048533333333333345,
+      "reports": 8.0,
+      "observations": 56.83,
+      "active_targets": 10.0,
+      "capture": 0.9904272727272727,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 6.0878631970018615,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.01,
+      "ci95": [
+        0.001307426756223565,
+        0.018692573243776434
+      ],
+      "family_ci95": [
+        -0.004521979872677327,
+        0.024521979872677326
+      ]
+    },
+    "balanced_minus_v1": {
+      "mean": 0.04300000000000001,
+      "ci95": [
+        0.022036087048000596,
+        0.06396391295199942
+      ],
+      "family_ci95": [
+        0.007977284239800785,
+        0.07802271576019923
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.03,
+      "ci95": [
+        0.008245703724730678,
+        0.05175429627526932
+      ],
+      "family_ci95": [
+        -0.006343145325799167,
+        0.06634314532579916
+      ]
+    }
+  },
+  "d2000_rcs0.2_k8": {
+    "v1": {
+      "pd": 0.46699999999999997,
+      "pfa": 0.0501,
+      "reports": 7.9,
+      "observations": 50.12,
+      "active_targets": 10.0,
+      "capture": 0.9930840478203308,
+      "bits": 5056.0,
+      "delay_ms": 8.426666666666666,
+      "selector_seconds": 5.027731759996386,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.473,
+      "pfa": 0.049800000000000004,
+      "reports": 7.86,
+      "observations": 49.37,
+      "active_targets": 10.0,
+      "capture": 0.9937611787251225,
+      "bits": 5030.4,
+      "delay_ms": 8.383999999999999,
+      "selector_seconds": 5.219003651002422,
+      "objective_gain": 0.050119694228066294,
+      "extra_pd_evaluations": 513.52,
+      "accepted_moves": 1.68
+    },
+    "balanced": {
+      "pd": 0.47,
+      "pfa": 0.049233333333333344,
+      "reports": 8.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9913333333333333,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 0.705976218994474,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.4789999999999999,
+      "pfa": 0.05043333333333334,
+      "reports": 7.98,
+      "observations": 55.53,
+      "active_targets": 10.0,
+      "capture": 0.990667607105538,
+      "bits": 5107.2,
+      "delay_ms": 8.511999999999999,
+      "selector_seconds": 5.629231140997726,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.006000000000000001,
+      "ci95": [
+        -0.0023756948937672375,
+        0.014375694893767239
+      ],
+      "family_ci95": [
+        -0.007992596812923945,
+        0.01999259681292395
+      ]
+    },
+    "balanced_minus_v1": {
+      "mean": 0.0030000000000000005,
+      "ci95": [
+        -0.016014170641907795,
+        0.022014170641907794
+      ],
+      "family_ci95": [
+        -0.028765438796288716,
+        0.03476543879628872
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.011999999999999995,
+      "ci95": [
+        -0.005899103818272364,
+        0.029899103818272356
+      ],
+      "family_ci95": [
+        -0.017902586736788656,
+        0.04190258673678864
+      ]
+    }
+  },
+  "d3000_rcs0.2_k8": {
+    "v1": {
+      "pd": 0.29699999999999993,
+      "pfa": 0.048933333333333336,
+      "reports": 7.89,
+      "observations": 53.47,
+      "active_targets": 10.0,
+      "capture": 0.9971000908081931,
+      "bits": 5049.6,
+      "delay_ms": 8.415999999999999,
+      "selector_seconds": 5.2054631379886995,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.297,
+      "pfa": 0.0487,
+      "reports": 7.83,
+      "observations": 53.13,
+      "active_targets": 10.0,
+      "capture": 0.9970482087126606,
+      "bits": 5011.2,
+      "delay_ms": 8.351999999999999,
+      "selector_seconds": 5.390390692988876,
+      "objective_gain": 0.02032767414435359,
+      "extra_pd_evaluations": 496.96,
+      "accepted_moves": 1.41
+    },
+    "balanced": {
+      "pd": 0.29900000000000004,
+      "pfa": 0.04753333333333332,
+      "reports": 8.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9961666666666666,
+      "bits": 5120.0,
+      "delay_ms": 8.533333333333331,
+      "selector_seconds": 0.6652125869994052,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.29700000000000004,
+      "pfa": 0.048966666666666665,
+      "reports": 7.82,
+      "observations": 51.64,
+      "active_targets": 10.0,
+      "capture": 0.9958136363636363,
+      "bits": 5004.8,
+      "delay_ms": 8.341333333333331,
+      "selector_seconds": 4.923580744008068,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": -8.326672684688674e-19,
+      "ci95": [
+        -0.008460729509331933,
+        0.008460729509331933
+      ],
+      "family_ci95": [
+        -0.014134657275468277,
+        0.014134657275468277
+      ]
+    },
+    "balanced_minus_v1": {
+      "mean": 0.0019999999999999966,
+      "ci95": [
+        -0.014196153409978573,
+        0.018196153409978565
+      ],
+      "family_ci95": [
+        -0.025057605065668884,
+        0.02905760506566888
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 8.326672684688674e-19,
+      "ci95": [
+        -0.01668478360014433,
+        0.01668478360014433
+      ],
+      "family_ci95": [
+        -0.027873920049479934,
+        0.027873920049479934
+      ]
+    }
+  }
+}
