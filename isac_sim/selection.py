@@ -43,6 +43,7 @@ METHODS: List[MethodName] = [
     "proposed_c2f_adaptive_pd_distributed",
     "proposed_c2f_adaptive_pd_robust",
     "proposed_c2f_adaptive_pd_calibrated",
+    "proposed_c2f_adaptive_pd_fusion_polish",
     "proposed_c2f_pd",
     "proposed_c2f_full",
     "proposed_c2f_full_pd",
@@ -71,6 +72,7 @@ EXPERIMENTAL_METHODS: set[str] = {
     "proposed_c2f_adaptive_pd_distributed",
     "proposed_c2f_adaptive_pd_robust",
     "proposed_c2f_adaptive_pd_calibrated",
+    "proposed_c2f_adaptive_pd_fusion_polish",
 }
 DEFAULT_METHODS: List[MethodName] = [
     method for method in METHODS if method not in EXPERIMENTAL_METHODS
@@ -91,6 +93,7 @@ C2F_METHODS: Dict[str, bool] = {
     "proposed_c2f_adaptive_pd_distributed": False,
     "proposed_c2f_adaptive_pd_robust": False,
     "proposed_c2f_adaptive_pd_calibrated": False,
+    "proposed_c2f_adaptive_pd_fusion_polish": False,
     "proposed_c2f_pd": False,
     "proposed_c2f_full": True,
     "proposed_c2f_full_pd": True,
@@ -111,6 +114,7 @@ METHOD_RNG_OFFSETS: Dict[str, int] = {
     "proposed_c2f_adaptive_pd_distributed": 136,
     "proposed_c2f_adaptive_pd_robust": 138,
     "proposed_c2f_adaptive_pd_calibrated": 140,
+    "proposed_c2f_adaptive_pd_fusion_polish": 142,
     "proposed_c2f_pd": 139,
     "proposed_c2f_full": 137,
     "proposed_c2f_full_pd": 141,
@@ -611,6 +615,8 @@ def select_c2f_adaptive(
     tables_coarse: LinkTables,
     plan: "object | None" = None,
     distributed_bids: bool = False,
+    refined_table_builder=None,
+    shortlist_seed=None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray, Dict[str, float]]:
     r"""Build a greedy-consistent dynamic shortlist, then replay on fine DD.
 
@@ -864,11 +870,21 @@ def select_c2f_adaptive(
             elif shortlist[q]:
                 shortlist[q][-1] = best_local
 
+    if shortlist_seed is not None:
+        # Preserve feasible incumbent evidence while updating the coarse
+        # frontier after a power move. The seed is a candidate pool, not a
+        # forced commitment; the fine greedy rule still decides what to use.
+        for q in range(Q):
+            keep=list(dict.fromkeys(e for e in shortlist_seed.get(q,[]) if e in all_candidates[q]))
+            limit=max(per_target_fine_cap[q],len(keep))
+            shortlist[q]=(keep+[e for e in shortlist[q] if e not in keep])[:limit]
+
     dd_gain = base.dd_frac_loss.copy()
     for q, links in shortlist.items():
         for i, j in links:
             dd_gain[i, j, q] = base.eta_fine[i, j, q]
-    tables_fine = compute_link_tables(cfg, base, dd_gain=dd_gain)
+    builder=compute_link_tables if refined_table_builder is None else refined_table_builder
+    tables_fine = builder(cfg, base, dd_gain=dd_gain)
     fine_audit: Dict[str, float] = {}
     selected, D_fuse = _greedy_lagrangian(
         cfg, tables_fine, shortlist, plan, base,

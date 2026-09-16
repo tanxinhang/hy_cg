@@ -190,7 +190,8 @@ def eta_local(
     * ``"sinc"`` uses the continuous-sinc window
       :func:`eta_local_sinc` and the *signed* fractional offsets.
 
-    Both definitions reduce to the coarse gain when ``half_w == 0``.
+    With ``half_w == 0``, sinc matches the coarse gain exactly; the finite-
+    grid Dirichlet version approaches it as the grid grows.
     """
     r = cfg.refine
     if r.window_kernel.lower() == "sinc":

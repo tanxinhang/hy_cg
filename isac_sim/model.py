@@ -557,6 +557,7 @@ def compute_link_tables(
     # ``dd_gain=None`` and reuses the selection-stage sensing block).
     can_reuse_sensing = (
         reuse_from is not None
+        and r.rho_by_uav is None
         and sensing_power_scale_by_uav is None
         and dd_gain is None
         and r.isac_power_model != "reliable_comm_assisted"
@@ -571,7 +572,12 @@ def compute_link_tables(
     )
 
     P = np.full(M, r.P_default, dtype=float)
-    P_sense = r.rho * P
+    rho = r.rho
+    if r.rho_by_uav is not None:
+        rho = np.asarray(r.rho_by_uav, dtype=float)
+        if rho.shape != (M,) or not np.all(np.isfinite(rho)) or np.any((rho <= 0) | (rho >= 1)):
+            raise ValueError(f"rho_by_uav must contain {M} finite fractions in (0, 1)")
+    P_sense = rho * P
     if sensing_power_scale_by_uav is not None:
         power_scale = np.asarray(sensing_power_scale_by_uav, dtype=float)
         if power_scale.shape != (M,) or not np.all(np.isfinite(power_scale)):
@@ -579,7 +585,7 @@ def compute_link_tables(
         if np.any(power_scale <= 0.0):
             raise ValueError("sensing power scales must be strictly positive")
         P_sense = P_sense * power_scale
-    P_comm = (1.0 - r.rho) * P
+    P_comm = (1.0 - rho) * P
 
     n0 = noise_power(cfg)
     eps_den = denominator_guard(cfg, n0)

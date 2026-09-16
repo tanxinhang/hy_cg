@@ -59,6 +59,7 @@ MethodName = Literal[
     "proposed_c2f_adaptive_pd_distributed",
     "proposed_c2f_adaptive_pd_robust",
     "proposed_c2f_adaptive_pd_calibrated",
+    "proposed_c2f_adaptive_pd_fusion_polish",
     "proposed_c2f_pd",
     "proposed_c2f_full",
     "proposed_c2f_full_pd",
@@ -134,6 +135,9 @@ class Radio:
 
     P_default: float = 1.0
     rho: float = 0.80  # sensing power fraction of the joint waveform
+    # Optional per-UAV sensing fractions; each UAV still has P_default watts.
+    # None preserves the historical uniform split exactly.
+    rho_by_uav: tuple[float, ...] | None = None
     noise_psd_dbm_hz: float = -174.0
     noise_figure_db: float = 7.0
     # sensing_only            : only rho*P contributes to the sensing echo
@@ -1003,6 +1007,10 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("detect.weak_pd_required must lie in (0, 1]")
     if cfg.detect.target_rcs <= 0.0:
         raise ValueError("detect.target_rcs must be positive and is measured in m^2")
+    if cfg.radio.rho_by_uav is not None:
+        if (len(cfg.radio.rho_by_uav) != cfg.scale.M or
+                not all(math.isfinite(x) and 0.0 < x < 1.0 for x in cfg.radio.rho_by_uav)):
+            raise ValueError("radio.rho_by_uav must have M finite fractions in (0, 1)")
     radar_db_terms = (
         cfg.radio.radar_tx_gain_dbi,
         cfg.radio.radar_rx_gain_dbi,

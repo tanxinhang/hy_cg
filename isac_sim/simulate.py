@@ -116,6 +116,7 @@ class MethodResult:
     # Trial-level assignment retained for packetization and conflict-graph
     # audits; it is intentionally excluded from scalar paper metrics.
     reporting_plan: object | None = None
+    fusion_polish_certificate: object | None = None
 
 
 # ==========================================================================
@@ -710,12 +711,14 @@ def run_method_on_trial(
         "proposed_c2f_adaptive_pd_distributed",
         "proposed_c2f_adaptive_pd_robust",
         "proposed_c2f_adaptive_pd_calibrated",
+        "proposed_c2f_adaptive_pd_fusion_polish",
     }:
         if method in {
             "proposed_c2f_adaptive_pd",
             "proposed_c2f_adaptive_pd_distributed",
             "proposed_c2f_adaptive_pd_robust",
             "proposed_c2f_adaptive_pd_calibrated",
+            "proposed_c2f_adaptive_pd_fusion_polish",
         }:
             select_cfg = apply_overrides(cfg, {
                 "selector.score_mode": "detector_pd",
@@ -734,6 +737,7 @@ def run_method_on_trial(
             method in {
                 "proposed_c2f_adaptive_pd",
                 "proposed_c2f_adaptive_pd_calibrated",
+                "proposed_c2f_adaptive_pd_fusion_polish",
             }
             and cached_adaptive_pd is not None
         ):
@@ -784,6 +788,20 @@ def run_method_on_trial(
         fine_eval_full = 0.0
         fine_eval_c2f = 0.0
         sel_tables = tables
+
+    fusion_polish_certificate = None
+    if method == "proposed_c2f_adaptive_pd_fusion_polish":
+        from .fusion_polish import minimize_fixed_set_reports
+
+        fusion_polish_certificate = minimize_fixed_set_reports(
+            cfg, base, sel_tables, selected, plan,
+        )
+        plan = fusion_polish_certificate.plan
+        D = np.asarray([
+            deflection_for_links(cfg, sel_tables, q, selected.get(q, []),
+                                 plan=plan, base=base)
+            for q in range(cfg.scale.Q)
+        ])
 
     # Belief mode: only links whose belief-guided search window captures the
     # true delay-Doppler bin carry target evidence to the detector.
@@ -910,6 +928,7 @@ def run_method_on_trial(
         weak_target_index=int(weak_target_index),
         weak_target_detected=int(detected_per_target[weak_target_index]),
         reporting_plan=plan,
+        fusion_polish_certificate=fusion_polish_certificate,
         **comm_metrics,
         **capacity_metrics,
     )
