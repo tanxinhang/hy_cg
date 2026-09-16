@@ -1,0 +1,7 @@
+{
+  "user_distance_semantics": "horizontal deployment side length 600 m; altitudes unchanged",
+  "additional_source_hashes": {
+    "tools\\audit_v1_rcs_600m.py": "47bf6ad780a5778574e1f073e69a54f6e71af0b335b04eef4e9b1066a440ab47",
+    "D:\\Desktop\\conference\\tools\\summarize_v1_rcs_600m.py": "89757cfaf7375637e9e2cf920a3d6824933ed2316b558f68c5a37ac7eb702630"
+  }
+}

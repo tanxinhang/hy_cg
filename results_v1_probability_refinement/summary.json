@@ -1,0 +1,16 @@
+{
+  "singleton_max_old_vs_empirical": 0.04464140820467111,
+  "singleton_max_refined_vs_empirical": 0.001836519472321177,
+  "singleton_max_vs_exact": 4.440892098500626e-16,
+  "multi_max_old_vs_empirical": 0.060623999124358674,
+  "multi_max_refined_vs_empirical": 0.00270997724513089,
+  "multi_resolved": 12,
+  "multi_cases": 12,
+  "multi_max_interval_width": 0.0008634210219488625,
+  "multi_median_seconds": 0.017777749977540225,
+  "selected_targets": 80,
+  "selected_resolved": 80,
+  "selected_median_audit_seconds": 0.00025949999690055847,
+  "selected_max_pd_shift": 0.018582394752152176,
+  "scope": "fixed-statistic numerical evaluation only; no scheduler or headline rerun"
+}

@@ -1,0 +1,98 @@
+{
+  "M3_K0": {
+    "total_gap": {
+      "mean": 0.0026032251659396056,
+      "max": 0.08139878359506073,
+      "optimal_fraction": 0.87
+    },
+    "polished_gap": {
+      "mean": 0.0019135616118958823,
+      "max": 0.08139878359506073,
+      "optimal_fraction": 0.88
+    }
+  },
+  "M3_K1": {
+    "total_gap": {
+      "mean": 0.007148854751923679,
+      "max": 0.15102955414567387,
+      "optimal_fraction": 0.74
+    },
+    "polished_gap": {
+      "mean": 0.0031143537737492294,
+      "max": 0.09275297627528234,
+      "optimal_fraction": 0.9
+    }
+  },
+  "M3_K2": {
+    "total_gap": {
+      "mean": 0.003512403976467704,
+      "max": 0.09275297627528234,
+      "optimal_fraction": 0.81
+    },
+    "polished_gap": {
+      "mean": 0.0024910581168596808,
+      "max": 0.09275297627528234,
+      "optimal_fraction": 0.93
+    }
+  },
+  "M3_K4": {
+    "total_gap": {
+      "mean": 0.0033174906072840284,
+      "max": 0.09275297627528234,
+      "optimal_fraction": 0.8
+    },
+    "polished_gap": {
+      "mean": 0.002060519004446563,
+      "max": 0.09275297627528234,
+      "optimal_fraction": 0.94
+    }
+  },
+  "M4_K0": {
+    "total_gap": {
+      "mean": 0.006404540094632503,
+      "max": 0.30654041650070724,
+      "optimal_fraction": 0.84
+    },
+    "polished_gap": {
+      "mean": 0.0033504759180073636,
+      "max": 0.10658334935746544,
+      "optimal_fraction": 0.88
+    }
+  },
+  "M4_K1": {
+    "total_gap": {
+      "mean": 0.013156812052466325,
+      "max": 0.2510778581011853,
+      "optimal_fraction": 0.71
+    },
+    "polished_gap": {
+      "mean": 0.004260239777714765,
+      "max": 0.14224374744135027,
+      "optimal_fraction": 0.87
+    }
+  },
+  "M4_K2": {
+    "total_gap": {
+      "mean": 0.012718704344970428,
+      "max": 0.26047909615925735,
+      "optimal_fraction": 0.69
+    },
+    "polished_gap": {
+      "mean": 0.003291221292867211,
+      "max": 0.19667807254749375,
+      "optimal_fraction": 0.9
+    }
+  },
+  "M4_K4": {
+    "total_gap": {
+      "mean": 0.01358782487662962,
+      "max": 0.26047909615925735,
+      "optimal_fraction": 0.67
+    },
+    "polished_gap": {
+      "mean": 0.0029238724820521184,
+      "max": 0.19667807254749375,
+      "optimal_fraction": 0.91
+    }
+  }
+}

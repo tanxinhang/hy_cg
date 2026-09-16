@@ -1,0 +1,67 @@
+{
+  "artifact": "scientific_gates_v16",
+  "gates": {
+    "G1_sufficient_statistic": {
+      "claim": "exact only under an unconditional product likelihood and a disjoint exhaustive partition",
+      "common_latent_negative_test_max_abs_gap": 3.7565799495542356,
+      "samplewise_max_abs_error": 1.7763568394002505e-15,
+      "status": "pass"
+    },
+    "G2_transport_information": {
+      "aggregate_delivery_variance": 1.3509000000000002,
+      "aggregate_reliability_threshold": 0.6839999999999999,
+      "claim": "KL expectation, not fixed-PFA ROC dominance",
+      "erasure_kl_linearity_max_abs_error": 0.0,
+      "separate_delivery_variance": 0.6678849600000002,
+      "status": "pass"
+    },
+    "G3_physical_headroom": {
+      "coherent_gain_30deg": 1.1985229479562571,
+      "coherent_gain_perfect": 1.3125,
+      "coherent_gain_uniform_phase": 1.0,
+      "identical_split_to_single_information_ratio": 0.506546991396949,
+      "status": "pass",
+      "strong_complementarity": {
+        "choose_cooperation": true,
+        "equal_split_robust_information": 9.999400042497945e-08,
+        "low_snr_cooperation_condition": true,
+        "low_snr_ratio": 2.0,
+        "optimal_robust_information": 9.999400042497945e-08,
+        "single_robust_information": 7.999466706664488e-08
+      },
+      "weak_complementarity": {
+        "choose_cooperation": false,
+        "equal_split_robust_information": 6.499708348503639e-08,
+        "low_snr_cooperation_condition": false,
+        "low_snr_ratio": 1.5,
+        "optimal_robust_information": 7.999466706664488e-08,
+        "single_robust_information": 7.999466706664488e-08
+      }
+    },
+    "G4_algorithm_recovery": {
+      "algorithm_loss_kl": 0.0,
+      "best_single_kl": 0.04388533322032062,
+      "candidate_loss_kl": 0.0,
+      "decomposition_error": 0.0,
+      "full_certificate_scope": "complete_pool",
+      "full_exact": true,
+      "full_noncoherent_kl": 0.05648911410340962,
+      "restricted_exact": true,
+      "restricted_kl": 0.05648911410340962,
+      "scientific_evidence": "pending large-system fixed-PFA detection oracle",
+      "status": "infrastructure_pass"
+    },
+    "G5_generalization": {
+      "development_geometry_count": 3,
+      "minimum_starting_geometry_count": 30,
+      "note": "sample size must ultimately be justified by cluster effect variance and the minimum relevant effect",
+      "required_protocol": "pre-specified independent geometry bank with cluster bootstrap and q05/CVaR endpoints",
+      "status": "pending_frozen_holdout"
+    }
+  },
+  "implementation_digest": "6623a77c66ff6ff0",
+  "release_class": "mechanism_stable_generalization_pending",
+  "run_id": "07483df5bdba",
+  "seed": 20260915,
+  "version": "1.6.0"
+}

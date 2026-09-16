@@ -1,0 +1,32 @@
+{
+  "dd": {
+    "eta_c_max_abs_error": 0.0010567064237377854,
+    "eta_c_mean_abs_error": 0.000352567819620965,
+    "eta_loc_max_abs_error": 3.1086244689504383e-15,
+    "eta_loc_mean_abs_error": 8.779869192787615e-16
+  },
+  "waveform": {
+    "max_pd_prediction_error": 0.3134299014671709,
+    "max_exact_mixture_pd_error": 0.001024198084003114,
+    "max_exact_mixture_pfa_error": 0.0006669353898191357,
+    "cases": 6,
+    "trials_per_case": 100000
+  },
+  "mixture": {
+    "max_mean_error_in_standard_errors": 1.5049992591514438,
+    "max_relative_variance_error": 0.007349622997210811
+  },
+  "runtime": {
+    "adaptive": {
+      "median_seconds": 0.5022202000254765,
+      "mean_seconds": 0.5620982633321546,
+      "mean_fine_evaluations": 64.5
+    },
+    "full": {
+      "median_seconds": 1.8958500499720685,
+      "mean_seconds": 2.0810746799882813,
+      "mean_fine_evaluations": 882.0
+    },
+    "scope": "Selector calls only; shared geometry/base tables and precomputed eta_fine excluded; one warmup; alternating order."
+  }
+}

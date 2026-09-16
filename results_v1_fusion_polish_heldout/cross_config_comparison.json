@@ -1,0 +1,12 @@
+{
+  "comparison": "no-price plus polish versus original priced V1; same seed and trial index",
+  "mc": 200,
+  "paired_pd_difference": -0.0014999999999999996,
+  "normal_ci95": [
+    -0.005777366164654676,
+    0.002777366164654677
+  ],
+  "reports_no_price_polish": 1.0,
+  "reports_original_priced": 0.74,
+  "conclusion": "Not a communication dominance result over priced V1."
+}

@@ -1,0 +1,107 @@
+{
+  "0": {
+    "proposed_c2f_adaptive_pd": {
+      "pd": 0.9750000000000001,
+      "pfa": 0.0473,
+      "reports": 0.0,
+      "observations": 10.93,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "capture": 0.9965
+    },
+    "sense_sinr_budgeted": {
+      "pd": 0.4520000000000001,
+      "pfa": 0.02253333333333333,
+      "reports": 0.0,
+      "observations": 12.0,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "capture": 0.99
+    },
+    "trials": 100,
+    "paired_pd_delta": 0.523,
+    "paired_pd_ci95": [
+      0.49717436327584685,
+      0.5488256367241532
+    ],
+    "paired_pd_bonferroni95": [
+      0.4913027664770196,
+      0.5546972335229804
+    ],
+    "paired_pfa_delta": 0.024766666666666666,
+    "paired_pfa_ci95": [
+      0.021721536756335428,
+      0.027811796576997904
+    ]
+  },
+  "2": {
+    "proposed_c2f_adaptive_pd": {
+      "pd": 0.9690000000000001,
+      "pfa": 0.047266666666666665,
+      "reports": 0.34,
+      "observations": 10.92,
+      "bits": 217.6,
+      "delay_ms": 0.36266666666666664,
+      "capture": 0.9973333333333335
+    },
+    "sense_sinr_budgeted": {
+      "pd": 0.425,
+      "pfa": 0.020833333333333336,
+      "reports": 2.0,
+      "observations": 12.0,
+      "bits": 1280.0,
+      "delay_ms": 2.133333333333333,
+      "capture": 0.99
+    },
+    "trials": 100,
+    "paired_pd_delta": 0.544,
+    "paired_pd_ci95": [
+      0.520182716653747,
+      0.567817283346253
+    ],
+    "paired_pd_bonferroni95": [
+      0.5147677297495972,
+      0.5732322702504029
+    ],
+    "paired_pfa_delta": 0.02643333333333333,
+    "paired_pfa_ci95": [
+      0.023600185738040288,
+      0.02926648092862637
+    ]
+  },
+  "8": {
+    "proposed_c2f_adaptive_pd": {
+      "pd": 0.9690000000000001,
+      "pfa": 0.04733333333333333,
+      "reports": 0.35,
+      "observations": 10.92,
+      "bits": 224.0,
+      "delay_ms": 0.37333333333333335,
+      "capture": 0.9973333333333335
+    },
+    "sense_sinr_budgeted": {
+      "pd": 0.34099999999999997,
+      "pfa": 0.016800000000000002,
+      "reports": 5.98,
+      "observations": 12.0,
+      "bits": 3827.2,
+      "delay_ms": 6.378666666666668,
+      "capture": 0.9916666666666666
+    },
+    "trials": 100,
+    "paired_pd_delta": 0.628,
+    "paired_pd_ci95": [
+      0.6074528300448276,
+      0.6485471699551724
+    ],
+    "paired_pd_bonferroni95": [
+      0.6027813209307497,
+      0.6532186790692504
+    ],
+    "paired_pfa_delta": 0.030533333333333332,
+    "paired_pfa_ci95": [
+      0.02787983902106839,
+      0.03318682764559828
+    ]
+  }
+}

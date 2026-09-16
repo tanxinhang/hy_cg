@@ -1,0 +1,21 @@
+{
+  "seed": 10918,
+  "mc": 100,
+  "M": [
+    3,
+    4
+  ],
+  "Q": 2,
+  "budgets": [
+    0,
+    1,
+    2,
+    4
+  ],
+  "scope": "Independent small systems, same fixed search settings as nominal audit.",
+  "hashes": {
+    "D:\\Desktop\\conference\\tools\\audit_v1_joint_small.py": "d2ae1b420155ab12d476c7725881860c94af96c3efd03f593c748ac391c6e95f",
+    "isac_sim\\joint_polish.py": "d7163f2e1ef063dabd2ec60f0ac36fc5502d1533aed89b5c1481975596abbcb3",
+    "tools\\audit_v1_exact_budget.py": "cea442d74fed85d1c82d81034d8ab78b50bc34a6ad3fbdd89ec3c3a24fa0727e"
+  }
+}

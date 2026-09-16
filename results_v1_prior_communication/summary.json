@@ -1,0 +1,172 @@
+{
+  "prior250_k0": {
+    "v1": {
+      "pd": 0.9610000000000001,
+      "pfa": 0.04816666666666666,
+      "reports": 0.0,
+      "observations": 12.99,
+      "active_targets": 10.0,
+      "capture": 0.9906983016983016,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.47243331099511127,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.9610000000000001,
+      "pfa": 0.048133333333333334,
+      "reports": 0.0,
+      "observations": 12.86,
+      "active_targets": 10.0,
+      "capture": 0.9906983016983016,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.5261951749911532,
+      "objective_gain": 0.04033520313660244,
+      "extra_pd_evaluations": 273.5,
+      "accepted_moves": 0.05
+    },
+    "balanced": {
+      "pd": 0.987,
+      "pfa": 0.047666666666666656,
+      "reports": 0.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9911666666666668,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.3583999070059508,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.975,
+      "pfa": 0.04656666666666667,
+      "reports": 0.0,
+      "observations": 18.37,
+      "active_targets": 10.0,
+      "capture": 0.9928426902618078,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.7901722799951676,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.0,
+      "ci95": null,
+      "family_ci95": null
+    },
+    "balanced_minus_v1": {
+      "mean": 0.025999999999999995,
+      "ci95": [
+        0.015216487591410812,
+        0.03678351240858918
+      ],
+      "family_ci95": [
+        0.01136827551288079,
+        0.0406317244871192
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.013999999999999999,
+      "ci95": [
+        0.0027119789149052907,
+        0.025288021085094706
+      ],
+      "family_ci95": [
+        -0.0013162724967371343,
+        0.02931627249673713
+      ]
+    }
+  },
+  "prior500_k0": {
+    "v1": {
+      "pd": 0.8770000000000003,
+      "pfa": 0.048200000000000014,
+      "reports": 0.0,
+      "observations": 14.97,
+      "active_targets": 10.0,
+      "capture": 0.9732225335122395,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.5546456309966743,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint": {
+      "pd": 0.8770000000000003,
+      "pfa": 0.04816666666666667,
+      "reports": 0.0,
+      "observations": 14.79,
+      "active_targets": 10.0,
+      "capture": 0.9730975335122395,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.6096785339945927,
+      "objective_gain": 0.03236863472050863,
+      "extra_pd_evaluations": 277.17,
+      "accepted_moves": 0.06
+    },
+    "balanced": {
+      "pd": 0.9820000000000002,
+      "pfa": 0.04923333333333332,
+      "reports": 0.0,
+      "observations": 60.0,
+      "active_targets": 10.0,
+      "capture": 0.9708333333333334,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 0.35623937799478883,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "robust": {
+      "pd": 0.9660000000000002,
+      "pfa": 0.04926666666666665,
+      "reports": 0.0,
+      "observations": 34.82,
+      "active_targets": 10.0,
+      "capture": 0.9743244754693117,
+      "bits": 0.0,
+      "delay_ms": 0.0,
+      "selector_seconds": 1.7901604859984945,
+      "objective_gain": 0.0,
+      "extra_pd_evaluations": 0.0,
+      "accepted_moves": 0.0
+    },
+    "joint_minus_v1": {
+      "mean": 0.0,
+      "ci95": null,
+      "family_ci95": null
+    },
+    "balanced_minus_v1": {
+      "mean": 0.10499999999999998,
+      "ci95": [
+        0.08401333521391713,
+        0.12598666478608284
+      ],
+      "family_ci95": [
+        0.07652401875951795,
+        0.13347598124048202
+      ]
+    },
+    "robust_minus_v1": {
+      "mean": 0.08899999999999998,
+      "ci95": [
+        0.06888017886861059,
+        0.10911982113138938
+      ],
+      "family_ci95": [
+        0.061700204871083936,
+        0.11629979512891603
+      ]
+    }
+  }
+}

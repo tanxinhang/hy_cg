@@ -1,0 +1,70 @@
+{
+  "active_modes_global": {
+    "cpu_cycles_mean": 668.6666666666666,
+    "energy_mean": 368.0,
+    "heldout_max_pfa_mean": 0.074462890625,
+    "heldout_mean_pd_mean": 0.47926025390625,
+    "heldout_scenario_pfa_mean": 0.051507568359375,
+    "heldout_worst_pd_mean": 0.10616048177083333,
+    "remote_reports_mean": 11.0,
+    "runs": 3
+  },
+  "fixed_nominal_global": {
+    "cpu_cycles_mean": 727.6666666666666,
+    "energy_mean": 314.6666666666667,
+    "heldout_max_pfa_mean": 0.07137044270833333,
+    "heldout_mean_pd_mean": 0.45635986328125,
+    "heldout_scenario_pfa_mean": 0.04934997558593749,
+    "heldout_worst_pd_mean": 0.0816650390625,
+    "remote_reports_mean": 11.666666666666666,
+    "runs": 3
+  },
+  "paired_active_minus_fixed": {
+    "mean_pd": {
+      "cluster_delta_std": 0.015283373749484347,
+      "clusters": 3,
+      "delta_log1p_mean": 0.014835646467125244,
+      "delta_log1p_median": 0.010876731321949995,
+      "delta_mean": 0.02290039062499997,
+      "delta_mean_cluster_ci95_high": 0.040515136718749956,
+      "delta_mean_cluster_ci95_low": 0.013159179687499967,
+      "delta_median": 0.015026855468749989,
+      "delta_median_cluster_ci95_high": 0.040515136718749956,
+      "delta_median_cluster_ci95_low": 0.013159179687499967,
+      "delta_p10": 0.01353271484374997,
+      "delta_p50": 0.015026855468749989,
+      "delta_p90": 0.035417480468749964,
+      "fraction_delta_gt_epsilon": 1.0,
+      "fraction_non_worse": 1.0,
+      "normalized_gain_mean": 0.014965256936508657,
+      "pairs": 3,
+      "weak_delta_mean": 0.02290039062499997,
+      "weak_delta_median": 0.015026855468749989,
+      "weak_pairs": 3,
+      "weak_threshold": 1.0
+    },
+    "worst_pd": {
+      "cluster_delta_std": 0.013601028715290476,
+      "clusters": 3,
+      "delta_log1p_mean": 0.022036955735299044,
+      "delta_log1p_median": 0.019786863429888495,
+      "delta_mean": 0.024495442708333332,
+      "delta_mean_cluster_ci95_high": 0.0394287109375,
+      "delta_mean_cluster_ci95_low": 0.0128173828125,
+      "delta_median": 0.021240234375,
+      "delta_median_cluster_ci95_high": 0.0394287109375,
+      "delta_median_cluster_ci95_low": 0.0128173828125,
+      "delta_p10": 0.014501953125,
+      "delta_p50": 0.021240234375,
+      "delta_p90": 0.035791015625,
+      "fraction_delta_gt_epsilon": 1.0,
+      "fraction_non_worse": 1.0,
+      "normalized_gain_mean": 0.022324145245482565,
+      "pairs": 3,
+      "weak_delta_mean": 0.024495442708333332,
+      "weak_delta_median": 0.021240234375,
+      "weak_pairs": 3,
+      "weak_threshold": 1.0
+    }
+  }
+}

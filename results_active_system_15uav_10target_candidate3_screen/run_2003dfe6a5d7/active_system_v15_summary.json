@@ -1,0 +1,70 @@
+{
+  "active_modes_global": {
+    "cpu_cycles_mean": 785.0,
+    "energy_mean": 384.0,
+    "heldout_max_pfa_mean": 0.0830078125,
+    "heldout_mean_pd_mean": 0.7903076171875,
+    "heldout_scenario_pfa_mean": 0.0551025390625,
+    "heldout_worst_pd_mean": 0.20849609375,
+    "remote_reports_mean": 15.0,
+    "runs": 1
+  },
+  "fixed_nominal_global": {
+    "cpu_cycles_mean": 925.0,
+    "energy_mean": 400.0,
+    "heldout_max_pfa_mean": 0.0830078125,
+    "heldout_mean_pd_mean": 0.788916015625,
+    "heldout_scenario_pfa_mean": 0.05526123046875,
+    "heldout_worst_pd_mean": 0.20849609375,
+    "remote_reports_mean": 18.0,
+    "runs": 1
+  },
+  "paired_active_minus_fixed": {
+    "mean_pd": {
+      "cluster_delta_std": 0.0,
+      "clusters": 1,
+      "delta_log1p_mean": 0.0007775997117714928,
+      "delta_log1p_median": 0.0007775997117714928,
+      "delta_mean": 0.0013916015624999556,
+      "delta_mean_cluster_ci95_high": 0.0013916015624999556,
+      "delta_mean_cluster_ci95_low": 0.0013916015624999556,
+      "delta_median": 0.0013916015624999556,
+      "delta_median_cluster_ci95_high": 0.0013916015624999556,
+      "delta_median_cluster_ci95_low": 0.0013916015624999556,
+      "delta_p10": 0.0013916015624999556,
+      "delta_p50": 0.0013916015624999556,
+      "delta_p90": 0.0013916015624999556,
+      "fraction_delta_gt_epsilon": 1.0,
+      "fraction_non_worse": 1.0,
+      "normalized_gain_mean": 0.0007779021208068099,
+      "pairs": 1,
+      "weak_delta_mean": 0.0013916015624999556,
+      "weak_delta_median": 0.0013916015624999556,
+      "weak_pairs": 1,
+      "weak_threshold": 1.0
+    },
+    "worst_pd": {
+      "cluster_delta_std": 0.0,
+      "clusters": 1,
+      "delta_log1p_mean": 0.0,
+      "delta_log1p_median": 0.0,
+      "delta_mean": 0.0,
+      "delta_mean_cluster_ci95_high": 0.0,
+      "delta_mean_cluster_ci95_low": 0.0,
+      "delta_median": 0.0,
+      "delta_median_cluster_ci95_high": 0.0,
+      "delta_median_cluster_ci95_low": 0.0,
+      "delta_p10": 0.0,
+      "delta_p50": 0.0,
+      "delta_p90": 0.0,
+      "fraction_delta_gt_epsilon": 0.0,
+      "fraction_non_worse": 1.0,
+      "normalized_gain_mean": 0.0,
+      "pairs": 1,
+      "weak_delta_mean": 0.0,
+      "weak_delta_median": 0.0,
+      "weak_pairs": 1,
+      "weak_threshold": 1.0
+    }
+  }
+}
