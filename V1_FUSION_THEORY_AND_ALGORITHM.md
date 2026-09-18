@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # V1 融合位置：理论补强与最小算法改进
 
 > ⚠️ **数字口径**：本文提到 `0.9762` 处指**重跑前**的原发布实验。主比较已于
@@ -147,7 +149,7 @@ PD(S_q,f_q*)≥PD(S_q,f_q0)−2ε_q。这由两次误差界和预测PD不下降�
 - 测试：随机非单调PD表与4^2个完整位置组合穷举比较、方向可行性、局部上限、
   耦合模型拒绝、原始结果不变及真实仿真流程。
 - 对照脚本：`python tools/audit_fusion_polish.py --mc 100 --workers 4 --conditions nominal no_price belief_stress`。
-- 输出：`results_v1_fusion_polish_audit/trials.csv`、`summary.json`。
+- 输出：`_archive/2026-09-18/results_v1_fusion_polish_audit/trials.csv`、`summary.json`。
 
 这一步是否值得进入主算法，由实际报告节省决定。如果原V1多数已达到下界，
 更合适的贡献是“可计算最优性证书及剩余空间审计”，而不是再堆叠一个算法模块。
@@ -205,4 +207,4 @@ PD(S_q,f_q*)≥PD(S_q,f_q0)−2ε_q。这由两次误差界和预测PD不下降�
 5. **创新性仍需克制：** 贡献是具体报告结构与可验证保证，枚举子问题本身不是新的通用优化算法。
 
 验证：全套140项测试、6项子测试通过，包括20个随机非单调PD实例的完整位置穷举核对。
-数据及复现配置见`results_v1_fusion_polish_heldout/`；逐试验CSV与全部配置均已保存。
+数据及复现配置见`_archive/2026-09-18/results_v1_fusion_polish_heldout/`；逐试验CSV与全部配置均已保存。

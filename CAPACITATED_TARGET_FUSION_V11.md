@@ -1,5 +1,9 @@
 # Capacitated target-specific fusion V1.1
 
+> **归档提示（2026-09-18）**：本文引用的 `results_*` 产物已移入
+> `_archive/2026-09-18/`；命令行示例里的 `--out` 目录仍写作历史原名
+> （重跑时依旧输出到该名）。
+
 > Radar-budget qualification: all exploratory RCS values are in \(m^2\). The
 > original sensing equation omitted explicit radar antenna gain and system
 > loss. Results at RCS 42.5 are therefore transition-point diagnostics, not a

@@ -1,9 +1,23 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # 系统性能现状（一页总览）
 
+> ⚠️ **本文停留在 2026-09-16，不含协调（coordination）线。**
+> 需要「论文工作点 + 协调九档前沿 + 对消深度扫描 + 环境设置」的合并视图，见
+> **`SYSTEM_SNAPSHOT_2026-09-18.md`**（该文同时给出引用口径纪律，避免 MIN/MEAN 混用）。
+> 本文第 4/5 节的小目标缺口结论仍然有效。
+>
+> ⚠️ **新主场景（500–800 m × RCS 0.05–0.2 m²）不在本文。** 该带的口径、4×3 网格地图与
+> **论文主口径 MC=1000 主比较**（`compact-small-uav` @600 m / 0.1 m²）见
+> **`LOW_RCS_SCENARIO_500_800.md`** §3 / §5C。两条在该带**推翻本文口径**的结论：
+> ① V1 相对 `sense_sinr` 由"未分辨"（4 km：−0.0020，CI 含 0）变成**显著更差**
+> （−0.0260 [−0.0334,−0.0185]），比特/时延节省由 **83.7% 腰斩到 51.9%**；
+> ② "全部目标达标概率"由 0.726 塌到 **0.005**。本文 §1 的 0.9764 仍是 4 km/50 m² 的值。
+
 > 生成时间：2026-09-16 21:50
-> 口径：`target-local-v1` / `paper-canonical`，**`comm.interference_model = orthogonal`**（论文口径，见 `results_target_local_v1/main/config.json`）
-> 数据来源：`results_target_local_v1/main/main.csv`（MC=1000）、`results_v1_rcs_joint/rcs_summary.csv`、
-> `results_v1_rcs_wide/summary.json`、`results_v1_lever_closure/closure.json`、
+> 口径：`target-local-v1` / `paper-canonical`，**`comm.interference_model = orthogonal`**（论文口径，见 `_archive/2026-09-18/results_target_local_v1/main/config.json`）
+> 数据来源：`_archive/2026-09-18/results_target_local_v1/main/main.csv`（MC=1000）、`results_v1_rcs_joint/rcs_summary.csv`、
+> `_archive/2026-09-18/results_v1_rcs_wide/summary.json`、`results_v1_lever_closure/closure.json`、
 > `results_v1_lowrcs_cheap/`、`results_v1_lowrcs_shortfall/`
 > 相关文档：`RCS_IMPACT_ANALYSIS.md`、`DEPLOYMENT_RANGE_ANALYSIS.md`、`PERFORMANCE_OPTIMIZATION_ROADMAP.md`、
 > `LOW_RCS_EVIDENCE_RESCUE.md`、`MOBILE_GEOMETRY_FEASIBILITY.md`
@@ -70,12 +84,26 @@ $P_D$ 变动 ≤0.0003，选路面量（报告数/时延/观测数/精细评估�
 
 ## 4. 小目标性能（零天线增益的物理诚实口径）
 
-| 场景 | 平均 P_D | 弱目标 P_D |
+| 场景（400 m，seed 10919，MC=100） | 平均 P_D | 最差目标 P_D |
 |---|---:|---:|
 | `small-uav-compact-800m`（0.8 km / 0.05 m²） | 0.437 | 0.433 |
-| 400–600 m / RCS 0.05–0.2，软件旋钮最好一档<br>（`maxmin_looks64`） | 0.728 | **0.049** |
-| 基准 `base` 同场景 | 0.522 | **0.007** |
-| 加 15 dB **硬件**净增益（`radar_net_gain_db=15`） | 0.932 | 0.476 |
+| σ=0.05：`base` / `looks64` / `maxmin` / `maxmin_looks64` | 0.494 / 0.632 / 0.580 / **0.701** | 0.000 / 0.030 / 0.010 / 0.030 |
+| σ=0.1：同上四档 | 0.586 / 0.688 / 0.677 / **0.791** | 0.023 / 0.023 / 0.000 / 0.093 |
+| 加 15 dB **硬件**净增益（`radar_net_gain_db=15`），σ=0.05 / 0.1 | 0.926 / 0.947 | 0.440 / 0.558 |
+| 反向对照：`corr`（Δmean）/ `budget` / `power2` | −0.014~−0.026 / +0.019 / +0.000~+0.009 | — |
+
+⚠️ **2026-09-18 更正**：本表此前写作「400–600 m / RCS 0.05–0.2」并把 `maxmin_looks64`
+的平均 P_D 记成 0.728、把该列标题写成"弱目标 P_D"记成 0.049。三处叠加错误：
+① 那 143 行的几何**只有 400 m**（600 m 一格未跑）；② 0.728/0.049 是 **σ=0.05 与 σ=0.1
+按 n 加权混算**（100 行 + 43 行）；③ 该列实际是 **worst-target P_D**，不是弱目标。
+逐格数字见 `results_v1_lowrcs_cheap/summary.json`（由 `--report-only` 重建）。
+
+- **跨 trial 的 MIN（最差目标）在 400 m 全部 9 个单元 ≡ 0.0000**，连 `gain15` 也不例外
+  ⇒ 尾部始终存在"某目标某次全漏"的场景。⚠️ 这是与协调线（跨种子 MIN）之间的接口，
+  不要把本表的 mean 直接和协调线的 MIN 放同一列。
+- **主场景已改为 500–800 m × RCS 0.05–0.2 m²**（链路预算位移 −2.0…+12.1 dB，包住已发布
+  工作点；400 m 恒为 +10…+16 dB 故出带，4 km 为 −30…−24 dB 故不可检）。
+  场景定义、口径与证据台账见 `LOW_RCS_SCENARIO_500_800.md`；本表 400 m 行降为历史。
 
 - **shortfall 定量**：400 m / RCS 0.05 的**最差目标**距 `weak_pd_required = 0.80` 还差
   **+7.90 / +5.26 / +4.27 dB**（looks 16 / 64 / 128 感知 SINR）。
@@ -84,7 +112,7 @@ $P_D$ 变动 ≤0.0003，选路面量（报告数/时延/观测数/精细评估�
 - **没有任何软件旋钮能满足 0.80 弱目标要求**；报告预算轴也用尽（K=0→10 只把平均从 0.450 拉到 0.495）。
 - 净增益转换区在 **10–20 dB**，要让 weak ≥ 0.80 需 **~17.5–20 dB**；且该工作点 `P_FA = 0.081` 已不合格。
 
-⚠️ **引用陷阱**：`results_small_uav_s2_*/main/main.csv` 里那个漂亮的 `P_D = 0.984` 是
+⚠️ **引用陷阱**：`_archive/2026-09-18/results_small_uav_s2_*/main/main.csv` 里那个漂亮的 `P_D = 0.984` 是
 **已被否决的 27 dB 回归桥**（`RADAR_LINK_BUDGET_CALIBRATION.md` 明确标注 superseded），
 **不是小目标的物理性能**，不得引用。
 

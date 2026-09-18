@@ -117,6 +117,12 @@ class MethodResult:
     # audits; it is intentionally excluded from scalar paper metrics.
     reporting_plan: object | None = None
     fusion_polish_certificate: object | None = None
+    # Coordination diagnostics (0.0 when ``coordination.enable`` is False).
+    # Kept as trial-level scalars so a paper that reports coordination must
+    # also report whether the fixed point was actually reached.
+    coordination_rounds: float = 0.0
+    coordination_converged: float = 0.0
+    coordination_n_tx: float = 0.0
 
 
 # ==========================================================================
@@ -601,6 +607,129 @@ def build_slot_tables(
     )
 
 
+# --------------------------------------------------------------------------
+# Coordinated radiation on the release path
+# --------------------------------------------------------------------------
+# These are the methods whose selector is :func:`select_c2f_adaptive`, i.e. the
+# ones that can accept ``active_tx_mask``.  Baselines that rank a fixed set are
+# deliberately excluded: they have no marginal rule to re-run under a new
+# denominator, so "coordinating" them would not be the same mechanism.
+COORDINATION_C2F_METHODS = frozenset({
+    "proposed_c2f_adaptive",
+    "proposed_c2f_adaptive_pd",
+    "proposed_c2f_adaptive_pd_distributed",
+    "proposed_c2f_adaptive_pd_robust",
+    "proposed_c2f_adaptive_pd_calibrated",
+    "proposed_c2f_adaptive_pd_fusion_polish",
+})
+
+
+def _coordinated_c2f_selection(
+    cfg: Config,
+    base: BaseGains,
+    geom,
+    method: str,
+    *,
+    rounds: int,
+):
+    """Run the release selector inside the radiation fixed point.
+
+    Returns ``(selected, D, stats, plan, diag)`` where ``diag`` carries the
+    round count, whether a fixed point was reached, and the final illuminator
+    count.  The schedule is always evaluated under the mask *its own*
+    illuminators define, so the reported interference is the interference the
+    schedule actually causes -- see :func:`_coordination_eval_tables`.
+    """
+    from .coordination import illuminator_mask, require_mask_covers_schedule
+
+    if method != "proposed_c2f_adaptive":
+        select_cfg = apply_overrides(cfg, {"selector.score_mode": "detector_pd"})
+    else:
+        select_cfg = cfg
+    select_base = base
+    if method == "proposed_c2f_adaptive_pd_robust":
+        from .belief import geometry_robust_base
+
+        select_base = geometry_robust_base(select_cfg, base)
+
+    M = int(cfg.scale.M)
+    prev_selected = None
+    seen: dict[bytes, int] = {}
+    diag = {
+        "rounds": 0,
+        "converged": False,
+        "cycle": False,
+        "n_tx": 0,
+    }
+    stats_total = {
+        "fine_eval_full": 0.0,
+        "fine_eval_c2f": 0.0,
+        "selector_score_evaluations": 0.0,
+        "coordination_messages": 0.0,
+        "bid_rounds": 0.0,
+    }
+    selected: Dict[int, List[Link]] = {}
+    D = np.zeros(cfg.scale.Q)
+    plan = None
+
+    for r in range(max(int(rounds), 1)):
+        mask = (
+            None if prev_selected is None
+            else illuminator_mask(prev_selected, M)
+        )
+        if mask is not None:
+            require_mask_covers_schedule(mask, prev_selected)
+        tables_coarse = compute_link_tables(select_cfg, select_base, active_tx_mask=mask)
+        plan = _build_plan(cfg, base, tables_coarse, geom)
+        selected, D, round_stats = select_c2f_adaptive(
+            select_cfg, select_base, tables_coarse, plan=plan,
+            distributed_bids=(method == "proposed_c2f_adaptive_pd_distributed"),
+            active_tx_mask=mask,
+        )
+        for key in stats_total:
+            stats_total[key] += float(round_stats.get(key, 0.0))
+        diag["rounds"] = r + 1
+
+        new_mask = illuminator_mask(selected, M)
+        if mask is not None and np.array_equal(new_mask, mask):
+            diag["converged"] = True
+            break
+        key_bytes = new_mask.tobytes()
+        if key_bytes in seen:
+            # Deterministic map, no convergence proof: report the cycle instead
+            # of letting the remaining budget look like "more rounds helped".
+            diag["cycle"] = True
+            break
+        seen[key_bytes] = r
+        prev_selected = selected
+
+    diag["n_tx"] = int(illuminator_mask(selected, M).sum())
+    return selected, D, stats_total, plan, diag
+
+
+def _coordination_eval_tables(cfg: Config, base: BaseGains, selected):
+    """Tables the *final* schedule must be scored against.
+
+    The mask here is derived from the schedule itself, not from the round that
+    produced it, so a non-converged run is still scored under physically true
+    interference: only the illuminators of this schedule radiate.  Both the
+    coarse and the refined variant are returned so the existing
+    ``tables_eval`` selection logic can pick the refined one unchanged.
+    """
+    from .coordination import illuminator_mask
+
+    mask = illuminator_mask(selected, int(cfg.scale.M))
+    tables_coarse = compute_link_tables(cfg, base, active_tx_mask=mask)
+    needs_fine = cfg.refine.enable or cfg.refine.apply_to_all
+    tables_fine = (
+        compute_link_tables(
+            cfg, base, dd_gain=base.eta_fine, active_tx_mask=mask
+        )
+        if needs_fine else None
+    )
+    return tables_coarse, tables_fine, mask
+
+
 def run_method_on_trial(
     cfg: Config,
     base: BaseGains,
@@ -618,6 +747,7 @@ def run_method_on_trial(
         Tuple[Dict[int, List[Link]], np.ndarray, Dict[str, float]]
     ] = None,
     weak_target_index: int = 0,
+    geom=None,
 ) -> MethodResult:
     """Run one method on one trial.
 
@@ -637,8 +767,44 @@ def run_method_on_trial(
     bundle_column_count = 0.0
     bundle_pricing_iterations = 0.0
     bundle_lp_worst_deficit_bound = math.nan
+    coordination_rounds = 0.0
+    coordination_converged = 0.0
+    coordination_n_tx = 0.0
 
-    if method in {
+    # Coordination is offered only to the methods that own a marginal rule
+    # (above).  Baselines keep radiating: they are supposed to, since "what the
+    # uncoordinated system achieves" is exactly the comparison the paper needs.
+    use_coordination = bool(
+        getattr(cfg.coordination, "enable", False)
+        and method in COORDINATION_C2F_METHODS
+    )
+    # Radiation mask implied by the final schedule.  ``None`` whenever
+    # coordination is off, in which case every table below is built exactly as
+    # before.  Under belief mode the same mask is carried onto the truth-side
+    # evaluation table: the illuminators are a property of the schedule, not of
+    # which channel view produced it.
+    coord_mask = None
+
+    if use_coordination:
+        selected, D, c2f_stats, plan, coord_diag = _coordinated_c2f_selection(
+            cfg, base, geom, method, rounds=cfg.coordination.rounds,
+        )
+        fine_eval_full = float(c2f_stats["fine_eval_full"])
+        fine_eval_c2f = float(c2f_stats["fine_eval_c2f"])
+        selector_score_evaluations = float(c2f_stats["selector_score_evaluations"])
+        coordination_messages = float(c2f_stats["coordination_messages"])
+        bid_rounds = float(c2f_stats["bid_rounds"])
+        # Rebind both table handles so the existing ``tables_eval`` selection
+        # logic below picks the *masked* refined table without further changes.
+        sel_tables, c2f_tables, coord_mask = _coordination_eval_tables(
+            cfg, base, selected
+        )
+        coordination_rounds = float(coord_diag["rounds"])
+        coordination_converged = float(
+            coord_diag["converged"] and not coord_diag["cycle"]
+        )
+        coordination_n_tx = float(coord_diag["n_tx"])
+    elif method in {
         "rcs_robust_bundle_cg", "joint_bundle_cg", "joint_bundle_cg_exact_llr", "fixed_fusion_bundle",
         "local_only_bundle"
     }:
@@ -820,9 +986,21 @@ def run_method_on_trial(
     det_base = base
     if belief_mode:
         det_base = eval_base
+        # The coordinated schedule silences the same nodes on the truth side,
+        # so the detector must see the same reduced interference.  Carrying
+        # ``coord_mask`` here is what keeps a belief-mode coordination number
+        # honest; with ``coord_mask is None`` the two branches are the original
+        # expressions, bit for bit.
         tables_eval = (
-            compute_link_tables(cfg, eval_base, dd_gain=eval_base.eta_fine)
-            if cfg.refine.enable else eval_tables
+            compute_link_tables(
+                cfg, eval_base, dd_gain=eval_base.eta_fine,
+                active_tx_mask=coord_mask,
+            )
+            if cfg.refine.enable
+            else (
+                compute_link_tables(cfg, eval_base, active_tx_mask=coord_mask)
+                if coord_mask is not None else eval_tables
+            )
         )
         D = np.array([
             deflection_for_links(
@@ -862,15 +1040,24 @@ def run_method_on_trial(
         # Post-selection sensitivity evaluation only.  The selector used the
         # conservative pre-selection table, so this branch must not be described
         # as an endogenous active-set optimum.
-        active_tx = np.zeros(cfg.scale.M, dtype=bool)
+        #
+        # SEMANTICS: under this 口径 the mask is the set of concurrent *payload*
+        # transmitters (reporters), which is a different set from the
+        # coordination口径's radiating illuminators.  It is therefore NOT a
+        # coordination mask, and `validate_config` rejects
+        # ``sense_gate_by_active_tx`` under any non-orthogonal 口径 precisely so
+        # that this array can never be reinterpreted as a radiation gate -- doing
+        # so muted 14 illuminators the schedule still used and inflated the
+        # worst-target P_D by +0.0744 (SYSTEM_AUDIT_2026-09-17, finding A8).
+        payload_tx = np.zeros(cfg.scale.M, dtype=bool)
         for q, links in selected.items():
             for (i, j) in links:
                 if not is_local_observation(plan, (i, j), q):
-                    active_tx[j] = True
+                    payload_tx[j] = True
         base_rebuild = eval_base if belief_mode else base
         reuse_from = eval_tables if belief_mode else sel_tables
         tables_eval = compute_link_tables(
-            cfg, base_rebuild, active_tx_mask=active_tx, reuse_from=reuse_from
+            cfg, base_rebuild, active_tx_mask=payload_tx, reuse_from=reuse_from
         )
         D = np.array([
             deflection_for_links(
@@ -929,6 +1116,9 @@ def run_method_on_trial(
         weak_target_detected=int(detected_per_target[weak_target_index]),
         reporting_plan=plan,
         fusion_polish_certificate=fusion_polish_certificate,
+        coordination_rounds=coordination_rounds,
+        coordination_converged=coordination_converged,
+        coordination_n_tx=coordination_n_tx,
         **comm_metrics,
         **capacity_metrics,
     )
@@ -1011,6 +1201,7 @@ def run_one_trial(
                 belief_dd_std=belief_dd_std,
                 cached_adaptive_pd=reference_result,
                 weak_target_index=weak_target_index,
+                geom=geom_belief,
             )
             for method in method_roster
         }
@@ -1051,6 +1242,7 @@ def run_one_trial(
             cached_lagrangian, c2f_tables, plan,
             cached_adaptive_pd=reference_result,
             weak_target_index=weak_target_index,
+            geom=geom,
         )
         for method in method_roster
     }
@@ -1121,6 +1313,12 @@ def run_simulation(
                     "selector_score_evaluations": res.selector_score_evaluations,
                     "coordination_messages": res.coordination_messages,
                     "bid_rounds": res.bid_rounds,
+                    # Coordination fixed-point diagnostics.  Always written (0
+                    # when coordination is off) so a reported coordination
+                    # number carries its own convergence evidence.
+                    "coordination_rounds": res.coordination_rounds,
+                    "coordination_converged": res.coordination_converged,
+                    "coordination_n_tx": res.coordination_n_tx,
                     "detection_runtime_ms": 1e3 * res.detection_runtime_s,
                     "fusion_nodes": "" if fusion_nodes is None else ",".join(
                         str(int(v)) for v in fusion_nodes
@@ -1232,6 +1430,9 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
     selector_score_evaluations = col("selector_score_evaluations")
     coordination_messages = col("coordination_messages")
     bid_rounds = col("bid_rounds")
+    coordination_rounds = col("coordination_rounds")
+    coordination_converged = col("coordination_converged")
+    coordination_n_tx = col("coordination_n_tx")
     bundle_column_count = col("bundle_column_count")
     bundle_pricing_iterations = col("bundle_pricing_iterations")
     bundle_lp_bound = col("bundle_lp_worst_deficit_bound")
@@ -1324,6 +1525,9 @@ def summarize(results: List[MethodResult], cfg: Config) -> Dict[str, Any]:
         "selector_score_evaluations_mean": float(np.mean(selector_score_evaluations)),
         "coordination_messages_mean": float(np.mean(coordination_messages)),
         "bid_rounds_mean": float(np.mean(bid_rounds)),
+        "coordination_rounds_mean": float(np.mean(coordination_rounds)),
+        "coordination_converged_rate": float(np.mean(coordination_converged)),
+        "coordination_n_tx_mean": float(np.mean(coordination_n_tx)),
         "bundle_column_count_mean": float(np.mean(bundle_column_count)),
         "bundle_pricing_iterations_mean": float(np.mean(bundle_pricing_iterations)),
         "bundle_lp_worst_deficit_bound_mean": finite_mean(bundle_lp_bound, math.nan),

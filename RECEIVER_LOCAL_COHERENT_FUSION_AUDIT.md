@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # Receiver-local LLR and coherent-illumination audit
 
 > This development audit is retained for provenance.  The stable theorem,
@@ -84,9 +86,9 @@ power, or admission/coverage guarantees rather than adding more fusion layers.
 
 ## Reproducible artifacts
 
-- Direct baseline: `results_receiver_fusion_zero_gain_direct/run_43717bb1b6ef`
+- Direct baseline: `_archive/2026-09-18/results_receiver_fusion_zero_gain_direct/run_43717bb1b6ef`
 - Receiver-local result with compute accounting and shared packet erasures:
-  `results_receiver_fusion_zero_gain_local_final/run_010eb0f24788`
+  `_archive/2026-09-18/results_receiver_fusion_zero_gain_local_final/run_010eb0f24788`
 - Detector and transport implementation: `isac_sim/active_information.py` and
   `isac_sim/active_system.py`
 - Coherent upper-bound implementation: `isac_sim/coherent_oracle.py`

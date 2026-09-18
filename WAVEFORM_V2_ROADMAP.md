@@ -1,7 +1,9 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # Waveform-calibrated successor roadmap
 
 The released `target-local-v1` contract and its evidence under
-`results_target_local_v1/` are frozen.  Waveform work proceeds through separate
+`_archive/2026-09-18/results_target_local_v1/` are frozen.  Waveform work proceeds through separate
 presets, methods, output directories, and manuscript fragments so an
 underperforming candidate can be discarded without changing V1.
 
@@ -29,7 +31,7 @@ waveform model.
 - Phase-1 preset: `target-local-waveform-v2-phase1`.
 - V1 method: `proposed_c2f_adaptive_pd`.
 - Phase-1 candidate: `proposed_c2f_adaptive_pd_calibrated`.
-- V1 evidence directory: `results_target_local_v1/`.
+- V1 evidence directory: `_archive/2026-09-18/results_target_local_v1/`.
 - Phase-1 evidence directory: `results_waveform_v2_phase1/`.
 - V1 manuscript remains unchanged; candidate theory lives in
   `Conference-LaTeX-template_10-17-19/WaveformAdaptedModel_V2.tex` and is not

@@ -1,0 +1,24 @@
+{
+  "kappa_db": 60.0,
+  "area_m": 500.0,
+  "rcs_m2": 0.2,
+  "looks": 16,
+  "penalty": 0.1,
+  "round_budget": 12,
+  "mc_per_seed": 200,
+  "seeds": [
+    20260917,
+    101,
+    202,
+    303
+  ],
+  "arms": [
+    "uncoordinated",
+    "mask_only",
+    "sparse"
+  ],
+  "n_trials": 800,
+  "n_converged": 800,
+  "rounds_mean": 2.6675,
+  "rounds_max": 5
+}

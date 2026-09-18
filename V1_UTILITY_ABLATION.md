@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # V1 效用两项必要性消融（Utility-Term Necessity Ablation）
 
 日期：2026-09-16
@@ -41,7 +43,7 @@ python run_isac_sim.py --mode main --preset target-local-v1 \
 | `no_softmin` | `--set selector.use_softmin_alpha=False` |
 | `neither` | 两者同时 |
 
-产物：`results_v1_utility_ablation/<variant>/main/{main.csv,trials.csv,config.json}`。
+产物：`_archive/2026-09-18/results_v1_utility_ablation/<variant>/main/{main.csv,trials.csv,config.json}`。
 汇总脚本：`tools/summarize_v1_utility_ablation.py`。
 
 ---

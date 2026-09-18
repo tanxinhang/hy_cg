@@ -36,14 +36,40 @@ divergence from here on is unattributed and fails the check.  A registration, if
 one is ever added, is an attribution and not an endorsement -- it records where
 a number came from, never that the change was correct.
 
+Environment pinning
+-------------------
+The frozen CSV was produced by **CPython 3.11 / numpy 2.2.6**.  Under CPython
+3.13 / numpy 2.5.2 the same code perturbs 25 of 1596 cells by <=1e-12 relative,
+which ``--strict`` reports as a failure.  This was attributed on 2026-09-18 by
+running a clean ``git worktree`` checkout of the frozen commit: it shows the same
+25 cells under 3.13 and zero under 3.11, so the cells are interpreter arithmetic
+and not a model change.  ``--allow-env-noise`` records that distinction without
+masking anything: it passes only when *every* differing cell sits inside the
+``tiny`` band, and it prints the runtime next to the verdict.  It is not a
+standalone pass -- quote it only beside the frozen-runtime contrast.
+
 Usage
 -----
     python tools/parity_check.py                  # run both, all modes, MC=8
     python tools/parity_check.py --mc 20          # larger (slower) check
     python tools/parity_check.py --baseline       # frozen legacy baseline triage
     python tools/parity_check.py --baseline --strict     # demand zero diffs
+    python tools/parity_check.py --baseline --strict --allow-env-noise   # outside py3.11
+    python tools/parity_check.py --release-baseline --strict   # the release default path
+    python tools/parity_check.py --release-baseline --write-release-baseline  # re-freeze it
     python tools/parity_check.py --baseline --json d.json
     python tools/parity_check.py --golden-only    # stale; expected MISMATCH
+
+Two baselines, two different claims
+-----------------------------------
+* ``--baseline`` (legacy preset): guards the *refactor*.  It pins
+  ``coupling=legacy`` + ``eps_mode=legacy``, so it says nothing about the
+  release default path -- and under the legacy coupling the direct-path
+  cancellation depth is never read.
+* ``--release-baseline`` (preset ``target-local-v1``, the V1 main-experiment
+  roster at mc=12/seed=2026): guards the *release identity*.  A flipped
+  ``coordination.enable`` default, a moved kappa or a changed gate all show up
+  here, and none of them show up above.
 
 Exit status is 0 when the compared fields pass, 1 otherwise.
 """
@@ -54,6 +80,7 @@ import argparse
 import csv
 import json
 import math
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -79,6 +106,29 @@ LEGACY_BASELINE_HISTORICAL = (
 # The v10 prototype predates the model correction, so parity is checked under the
 # ``legacy`` preset rather than under the current defaults.
 LEGACY_PRESET = ["--set", "interference.coupling=legacy", "--set", "radio.eps_mode=legacy"]
+
+# --------------------------------------------------------------------------
+# Release-path baseline (added 2026-09-18)
+# --------------------------------------------------------------------------
+# The legacy comparison above guards the *refactor*: it pins two keys that keep
+# the old coupling and the old SINR guard.  It therefore never exercises the
+# release default path -- and under ``coupling=legacy`` the direct-path
+# cancellation depth is not consulted at all, so a changed kappa, a changed
+# gate, or a coordination default flipped to True would all pass it silently.
+#
+# This second baseline closes that hole: same preset and method roster as the V1
+# main experiment (``tools/rerun_target_local_v1.py``), at a cheap MC so it can
+# run inside a gate.
+RELEASE_BASELINE = ROOT / ".workbuddy" / "baseline_release" / "main" / "main.csv"
+RELEASE_MC = 12
+RELEASE_SEED = 2026
+RELEASE_ARGS: List[str] = [
+    "--mode", "main",
+    "--preset", "target-local-v1",
+    "--set", "detect.comm_error_model=gaussian_replacement",
+    "--mc", str(RELEASE_MC),
+    "--seed", str(RELEASE_SEED),
+]
 
 # (tag, v10 argv, new-mode argv, v10 csv path, new csv path relative to --out)
 MODE_CASES: Sequence[Tuple[str, List[str], List[str], str, str]] = (
@@ -372,6 +422,14 @@ def _triage(records: List[Dict[str, object]], tol: float):
     return registered, unattributed, noise
 
 
+def _runtime() -> str:
+    import platform as _platform
+
+    import numpy as _np
+
+    return f"py{_platform.python_version()} / numpy {_np.__version__}"
+
+
 def _run_baseline(args) -> int:
     if not LEGACY_BASELINE.exists():
         raise SystemExit(f"baseline not found: {LEGACY_BASELINE}")
@@ -390,6 +448,7 @@ def _run_baseline(args) -> int:
     band_str = " ".join(f"{k}={bands[k]}" for k in sorted(bands)) or "none"
 
     print("legacy baseline triage")
+    print(f"  runtime tested    : {_runtime()}")
     print(f"  cells compared    : {compared}")
     print(f"  differing         : {len(records)}  ({band_str})")
     print(f"  below tolerance   : {noise}  (rel <= {args.tolerance:g})")
@@ -443,14 +502,120 @@ def _run_baseline(args) -> int:
         print(f"\n  wrote {args.json}")
 
     if args.strict:
+        if args.allow_env_noise:
+            # The frozen CSVs were produced by CPython 3.11 / numpy 2.2.6.  A
+            # different runtime perturbs a handful of cells by ~1e-16..1e-13
+            # relative.  A clean checkout of the frozen commit reproduces the
+            # *same* cells under the *same* runtime, which is what makes the
+            # contrast an attribution rather than an excuse -- so this switch
+            # only tolerates cells inside the band, and names every one of them.
+            big = [r for r in records if str(r["band"]) != "tiny"]
+            if big:
+                print(f"\nRESULT: DIFFERS ({len(big)} cell(s) beyond the 'tiny' band; "
+                      "--allow-env-noise does not cover them)")
+                for rec in big[: args.max_show]:
+                    print(f"    {rec['method']:22s} {rec['field']:30s} "
+                          f"rel={rec['rel']} ({rec['band']})")
+                return 1
+            print(f"\nRESULT: CLEAN (--allow-env-noise: {len(records)} cell(s) differ inside "
+                  "the 'tiny' band, rel <= 1e-9)")
+            print("        attributed to the interpreter/numpy version, not to the model.")
+            print("        Only valid next to the frozen-runtime contrast in")
+            print("        V1_STABLE_RELEASE.md section 5.6 -- not as a standalone pass.")
+            return 0
         ok = not records
         print(f"\nRESULT: {'CLEAN' if ok else 'DIFFERS'} (--strict: {len(records)} differing cells)")
+        if records and not args.allow_env_noise:
+            print(f"        runtime under test: {_runtime()}; the baseline is pinned to "
+                  "py3.11 / numpy 2.2.6.")
+            print("        Re-run under the contracted runtime before treating this as drift.")
         return 0 if ok else 1
     ok = not unattributed
     print(f"\nRESULT: {'CLEAN' if ok else 'DIRTY'} "
           f"(unattributed={len(unattributed)}, registered={len(registered)}, "
           f"below-tolerance={noise})")
     return 0 if ok else 1
+
+
+def _release_verdict(records, args, compared: int, noise: int, label: str) -> int:
+    """Shared verdict for the release-path baseline (mirrors the legacy one)."""
+    bands: Dict[str, int] = {}
+    for rec in records:
+        bands[str(rec["band"])] = bands.get(str(rec["band"]), 0) + 1
+    band_str = " ".join(f"{k}={bands[k]}" for k in sorted(bands)) or "none"
+    above = [r for r in records if float(r["rel"]) > args.tolerance]
+
+    print(label)
+    print(f"  runtime tested    : {_runtime()}")
+    print(f"  cells compared    : {compared}")
+    print(f"  differing         : {len(records)}  ({band_str})")
+    print(f"  below tolerance   : {noise}  (rel <= {args.tolerance:g})")
+    print(f"  above tolerance   : {len(above)}")
+    if above:
+        print("\n  ABOVE-TOLERANCE (these decide the exit status):")
+        for rec in above[: args.max_show]:
+            print(f"    {rec['method']:26s} {rec['field']:30s} "
+                  f"{rec['baseline']!r:>18s} -> {rec['current']!r:<18s} "
+                  f"rel={rec['rel']} ({rec['band']})")
+        if len(above) > args.max_show:
+            print(f"    ... {len(above) - args.max_show} more")
+
+    if args.allow_env_noise:
+        big = [r for r in records if str(r["band"]) != "tiny"]
+        if big:
+            print(f"\nRESULT: DIFFERS ({len(big)} cell(s) beyond the 'tiny' band; "
+                  "--allow-env-noise does not cover them)")
+            return 1
+        print(f"\nRESULT: CLEAN (--allow-env-noise: {len(records)} cell(s) inside the "
+              "'tiny' band, rel <= 1e-9)")
+        print("        attributed to the interpreter/numpy version, not to the model.")
+        return 0
+    if args.strict:
+        ok = not records
+        print(f"\nRESULT: {'CLEAN' if ok else 'DIFFERS'} (--strict: {len(records)} differing cells)")
+        return 0 if ok else 1
+    ok = not above
+    print(f"\nRESULT: {'CLEAN' if ok else 'DIRTY'} (above-tolerance={len(above)})")
+    return 0 if ok else 1
+
+
+def _run_release_baseline(args) -> int:
+    """Bit-exact guard on the *release* default path, not on the legacy preset.
+
+    Same preset, method roster (default 19) and seed as the V1 main experiment,
+    at a cheap MC so a gate can afford it.  This is the check that notices a
+    flipped ``coordination.enable`` default or a moved kappa -- neither of which
+    the legacy comparison can see.
+    """
+    with tempfile.TemporaryDirectory(prefix="isac_release_") as tmp:
+        out = Path(tmp) / "release"
+        _run([sys.executable, str(ROOT / "run_isac_sim.py"), "--quiet", "--no-plots",
+              "--out", str(out), *RELEASE_ARGS], ROOT)
+        produced = out / "main" / "main.csv"
+        if not produced.exists():
+            raise SystemExit(f"release run produced no main.csv at {produced}")
+
+        if args.write_release_baseline:
+            RELEASE_BASELINE.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(produced, RELEASE_BASELINE)
+            print(f"wrote {RELEASE_BASELINE.relative_to(ROOT)}  "
+                  f"(preset=target-local-v1, mc={RELEASE_MC}, seed={RELEASE_SEED})")
+            print(f"  runtime: {_runtime()}  -- the baseline is bound to this runtime")
+            return 0
+
+        if not RELEASE_BASELINE.exists():
+            raise SystemExit(
+                f"release baseline not found: {RELEASE_BASELINE}\n"
+                "generate it once with:  python tools/parity_check.py "
+                "--release-baseline --write-release-baseline"
+            )
+        compared, records = _compare_records(RELEASE_BASELINE, produced)
+
+    _, _, noise = _triage(records, args.tolerance)
+    return _release_verdict(
+        records, args, compared, noise,
+        f"release-path baseline (target-local-v1, mc={RELEASE_MC}, seed={RELEASE_SEED})",
+    )
 
 
 def main() -> int:
@@ -464,9 +629,22 @@ def main() -> int:
     parser.add_argument("--baseline", action="store_true",
                         help="compare the legacy preset against the frozen baseline at "
                              "mc=12/seed=2026 (re-frozen 2026-09-16; the authoritative regression)")
+    parser.add_argument("--release-baseline", action="store_true",
+                        help="compare the *release* default path (preset target-local-v1, "
+                             f"mc={RELEASE_MC}/seed={RELEASE_SEED}) against its own frozen "
+                             "baseline -- this is what covers kappa, the gate and the "
+                             "coordination defaults")
+    parser.add_argument("--write-release-baseline", action="store_true",
+                        help="with --release-baseline: (re)generate that baseline instead of "
+                             "comparing. Only after an attributed, deliberate change.")
     parser.add_argument("--strict", action="store_true",
-                        help="with --baseline: require zero differing cells, ignoring "
-                             "the KNOWN_DRIFTS registry")
+                        help="with --baseline/--release-baseline: require zero differing cells, "
+                             "ignoring the KNOWN_DRIFTS registry")
+    parser.add_argument("--allow-env-noise", action="store_true",
+                        help="with --strict: accept cells that differ only inside the 'tiny' "
+                             "band (rel <= 1e-9) as interpreter/numpy arithmetic when running "
+                             "outside the contracted runtime (py3.11 / numpy 2.2.6). "
+                             "Refuses if any cell is larger.")
     parser.add_argument("--tolerance", type=float, default=DEFAULT_TOL,
                         help=f"relative tolerance for the below-noise band (default: {DEFAULT_TOL:g})")
     parser.add_argument("--json", default=None, help="with --baseline: dump the full triage as JSON")
@@ -476,6 +654,9 @@ def main() -> int:
 
     if args.baseline:
         return _run_baseline(args)
+
+    if args.release_baseline:
+        return _run_release_baseline(args)
 
     with tempfile.TemporaryDirectory(prefix="isac_parity_") as tmp:
         tmp_path = Path(tmp)

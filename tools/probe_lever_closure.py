@@ -41,6 +41,21 @@ Note on the P_D reading: the shortfall machinery predicts P_D from a Gaussian
 (diagonal-covariance) approximation of the fused LLR.  It is a *bound*, not a
 Monte-Carlo result, and it is optimistic about ``corr``.  It is used here only
 to rank levers and to size the gap, never to claim a detection number.
+
+Completeness
+------------
+The assembly above is the *whole* physics: a "system gain" can only enter as a
+numerator multiplier (``rho``, ``P``, ``target_gain``, ``G_proc``, ``G_hw``,
+and the DD collision / fractional-loss factors), as a denominator term
+(``n0`` via noise figure and bandwidth, the self / direct / multi-UAV residuals,
+``eps``, ``waveform_inr``), or on the sample-count side (``n_looks``, the DD
+refinement, the cross-look correlation).  Anything that does not appear in one
+of those places cannot move ``gamma`` or the LLR moments, no matter how many
+configuration fields it owns.  So the lever inventory below is closed by
+construction rather than by trying knobs one at a time, and the honest answer to
+"is there another gain?" is a statement about which *entries* remain untapped --
+of which there are only four, and two of them are caliber artifacts rather than
+physics (see ``LEVERS``).
 """
 from __future__ import annotations
 
@@ -57,6 +72,7 @@ from scipy.stats import norm
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from isac_sim.belief import BeliefState  # noqa: E402
+from isac_sim.cli import parse_overrides  # noqa: E402
 from isac_sim.config import apply_overrides, validate_config  # noqa: E402
 from isac_sim.llr import llr_delta, llr_var0, llr_var1  # noqa: E402
 from isac_sim.model import (  # noqa: E402
@@ -70,7 +86,12 @@ from isac_sim.model import (  # noqa: E402
 from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
 from isac_sim.selection import select_c2f_adaptive  # noqa: E402
 from tools.audit_v1_exact_budget import config  # noqa: E402
-from tools.audit_v1_lowrcs_sweep import REPORT_CAP, SEED  # noqa: E402
+from tools.audit_v1_lowrcs_sweep import (  # noqa: E402
+    REPORT_CAP,
+    SCENARIOS,
+    SEED,
+    scenario_overrides,
+)
 
 
 def d_prime(gammas, n_looks, z):
@@ -104,10 +125,11 @@ def required_gain(gammas, n_looks, z, target_pd):
 
 
 def job(spec):
-    area, rcs, trial = spec
+    area, rcs, trial, scenario, extra = spec
     cfg = apply_overrides(
         config(SEED, REPORT_CAP),
-        {"geometry.area_xy": float(area), "detect.target_rcs": float(rcs)})
+        {"geometry.area_xy": float(area), "detect.target_rcs": float(rcs),
+         **scenario_overrides(scenario, area), **extra})
     validate_config(cfg)
     z = float(norm.ppf(1.0 - cfg.detect.Pfa_target))
     rng = np.random.default_rng([SEED, trial])
@@ -138,6 +160,7 @@ def job(spec):
     eps = float(denominator_guard(cfg, n0))
 
     out = {"area_m": float(area), "rcs_m2": float(rcs), "trial": int(trial),
+           "scenario": scenario, "extra": dict(extra),
            "n0": n0, "eps_den": eps, "n_looks": int(cfg.detect.n_looks),
            "g_hw": float(radar_hardware_gain(cfg)),
            "g_proc": float(cfg.waveform.N * cfg.waveform.L),
@@ -303,6 +326,18 @@ LEVERS = [
     ("G_proc x4 + kappa 60", [("gain", 4.0), ("kappa", 60.0)]),
     ("G_proc x4 + kappa 60 + n_looks 64", [("gain", 4.0), ("kappa", 60.0),
                                            ("looks", 64)]),
+    # --- entries the released caliber never enables -------------------------
+    # ``radio.rho`` (sensing share of the joint waveform) is pinned at 0.8 and
+    # has never been swept: raising it to 1.0 is a clean numerator multiplier of
+    # 1/rho = 1.25 (+0.97 dB).  ``isac_power_model="joint_waveform"`` is worth
+    # exactly the same numerator under the orthogonal caliber -- there the
+    # sensing interference field is built from ``P_sense`` alone, so the extra
+    # ``P_comm`` never reaches the denominator -- but under a concurrent caliber
+    # the same switch multiplies signal and interference together and collapses
+    # into a saturating ``power`` step.  Listing both readings keeps the caliber
+    # dependence explicit instead of assuming it away.
+    ("rho 0.8 -> 1.0  (numerator x1.25)", [("gain", 1.25)]),
+    ("isac_power_model=joint, concurrent", [("power", 1.25)]),
 ]
 
 
@@ -315,11 +350,21 @@ def main():
                         default=[0.05, 0.1, 0.2])
     parser.add_argument("--out", type=Path,
                         default=Path("results_v1_lever_closure"))
+    parser.add_argument("--scenario", choices=sorted(SCENARIOS),
+                        default="paper-vertical",
+                        help="vertical geometry; paper-vertical reproduces the "
+                             "frozen release heights, compact-small-uav the "
+                             "200-500 m small-UAV preset")
+    parser.add_argument("--override", action="append", default=[],
+                        metavar="KEY=VALUE",
+                        help="extra dotted-path override applied after the "
+                             "scenario block; repeatable")
     args = parser.parse_args()
     args.out.mkdir(exist_ok=True, parents=True)
 
-    specs = [(a, c, t) for a in args.areas for c in args.rcs
-             for t in range(args.mc)]
+    extra = parse_overrides(args.override)
+    specs = [(a, c, t, args.scenario, extra)
+             for a in args.areas for c in args.rcs for t in range(args.mc)]
     records = []
     with ProcessPoolExecutor(args.workers) as pool:
         futures = [pool.submit(job, s) for s in specs]
@@ -341,10 +386,13 @@ def main():
     print(f"  G_proc = {r0['g_proc']:.0f}   G_hw = {r0['g_hw']:.4g}   "
           f"P_default = {r0['p_default']}   NF = {r0['noise_figure_db']} dB")
     by_key = {}
+    links_by_key = {}
     for r in records:
         for t in r["targets"]:
+            key = (r["area_m"], r["rcs_m2"])
+            links_by_key.setdefault(key, []).append(float(t["n_links"]))
             if t["rinr"]:
-                by_key.setdefault((r["area_m"], r["rcs_m2"]), []).extend(t["rinr"])
+                by_key.setdefault(key, []).extend(t["rinr"])
     print(f"\n  {'area/rcs':>12s} {'n_links':>8s} {'rinr_med_dB':>12s} "
           f"{'rinr_p90_dB':>12s} {'regime':>16s}")
     for k in sorted(by_key):
@@ -353,7 +401,8 @@ def main():
         p90 = float(np.percentile(vals, 90))
         regime = ("interference-limited" if med > 1.0
                   else "noise-limited" if med < 0.1 else "mixed")
-        print(f"  {k[0]:.0f} m / {k[1]:>5} {'':>8s} "
+        print(f"  {k[0]:.0f} m / {k[1]:>5} "
+              f"{np.mean(links_by_key[k]):>8.2f} "
               f"{10 * np.log10(max(med, 1e-300)):>12.2f} "
               f"{10 * np.log10(max(p90, 1e-300)):>12.2f} {regime:>16s}")
     print(f"\n  n_links = {np.mean([t['n_links'] for r in records for t in r['targets']]):.2f}"
@@ -363,10 +412,23 @@ def main():
     ds_all = [d for r in records for t in r["targets"] for d in t["dshare"]]
     if ds_all:
         ds = np.asarray(ds_all, dtype=float)
-        print(f"\n  direct-cancellation share of the residual interference "
-              f"(kappa_dc = {records[0]['kappa_dc_db']:.0f} dB):")
+        print(f"\n  direct-path residual in units of the noise floor "
+              f"(n0 + eps), kappa_dc = {records[0]['kappa_dc_db']:.0f} dB:")
         print(f"    median {np.median(ds):.4f}   mean {ds.mean():.4f}   "
               f"p10 {np.percentile(ds, 10):.4f}   p90 {np.percentile(ds, 90):.4f}")
+        # Under ``shared_spectrum`` the residual IS the direct path, so this
+        # quantity coincides with ``rinr``; it is a *share* only once divided by
+        # it.  Under ``legacy`` the direct path is excluded from the sum, so the
+        # share collapses to 0 and the kappa row of the closure table becomes a
+        # no-op -- the printed share is what distinguishes the two readings.
+        pairs = [(d, r) for rec in records for t in rec["targets"]
+                 for d, r in zip(t["dshare"], t["rinr"]) if r > 0]
+        share = np.asarray([d / r for d, r in pairs], dtype=float) if pairs \
+            else np.zeros(1)
+        print(f"    share of rinr carried by the direct path: "
+              f"median {np.median(share):.4f}   "
+              f"mean {share.mean():.4f}   "
+              f"(1.0 = the residual is 100% direct-path leakage)")
 
     # ---- lever closure table
     cfg0 = config(SEED, REPORT_CAP)
@@ -393,7 +455,9 @@ def main():
 
     with (args.out / "closure.json").open("w", encoding="utf8") as handle:
         json.dump({"base": base_row, "levers": rows,
-                   "weak_pd_required": target_pd}, handle, indent=1)
+                   "weak_pd_required": target_pd,
+                   "scenario": args.scenario, "extra": extra, "mc": args.mc,
+                   "areas": args.areas, "rcs": args.rcs}, handle, indent=1)
     print(f"\n  wrote {args.out / 'closure.json'}")
 
 

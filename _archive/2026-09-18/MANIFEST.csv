@@ -1,0 +1,94 @@
+path,reason,files,bytes
+results_canonical_check,B: area:4000; rcs:50,3,9635
+results_coord_600m_g15k40,A: hw:dir_name_gain_db=15,1,2137
+results_crn_check,B: area:4000; rcs:50,3,6257
+results_crn_parallel_check,B: area:4000; rcs:50,3,6276
+results_isac_review_revision,B: area:4000; rcs:50,6,79028
+results_isac_review_revision_erasure,B: area:4000; rcs:50,6,85024
+results_joint_bundle_v12_rcs,B: rcs:2,2,34155
+results_low_rcs_rescue_adaptive_budget_screen,B: rcs:2,3,20175
+results_low_rcs_rescue_baseline_screen,B: rcs:2,3,20061
+results_low_rcs_rescue_canonical_screen,B: rcs:2,3,20259
+results_low_rcs_rescue_gain15_screen,A: hw:radar_net_gain_db=15; name/token:gain; rcs:2,3,37382
+results_low_rcs_rescue_gain17p5_maxmin_screen,A: hw:radar_net_gain_db=17.5; name/token:gain; rcs:2,3,36566
+results_low_rcs_rescue_gain17p5_screen,A: hw:radar_net_gain_db=17.5; name/token:gain; rcs:2,3,36735
+results_low_rcs_rescue_long_cpi128_screen,B: rcs:2,3,19961
+results_low_rcs_rescue_long_cpi_screen,B: rcs:2,3,20203
+results_low_rcs_rescue_margin_screen,B: rcs:2,3,20367
+results_low_rcs_rescue_multiseed_screen,B: rcs:2,3,40155
+results_low_rcs_rescue_power_cpi_screen,B: rcs:2,3,20125
+results_preview_capability,B: area:4000; rcs:50,89,219847
+results_radar_gain_s2_coarse.csv,B(2000 m) + A(net_gain 10/20/30 dB),1,818
+results_radar_gain_s2_refined.csv,B(2000 m) + A(net_gain 12.5/15/17.5 dB),1,1363
+results_receiver_fusion_zero_gain_direct,B: rcs:2,3,42275
+results_receiver_fusion_zero_gain_local,B: rcs:2,3,42370
+results_receiver_fusion_zero_gain_local_accounted,B: rcs:2,3,48109
+results_receiver_fusion_zero_gain_local_final,B: rcs:2,3,48113
+results_release,B: area:4000; rcs:50,19,1117383
+results_release_preview,B: area:4000; rcs:50,15,1556674
+results_release_preview_v2,B: area:4000; rcs:50,7,22676
+results_release_preview_v3,B: area:4000; rcs:50,3,8735
+results_small_uav_s2_candidate,"A: hw:radar_rx_gain_dbi=16,radar_tx_gain_dbi=16,radar_system_loss_db=5; area:2000",4,34543
+results_small_uav_s2_nearest,"A: hw:radar_rx_gain_dbi=16,radar_tx_gain_dbi=16,radar_system_loss_db=5; area:2000",4,34681
+results_target_local_v1,"B: area:2500,4000,5500; rcs:50",33,1958486
+results_target_local_v11,B: area:4000; rcs:50,11,364131
+results_target_local_v11_full_pd,B: area:4000; rcs:50,3,6815
+results_target_local_v1_smoke,B: area:4000; rcs:50,3,7298
+results_v11_frontier_anchored_rcs42p5_k0,B: area:4000; rcs:42.5,4,34015
+results_v11_frontier_anchored_rcs42p5_k2,B: area:4000; rcs:42.5,4,36153
+results_v11_frontier_anchored_rcs42p5_k4,B: area:4000; rcs:42.5,4,36171
+results_v11_frontier_anchored_rcs42p5_k6,B: area:4000; rcs:42.5,4,37147
+results_v11_frontier_anchored_rcs42p5_k8,B: area:4000; rcs:42.5,4,36302
+results_v11_frontier_lookahead_rcs42p5_k2,B: area:4000; rcs:42.5,4,35776
+results_v11_frontier_lookahead_rcs42p5_k4,B: area:4000; rcs:42.5,4,35759
+results_v11_frontier_lookahead_rcs42p5_k6,B: area:4000; rcs:42.5,4,36378
+results_v11_frontier_nearest_rcs42p5_k2,B: area:4000; rcs:42.5,4,35885
+results_v11_frontier_nearest_rcs42p5_k4,B: area:4000; rcs:42.5,4,35898
+results_v11_frontier_nearest_rcs42p5_k6,B: area:4000; rcs:42.5,4,36779
+results_v11_fusion_fix,B: area:4000; rcs:50,3,14287
+results_v11_nearest_detector_k0,B: area:4000; rcs:50,4,34061
+results_v11_nearest_detector_k8,B: area:4000; rcs:50,4,36478
+results_v11_pd_lookahead,B: area:4000; rcs:50,4,36292
+results_v11_pd_lookahead_k0,B: area:4000; rcs:50,4,34039
+results_v11_smoke,B: area:4000; rcs:50,3,8297
+results_v11_smoke2,B: area:4000; rcs:50,10,356726
+results_v11_transition_nearest_rcs42p5_k0,B: area:4000; rcs:42.5,4,34089
+results_v11_transition_nearest_rcs42p5_k8,B: area:4000; rcs:42.5,4,36567
+results_v11_transition_rcs25_k0,B: area:4000; rcs:25,4,20854
+results_v11_transition_rcs25_k8,B: area:4000; rcs:25,4,22343
+results_v11_transition_rcs37p5_k0,B: area:4000; rcs:37.5,4,20844
+results_v11_transition_rcs37p5_k8,B: area:4000; rcs:37.5,4,22202
+results_v11_transition_rcs42p5_k0,B: area:4000; rcs:42.5,4,34099
+results_v11_transition_rcs42p5_k8,B: area:4000; rcs:42.5,4,36455
+results_v11_transition_rcs45_k0,B: area:4000; rcs:45,4,34050
+results_v11_transition_rcs45_k8,B: area:4000; rcs:45,4,36320
+results_v11_transition_rcs50_k0,B: area:4000; rcs:50,4,20842
+results_v11_transition_rcs50_k8,B: area:4000; rcs:50,4,22038
+results_v11_weak_gate_k0,B: area:4000; rcs:50,4,34000
+results_v11_weak_gate_k1,B: area:4000; rcs:50,4,35668
+results_v11_weak_gate_k2,B: area:4000; rcs:50,4,35739
+results_v11_weak_gate_k4,B: area:4000; rcs:50,4,35752
+results_v11_weak_gate_k8,B: area:4000; rcs:50,4,36265
+results_v16_mechanism_smoke,B: rcs:2,3,13825
+results_v1_balanced_budget,B: area:4000; rcs:50,3,277443
+results_v1_distance_paperproto,"B: area:4000; rcs:5,50",16,187994
+results_v1_exact_budget,B: area:4000; rcs:50,6,227950
+results_v1_exact_budget_m4,B: area:4000; rcs:50,3,103425
+results_v1_exact_budget_obs12,B: area:4000; rcs:50,3,87471
+results_v1_exact_budget_smoke,B: area:4000; rcs:50,3,13681
+results_v1_failure_model_check,B: area:4000; rcs:50,4,38553
+results_v1_fusion_polish_audit,B: area:4000; rcs:50,3,37154
+results_v1_fusion_polish_heldout,B: area:4000; rcs:50,4,62946
+results_v1_geometry_wide,B: area:4000; rcs:50,5,608405
+results_v1_joint_revision_independent,B: area:4000; rcs:50,4,333746
+results_v1_joint_revision_smoke,B: area:4000; rcs:50,3,16229
+results_v1_prior_communication,B: area:4000; rcs:50,3,88715
+results_v1_probability_refinement,B: area:4000; rcs:50,5,21974
+results_v1_rcs_joint_smoke,B: area:4000; rcs:50,3,16520
+results_v1_rcs_wide,B: area:4000; rcs:50,3,331438
+results_v1_utility_ablation,B: area:4000; rcs:50,17,157272
+results_waveform_v2_gate1,B: area:4000; rcs:50,6,35489
+results_waveform_v2_gate2a,B: area:4000; rcs:50,12,177619
+results_waveform_v2_gate2b,B: area:4000; rcs:50,12,354587
+results_waveform_v2_gate3,B: area:4000; rcs:50,12,1680290
+results_waveform_v2_phase1_smoke,B: area:4000; rcs:50,4,9869

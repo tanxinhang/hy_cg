@@ -6,6 +6,12 @@
 
 **Low-RCS Evidence Rescue through Acquisition–Transport–Fusion Co-Design in Multi-UAV OTFS-ISAC Networks**
 
+> 🧭 **场景口径（2026-09-18 冻结）**：本文所指的低 RCS 工作点为
+> **500–800 m 部署 × RCS 0.05–0.2 m²**（链路预算位移 −2.0…+12.1 dB，包住已发布
+> 4 km / 50 m² 工作点）。4 km 部署配 0.05–0.2 m² 低 **−30…−24 dB**，实测 P_D
+> 0.083–0.202 贴 P_FA 地板 ⇒ **不可观测，不作场景**。定义与证据台账见
+> `LOW_RCS_SCENARIO_500_800.md`；本文早期文本中的 400–600 m 一律读作 **400 m 历史口径**。
+
 ### Central argument
 
 A cooperative network should not be credited merely for illuminating a target

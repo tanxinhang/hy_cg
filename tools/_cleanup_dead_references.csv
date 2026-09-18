@@ -1,0 +1,39 @@
+doc,archived,lines,status
+CAPACITATED_TARGET_FUSION_V11.md,results_target_local_v1,125,notice-only (only a --out command argument; notice added)
+CAPACITATED_TARGET_FUSION_V11.md,results_target_local_v11,125,notice-only (only a --out command argument; notice added)
+Conference-LaTeX-template_10-17-19/ReproducibilitySupplement.tex,results_v1_probability_refinement,420,pending-latex (update with the manuscript re-base)
+DEPLOYMENT_RANGE_ANALYSIS.md,results_target_local_v1,"49,111",fixed
+DEPLOYMENT_RANGE_ANALYSIS.md,results_v1_distance_paperproto,"10,187,188",fixed
+DEPLOYMENT_RANGE_ANALYSIS.md,results_v1_geometry_wide,"9,177,193",fixed
+DEPLOYMENT_RANGE_ANALYSIS.md,results_v1_rcs_wide,29,fixed
+ISAC_V1_OPTIMIZATION_AUDIT.md,results_target_local_v1,23,fixed
+LOW_RCS_SCENARIO_500_800.md,results_target_local_v1,"140,275,317",fixed
+MANUSCRIPT_CODE_CONSISTENCY_ALERT.md,results_release,147,fixed
+MANUSCRIPT_CODE_CONSISTENCY_ALERT.md,results_target_local_v1,"60,160,164",fixed
+MANUSCRIPT_CODE_CONSISTENCY_ALERT.md,results_v1_failure_model_check,123,fixed
+MANUSCRIPT_CODE_CONSISTENCY_ALERT.md,results_v1_utility_ablation,123,fixed
+PAPER_RELEASE.md,results_isac_review_revision,"19,20",fixed
+PAPER_RELEASE.md,results_isac_review_revision_erasure,20,fixed
+PAPER_RELEASE.md,results_release,"97,98,112",fixed
+RCS_IMPACT_ANALYSIS.md,results_v1_rcs_wide,"41,144",fixed
+RECEIVER_LOCAL_COHERENT_FUSION_AUDIT.md,results_receiver_fusion_zero_gain_direct,87,fixed
+RECEIVER_LOCAL_COHERENT_FUSION_AUDIT.md,results_receiver_fusion_zero_gain_local,89,fixed
+RECEIVER_LOCAL_COHERENT_FUSION_AUDIT.md,results_receiver_fusion_zero_gain_local_final,89,fixed
+RHO_COORDINATION_LEVER.md,results_target_local_v1,11,fixed
+SUBMISSION_TRACEABILITY.md,results_target_local_v1,"61,79,91",fixed
+SYSTEM_PERFORMANCE_STATUS.md,results_target_local_v1,"16,17,55",fixed
+SYSTEM_PERFORMANCE_STATUS.md,results_v1_rcs_wide,"18,205",fixed
+SYSTEM_SNAPSHOT_2026-09-18.md,results_target_local_v1,"7,46,216",fixed
+V11_GATE_REPORT.md,results_target_local_v1,140,fixed
+V11_GATE_REPORT.md,results_target_local_v11,140,fixed
+V1_EXACT_BUDGET_REINFORCEMENT.md,results_v1_balanced_budget,160,fixed
+V1_EXACT_BUDGET_REINFORCEMENT.md,results_v1_exact_budget,"150,152,156",fixed
+V1_EXACT_BUDGET_REINFORCEMENT.md,results_v1_exact_budget_m4,"150,156",fixed
+V1_EXACT_BUDGET_REINFORCEMENT.md,results_v1_exact_budget_obs12,"152,160",fixed
+V1_FUSION_THEORY_AND_ALGORITHM.md,results_v1_fusion_polish_audit,150,fixed
+V1_FUSION_THEORY_AND_ALGORITHM.md,results_v1_fusion_polish_heldout,208,fixed
+V1_STABLE_RELEASE.md,results_release,272,fixed
+V1_STABLE_RELEASE.md,results_target_local_v1,"185,231,234",fixed
+V1_THEORY_PROBABILITY_NOVELTY_UPGRADE.md,results_v1_probability_refinement,"74,131",fixed
+V1_UTILITY_ABLATION.md,results_v1_utility_ablation,"34,44",fixed
+WAVEFORM_V2_ROADMAP.md,results_target_local_v1,"4,32",fixed

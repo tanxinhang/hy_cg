@@ -1,0 +1,2 @@
+experiment,method,M,Q,n_samples,monotone_violation_rate,submodularity_violation_rate,min_marginal_ratio,curvature,matroid_reference_bound,guarantee_applicable
+submodularity,proposed_lagrangian,4,3,800,0.6154999999999999,0.27312500000000006,-2.7537439218490265,0.9999999999999999,0.5,False

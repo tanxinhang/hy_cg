@@ -74,3 +74,7 @@ archive/results_preview_*/
 
 # --- 冒烟 / 预览跑（小 MC，非论文结果）---
 /results_*_smoke/
+
+# --- 手工备份 / 改动前快照（本地保留，不入库）---
+*.bak
+*.bak-*

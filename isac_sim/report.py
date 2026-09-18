@@ -36,6 +36,9 @@ SCALAR_KEYS: List[str] = [
     "assignment_capacity_max_utilization_mean", "assignment_capacity_binding_rate",
     "cpu_capacity_max_utilization_mean", "cpu_capacity_binding_rate",
     "selector_score_evaluations_mean", "coordination_messages_mean", "bid_rounds_mean",
+    # Coordination fixed-point diagnostics: a reported coordination number must
+    # carry whether the fixed point was actually reached (0 when it is off).
+    "coordination_rounds_mean", "coordination_converged_rate", "coordination_n_tx_mean",
     "bundle_column_count_mean", "bundle_pricing_iterations_mean",
     "bundle_lp_worst_deficit_bound_mean",
     "detection_runtime_mean_ms", "detection_runtime_p90_ms",

@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # 功率分配与节点间协调：哪些"功率类"旋钮真的有杠杆
 
 日期：2026-09-16。缘起：对"为什么用功率扫描而不是自适应优化"的追问，以及随之而来的
@@ -8,7 +10,7 @@
 成立，被我不当地推广到了"分配"维度。
 
 > **⚠️ 口径更正（2026-09-16 晚，冻结前复核）**：本文件初版把 `active_set` 标成"论文口径"、
-> 把 `orthogonal` 标成"审计基线"，**两个标签方向反了**。实际铁证：`results_target_local_v1/main/config.json`
+> 把 `orthogonal` 标成"审计基线"，**两个标签方向反了**。实际铁证：`_archive/2026-09-18/results_target_local_v1/main/config.json`
 > 记 `comm.interference_model = "orthogonal"`，`paper-canonical` preset 亦钉 `orthogonal`
 > （`config.py:754-775`），正文 `SystemModel.tex:45` 写的是 "Reports do not mutually interfere;
 > sensing transmissions remain concurrent"（= 正交串行上报）。`active_set` 属 `isac-consistent`
@@ -22,7 +24,7 @@
 |---|---|---|
 | 总功率 `radio.P_default` ×2 | **+0.20 dB** | 真无效（原结论成立） |
 | 感知/上报分配 `radio.rho` 全幅 0.2→0.95 | **+6.77 dB** | **强杠杆（此前遗漏）** |
-| 调度门控（半数发射机静默，`sense_gate_by_active_tx`） | **+2.77 dB** | 有效，但默认关闭 |
+| 调度门控（半数发射机静默，`sense_gate_by_active_tx`） | **+2.77 dB**（乐观上界，见 §3 收口） | 有效，但默认关闭 |
 
 **而 ρ 的杠杆大小完全由 `comm.interference_model` 决定**：论文主结果口径 `orthogonal`
 下只有 1.48 dB，消融口径 `active_set` 下是 6.77 dB。**低 RCS 优化跑的就是论文口径**，
@@ -110,6 +112,20 @@ SINR_sense ≈ rho_i * P_default * G_echo / (P_default * G_intf * kappa_dc + n0)
 **这是乐观上界**：被静默的 UAV 只从干扰场里移除，其回波贡献仍被保留。真实调度器
 同时会失去那架 UAV 的观测，所以 +2.77 dB 不可直接兑现，只说明**干扰侧的可省空间**。
 
+> **✅ 已收口（2026-09-17）**：下文"必须先补一个『静默即失去该照明机观测』的诚实版本"
+> 已经做了，而且**不是靠代理估算，是 800-trial MC 实测**：
+> - **A7 修复**：`gate_echo` 现在把被静默机的 `effective_sensing_power` 一并归零，
+>   门控**同时关干扰与回波**（原实现只关干扰 ⇒ 正是本节担心的高估来源）；
+> - **掩码语义统一为照射机掩码 `{i}`**（唯一构造 `coordination.illuminator_mask`、
+>   唯一建表 `gated_tables`），不再有"静默了报告机却仍用其照射"的错配；
+> - ⇒ 本节 +2.77 dB 的**乐观上界已被真实调度下的实测值取代**。
+>
+> **权威数值见 `COORDINATION_INTERFERENCE_ROUTE.md` §11 / §13**（500 m / RCS 0.2 m²，九档 800-trial）：
+> 静默 + 重调度（`sparse`）在 **L=48（3×）** 即达标、`mask_only` 需 **L=96（6×）**、
+> 不协调需 **L=256（16×）** ⇒ 协调 = **5.3 倍积分时间节省**。
+> ⚠️ 本节表格的 **400 m / RCS 0.05 m²** 工作点是**另一个几何**（干扰受限程度不同），
+> **两组数不可直接相减**。
+
 ## 4. ρ 的增益能否传导到 P_D
 
 `results_v1_rho_pd_check/`（400 m / RCS 0.05 m²，MC=40，8 workers，审计协议配对）：
@@ -155,8 +171,11 @@ SINR_sense ≈ rho_i * P_default * G_echo / (P_default * G_intf * kappa_dc + n0)
    `results_v1_lowrcs_power/` 全部是 `orthogonal` = `target-local-v1` = 论文主结果口径，
    其中的 `corr`、`capacitated`、`power2` 等零/负增益结论**在该口径下成立，可以写进论文**。
    需要补跑的是**另一侧**：若要展示 ρ 的协调价值，得在 `active_set` 消融口径下跑对照。
-3. **`sense_gate_by_active_tx` 值得作为一个正式消融轴**（配合 `direct_cancellation_db`），
-   但必须先给它补一个"静默即失去该照明机观测"的诚实版本，否则 +2.77 dB 会被高估。
+3. **`sense_gate_by_active_tx` 已是正式消融轴**（`mask_only` 臂）。原判"必须先补一个
+   『静默即失去该照明机观测』的诚实版本，否则 +2.77 dB 会被高估"**已于 2026-09-17 收口**
+   （A7 `gate_echo` 修复 + 掩码语义统一为照射机掩码 `{i}` + 800-trial 实测）
+   ⇒ §3 的 +2.77 dB 只能当**乐观上界**用，真实调度下的值见
+   `COORDINATION_INTERFERENCE_ROUTE.md` §11 / §13。
 4. **优化器应当至少在两种口径下各跑一次**，用差值量化口径敏感度，而不是只在一个口径下
    标定。49 s/trial 的代价只花在一种口径上，就无法回答"ρ 的回报是不是被口径吃掉了"。
 5. 仍未闭环：ρ 的缺口补完后 pd ≈ 0.58，离 0.80 还有距离。链路预算仍是主项（`shortfall`

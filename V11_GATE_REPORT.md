@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # V1.1 diagnostic gate report
 
 ## Decision
@@ -137,4 +139,4 @@ overturn the no-go release decision without independent replication and
 waveform-level validation. See `V11_OPTIMIZATION_LOG.md`.
 
 Diagnostic source data and figure are under
-`results_target_local_v11/v11-factorial/`.
+`_archive/2026-09-18/results_target_local_v11/v11-factorial/`.

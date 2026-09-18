@@ -343,6 +343,13 @@ def _greedy_lagrangian(
     """
     s = cfg.selector
     Q = cfg.scale.Q
+    # --- Coordinated radiation -------------------------------------------
+    # Both are off by default so the frozen release path is untouched.
+    tx_penalty = float(s.tx_penalty or 0.0)
+    max_tx = s.max_tx_nodes
+    if max_tx is not None and int(max_tx) < 1:
+        raise ValueError(f"selector.max_tx_nodes must be >= 1 or None, got {max_tx!r}")
+    active_tx: set[int] = set()
     selected: Dict[int, List[Link]] = {q: [] for q in range(Q)}
     selected_sets: Dict[int, set] = {q: set() for q in range(Q)}
     D_fuse = np.zeros(Q)
@@ -396,8 +403,15 @@ def _greedy_lagrangian(
                 continue
             if not processing_caps_allow(cfg, selected, link, q, plan):
                 continue
+            if (
+                max_tx is not None
+                and int(link[0]) not in active_tx
+                and len(active_tx) >= int(max_tx)
+            ):
+                continue
             selected[q].append(link)
             selected_sets[q].add(link)
+            active_tx.add(int(link[0]))
             D_fuse[q] = new_D
             if s.score_mode.lower() == "detector_pd":
                 pd_pred[q] = new_pd
@@ -429,6 +443,13 @@ def _greedy_lagrangian(
                     continue
                 if not processing_caps_allow(cfg, selected, link, q, plan):
                     continue
+                introduces_tx = int(link[0]) not in active_tx
+                if max_tx is not None and introduces_tx and len(active_tx) >= int(max_tx):
+                    # Hard cap reached: only links illuminated by an already-active
+                    # node may still enter. On its own this is a one-shot decision --
+                    # no table rebuild, hence no fixed-point iteration and none of
+                    # the non-convergence the feedback loop exhibited.
+                    continue
                 new_D = deflection_for_links(
                     cfg, tables, q, selected[q] + [link], weight_mode="deflection", plan=plan, base=base
                 )
@@ -456,6 +477,11 @@ def _greedy_lagrangian(
                 else:
                     sensing_gain = alpha[q] * marginal_D
                 score = sensing_gain - delay_price
+                if tx_penalty and introduces_tx:
+                    # Price the new radiator. Charged only when a *new* node is
+                    # woken up, so it acts as a sparsity prior rather than a flat
+                    # per-link tax.
+                    score -= tx_penalty
                 score_evaluations += 1
 
                 if distributed_bids:
@@ -486,6 +512,7 @@ def _greedy_lagrangian(
         q_best, link_best = best_tuple
         selected[q_best].append(link_best)
         selected_sets[q_best].add(link_best)
+        active_tx.add(int(link_best[0]))
         D_fuse[q_best] = best_D
         if detector_aligned:
             pd_pred[q_best] = best_pd
@@ -493,6 +520,20 @@ def _greedy_lagrangian(
 
         if s.stop_at_D_min and np.all(D_fuse[active_candidate_targets] >= cfg.detect.D_min):
             break
+
+    if tx_penalty > 0.0 and total_links == 0 and active_candidate_targets:
+        # A finite price can exceed EVERY marginal gain, and the greedy's
+        # ``score <= 0`` stopping rule then returns an empty schedule. Silently
+        # selecting nothing is never a valid answer, and at these magnitudes the
+        # caller has almost certainly used the wrong units (the utility scale is
+        # O(0.1), so a price of O(1) cancels the whole problem). The hard cap
+        # ``selector.max_tx_nodes`` has no such cliff -- prefer it.
+        raise ValueError(
+            "selector.tx_penalty "
+            f"({tx_penalty!r}) exceeded every candidate's marginal gain, so the "
+            "selection collapsed to an empty schedule. Scale the price to the "
+            "utility units (order 0.1) or use selector.max_tx_nodes instead."
+        )
 
     if audit is not None:
         audit.update(
@@ -618,6 +659,7 @@ def select_c2f_adaptive(
     refined_table_builder=None,
     shortlist_seed=None,
     trajectory: "list | None" = None,
+    active_tx_mask: np.ndarray | None = None,
 ) -> Tuple[Dict[int, List[Link]], np.ndarray, Dict[str, float]]:
     r"""Build a greedy-consistent dynamic shortlist, then replay on fine DD.
 
@@ -631,9 +673,36 @@ def select_c2f_adaptive(
     The two stages therefore share the same state-dependent marginal rule,
     while fine evaluation remains capped by ``shortlist_size`` per target and
     requires only one refined-table construction.
+
+    ``active_tx_mask`` is the coordination口径 radiation mask (see
+    ``coordination.py`` for its single meaning).  It is forwarded to the *fine*
+    table rebuild, which otherwise silently drops the gate: the refined table is
+    constructed here from ``dd_gain`` alone, so without this argument a caller
+    could hand in a gated coarse table and still have the fine replay -- the
+    stage that actually decides the schedule -- score an un-gated one.  Two
+    guards enforce the pairing instead of trusting it: the gate must be enabled
+    (otherwise the mask is decoration), and ``tables_coarse`` must already have
+    been built with the same mask (checked through ``raw_gamma_sense``, which is
+    zero for every muted illuminator once the echo gate is in place).
     """
     s = cfg.selector
     Q = cfg.scale.Q
+    if active_tx_mask is not None:
+        if not cfg.interference.sense_gate_by_active_tx:
+            raise ValueError(
+                "select_c2f_adaptive(active_tx_mask=...) requires "
+                "interference.sense_gate_by_active_tx=True; otherwise "
+                "compute_link_tables ignores the mask and the caller would "
+                "believe it selected under coordination when it did not."
+            )
+        muted = ~np.asarray(active_tx_mask, dtype=bool)
+        if muted.any() and np.any(np.asarray(tables_coarse.raw_gamma_sense)[muted] != 0.0):
+            raise ValueError(
+                "tables_coarse was not built with this active_tx_mask: muted "
+                "illuminators still carry a non-zero raw sensing SINR, so the "
+                "coarse stage would score an un-gated table. Build it with "
+                "coordination.gated_tables()."
+            )
     all_candidates = {
         q: feasible_links_for_target(cfg, base, tables_coarse, q, plan)
         for q in range(Q)
@@ -897,7 +966,19 @@ def select_c2f_adaptive(
         for i, j in links:
             dd_gain[i, j, q] = base.eta_fine[i, j, q]
     builder=compute_link_tables if refined_table_builder is None else refined_table_builder
-    tables_fine = builder(cfg, base, dd_gain=dd_gain)
+    if active_tx_mask is None:
+        tables_fine = builder(cfg, base, dd_gain=dd_gain)
+    else:
+        if refined_table_builder is not None:
+            # The injected builders (power_c2f / power_joint) are memoising
+            # factories keyed on the config, not on a mask; silently passing the
+            # mask would either be ignored or break their cache key.
+            raise ValueError(
+                "active_tx_mask cannot be combined with a custom "
+                "refined_table_builder; build the fine table yourself or use the "
+                "default builder."
+            )
+        tables_fine = builder(cfg, base, dd_gain=dd_gain, active_tx_mask=active_tx_mask)
     fine_audit: Dict[str, float] = {}
     selected, D_fuse = _greedy_lagrangian(
         cfg, tables_fine, shortlist, plan, base,

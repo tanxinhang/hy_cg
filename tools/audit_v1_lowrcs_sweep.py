@@ -1,11 +1,20 @@
-"""Software-knob sweep for the 400-600 m low-RCS operating region.
+"""Software-knob sweep for the 500-800 m low-RCS operating region.
 
 Operational question
 --------------------
-The next main scenario is a 400-600 m deployment against targets of mean RCS
-0.05-0.2 m^2.  ``detect.weak_pd_required`` is 0.80, while the released V1
-configuration reaches only 0.44-0.69 (mean target) at 600 m.  This script
-measures how much of that gap the *already implemented* knobs close.
+The main scenario is a 500-800 m deployment against targets of mean RCS
+0.05-0.2 m^2 (small-UAV class).  A 4 km cell against 0.05-0.2 m^2 targets is
+not observable at all (P_D ~ 0.083-0.202, i.e. at the P_FA floor), so the
+deployment side is shortened until the region is merely *hard* rather than
+hopeless.  ``detect.weak_pd_required`` is 0.80.  This script measures how much
+of the resulting gap the *already implemented* knobs close.
+
+Default seed is 10917, not the historical ``SEED`` 10919: 10917 is the seed of
+the released 4 km / 600 m RCS-budget table (``tools/audit_v1_rcs_joint.py``,
+``tools/audit_v1_rcs_600m.py``), so the ``base`` cell at ``--areas 600``
+reproduces that table's ``rcs*_k8`` ``v1`` rows bit-for-bit and doubles as a
+cross-tool parity check.  The module-level ``SEED`` is left at 10919 because
+``tools/probe_lowrcs_shortfall.py`` imports it.
 
 Design
 ------
@@ -71,7 +80,28 @@ from isac_sim.selection import select_c2f_adaptive  # noqa: E402
 from isac_sim.simulate import remote_report_count, run_method_on_trial  # noqa: E402
 
 SEED = 10919
+DEFAULT_SEED = 10917
+SCENARIO_AREAS = (500.0, 600.0, 700.0, 800.0)
 REPORT_CAP = 8
+
+# A deployment side length alone does not define a scenario: with the released
+# 4 km vertical geometry (UAV 800-1200 m, target 700-1500 m) the slant range at a
+# 500-800 m footprint is dominated by altitude, so the horizontal axis buys only
+# ~2.7 dB from 500 to 800 m instead of the geometric 8.2 dB.  ``compact`` adopts
+# the vertical geometry of the existing ``small-uav-compact-800m`` preset
+# (h_uav 200-500, h_target 200-500, comm_range 1000) and extends it by that
+# preset's own ratio comm_range = 1.25 * area_xy, which reproduces the preset
+# exactly at 800 m.
+SCENARIOS = {
+    "paper-vertical": {},
+    "compact-small-uav": {
+        "geometry.h_uav_min": 200.0,
+        "geometry.h_uav_max": 500.0,
+        "geometry.h_target_min": 200.0,
+        "geometry.h_target_max": 500.0,
+    },
+}
+COMM_RANGE_RATIO = 1.25  # anchored on small-uav-compact-800m: 1000 / 800
 POWER_GRID = (0.2, 0.5, 0.8, 0.95)
 POWER_ROUNDS = 2
 STAT_KEYS = ["fine_eval_full", "fine_eval_c2f", "selector_score_evaluations",
@@ -84,6 +114,7 @@ ZERO_STATS = {key: 0.0 for key in STAT_KEYS}
 CELLS = {
     "base": ({}, "baseline", "utility", None),
     "looks64": ({"detect.n_looks": 64}, "looks", "utility", None),
+    "looks128": ({"detect.n_looks": 128}, "looks", "utility", None),
     "corr": ({"corr.enable": True}, "fusion", "utility", None),
     "capacitated": ({"fusion.rule": "nearest_target_capacitated"},
                     "fusion", "utility", None),
@@ -92,6 +123,7 @@ CELLS = {
                 "selector.max_links_per_target": 9}, "budget", "utility", None),
     "maxmin": ({}, "maxmin", "maxmin", None),
     "maxmin_looks64": ({"detect.n_looks": 64}, "maxmin", "maxmin", None),
+    "maxmin_looks128": ({"detect.n_looks": 128}, "maxmin", "maxmin", None),
     "power": ({}, "power", "utility", "utility"),
     "maxmin_power": ({}, "power", "maxmin", "maxmin"),
     "gain15": ({"radio.radar_net_gain_db": 15.0}, "radar", "utility", None),
@@ -118,7 +150,7 @@ CELLS = {
 LABELS = list(CELLS)
 METRICS = ["pd", "worst_pd", "weak_pd", "pfa", "reports", "observations",
            "bits", "delay_ms", "n_looks", "rho_mean", "rho_std", "sensing_w",
-           "power_seconds"]
+           "power_seconds", "rinr_median"]
 FIELDS = (["area_m", "rcs_m2", "trial", "label", "family"] + METRICS
           + ["per_target"])
 
@@ -140,11 +172,15 @@ def _eval_cell(cfg_eval, chosen, d, stats, dest, tables, fine, truth_base,
     rho = np.array(cfg_eval.radio.rho_by_uav
                    if cfg_eval.radio.rho_by_uav is not None
                    else [cfg_eval.radio.rho] * cfg_eval.scale.M)
+    # ``rinr`` is the noise-limited / interference-limited coordinate that every
+    # lever ranking is conditional on; recording it lets a kappa_dc sweep state
+    # the regime each row was measured in instead of asserting one.
     return dict(
         label=label, family=family,
         pd=float(result.detected / result.total_targets),
         worst_pd=float(per_target.min()),
         weak_pd=float(per_target[int(result.weak_target_index)]),
+        rinr_median=float(np.median(truth_tables.rinr)),
         # Aggregated over trials this reproduces simulate.summarize's
         # actual_worst_target_P_D (mean per target, then min over targets).
         per_target=";".join(str(int(v)) for v in per_target),
@@ -159,14 +195,53 @@ def _eval_cell(cfg_eval, chosen, d, stats, dest, tables, fine, truth_base,
         power_seconds=float(power_seconds))
 
 
+def scenario_overrides(scenario, area):
+    """Resolve a named scenario into dotted-path overrides for one area."""
+    overrides = dict(SCENARIOS[scenario])
+    if scenario == "compact-small-uav":
+        overrides["geometry.comm_range"] = COMM_RANGE_RATIO * float(area)
+    return overrides
+
+
+def parse_phys_override(pairs):
+    """Parse ``KEY=VALUE`` strings into a typed dotted-path override dict.
+
+    ``isac_sim.cli.parse_overrides`` keeps every value as ``str``; the sweep
+    passes these straight into ``apply_overrides`` with no further coercion, so
+    the values are typed here (bool / int / float / str) instead.
+    """
+    out = {}
+    for pair in pairs or []:
+        if "=" not in pair:
+            raise SystemExit(f"--override expects KEY=VALUE, got {pair!r}")
+        key, _, raw = pair.partition("=")
+        key, raw = key.strip(), raw.strip()
+        low = raw.lower()
+        if low in ("true", "false"):
+            value = low == "true"
+        elif low in ("none", "null"):
+            value = None
+        else:
+            try:
+                value = int(raw)
+            except ValueError:
+                try:
+                    value = float(raw)
+                except ValueError:
+                    value = raw
+        out[key] = value
+    return out
+
+
 def job(spec):
-    area, rcs, trial, labels = spec
+    seed, scenario, area, rcs, trial, labels, override = spec
     base_cfg = apply_overrides(
-        config(SEED, REPORT_CAP),
-        {"geometry.area_xy": float(area), "detect.target_rcs": float(rcs)})
+        config(seed, REPORT_CAP),
+        {"geometry.area_xy": float(area), "detect.target_rcs": float(rcs),
+         **scenario_overrides(scenario, area), **override})
     validate_config(base_cfg)
 
-    rng = np.random.default_rng([SEED, trial])
+    rng = np.random.default_rng([seed, trial])
     truth = generate_geometry(base_cfg, rng)
     truth_base = build_base_gains(base_cfg, truth, rng)
     belief = BeliefState.from_truth(base_cfg, truth, rng)
@@ -229,7 +304,8 @@ def summarize(rows, areas, rcs_values, labels, baseline="base"):
                                key=lambda r: r["trial"])
                 if not group:
                     continue
-                entry = {m: float(np.mean([r[m] for r in group]))
+                entry = {m: float(np.mean([float(r.get(m, np.nan))
+                                           for r in group]))
                          for m in METRICS}
                 entry["n_trials"] = len(group)
                 target_means = _per_target_matrix(group).mean(axis=0)
@@ -274,32 +350,68 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mc", type=int, default=100)
     parser.add_argument("--workers", type=int, default=14)
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    parser.add_argument("--scenario", choices=sorted(SCENARIOS),
+                        default="paper-vertical")
     parser.add_argument("--areas", type=float, nargs="+",
-                        default=[400.0, 600.0])
+                        default=list(SCENARIO_AREAS))
     parser.add_argument("--rcs", type=float, nargs="+",
                         default=[0.05, 0.1, 0.2])
     parser.add_argument("--cells", nargs="+", default=LABELS, choices=LABELS)
+    parser.add_argument(
+        "--override", nargs="*", default=[], metavar="KEY=VALUE",
+        help="Global PHYSICAL override applied to the shared base config "
+             "(before any cell override), so selection and evaluation see the "
+             "same channel.  Use this for scenario-level quantities such as "
+             "interference.direct_cancellation_db; a cell-level override would "
+             "leave the selection-stage link tables on the old value.")
     parser.add_argument("--out", type=Path,
                         default=Path("results_v1_lowrcs_sweep"))
+    parser.add_argument("--report-only", action="store_true",
+                        help="Rebuild summary.json from an existing trials.csv.")
     args = parser.parse_args()
     args.out.mkdir(exist_ok=True, parents=True)
+
+    if args.report_only:
+        rows = list(csv.DictReader((args.out / "trials.csv").open(
+            encoding="utf8")))
+        for row in rows:
+            for key in ("area_m", "rcs_m2", "trial"):
+                row[key] = float(row[key])
+            for key in METRICS:
+                row[key] = float(row[key])
+        labels = [c for c in LABELS
+                  if any(r["label"] == c for r in rows)]
+        summary = summarize(rows, args.areas, args.rcs, labels)
+        (args.out / "summary.json").write_text(json.dumps(summary, indent=2),
+                                               encoding="utf8")
+        print("Rebuilt summary for " + str(args.out), flush=True)
+        return
+
     if (args.out / "protocol.json").exists():
         raise SystemExit("Use a fresh output directory")
 
     protocol = {
         "question": ("Which already-implemented software knob reaches the "
                      "configured weak-target requirement "
-                     "(detect.weak_pd_required=0.80) at 400-600 m with mean RCS "
+                     "(detect.weak_pd_required=0.80) at 500-800 m with mean RCS "
                      "0.05-0.2 m^2?"),
-        "seed": SEED, "mc": args.mc, "areas": args.areas, "rcs": args.rcs,
+        "seed": args.seed, "mc": args.mc, "areas": args.areas, "rcs": args.rcs,
+        "scenario": args.scenario,
+        "phys_override": parse_phys_override(args.override),
+        "scenario_overrides": {f"area{a:g}": scenario_overrides(
+            args.scenario, a) for a in args.areas},
         "report_cap": REPORT_CAP, "power_grid": POWER_GRID,
         "power_rounds": POWER_ROUNDS,
         "cells": {k: CELLS[k][0] for k in args.cells},
         "families": {k: CELLS[k][1] for k in args.cells},
         "selections": {k: CELLS[k][2] for k in args.cells},
         "power_warm_start": {k: CELLS[k][3] for k in args.cells},
-        "base_config": asdict(apply_overrides(config(SEED, REPORT_CAP),
-                                              {"geometry.area_xy": 600.0})),
+        "base_config": asdict(apply_overrides(
+            config(args.seed, REPORT_CAP),
+            {"geometry.area_xy": 600.0,
+             **scenario_overrides(args.scenario, 600.0),
+             **parse_phys_override(args.override)})),
         "scope": (
             "Geometry, truth/belief gains, coarse and refined tables, DD bins "
             "and the fusion plan are built once per (area, rcs, trial) and "
@@ -312,7 +424,9 @@ def main():
             "scenario input, the radar/radio axes are non-algorithmic, and only "
             "the fusion, power and max-min axes are algorithm changes. "
             "Exploratory screening, not an equivalence or non-inferiority "
-            "test; power_seconds is wall-clock under a shared worker pool."),
+            "test; power_seconds is wall-clock under a shared worker pool. "
+            "With the default seed 10917 the 'base' cell at area 600 "
+            "reproduces tools/audit_v1_rcs_600m.py's rcs*_k8 'v1' rows."),
         "hashes": {str(f): hashlib.sha256(f.read_bytes()).hexdigest()
                    for f in list(Path("isac_sim").glob("*.py"))
                    + [Path(__file__),
@@ -323,7 +437,8 @@ def main():
                                             encoding="utf8")
 
     labels = list(args.cells)
-    specs = [(area, rcs, trial, labels)
+    override = parse_phys_override(args.override)
+    specs = [(args.seed, args.scenario, area, rcs, trial, labels, override)
              for area in args.areas for rcs in args.rcs
              for trial in range(args.mc)]
     rows = []

@@ -1,0 +1,10 @@
+{
+  "mc_per_condition": 100,
+  "method": "proposed_c2f_adaptive_pd",
+  "preset": "target-local-v1",
+  "seed": 2026,
+  "sweeps": [
+    "fusion-rule"
+  ],
+  "workers": 8
+}

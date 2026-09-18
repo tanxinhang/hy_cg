@@ -173,10 +173,17 @@ $$d' = \frac{K\cdot A - z\sqrt{K\cdot B}}{\sqrt{K\cdot C}} = \frac{\sqrt{K}\,A -
 ## 6. 诚实边界
 
 1. **解析界，不是 MC**。`d'` 由 LLR 矩按对角协方差高斯近似算出；`corr.enable` 会引入非对角项，故本表对 `corr` **乐观**。低每链路 SINR 下高斯尾部也是近似。**这张表用于排序与定量缺口，不得当作 $P_D$ 结果引用。**
-2. **$\kappa_{dc}$ 不是"调好的旋钮"**。`config.py:298-301` 把它定义为"paper geometry 实测的近远比 41.3 dB，即把直射对消到回波量级"，扫描范围 0–80 dB。把它提到 60 dB 意味着声称**残留直射比回波低约 18.7 dB**，需要独立的对消能力论证。这与"改一个数字"不是同一件事。
+2. **$\kappa_{dc}$ 是干扰抑制，不是信号增益，但它仍然是假设**。`kappa_dc` 只乘在感知分母的直连泄漏项上（`model.py:654,765`），不碰回波项；其物理依据是协作 ISAC 已知照明机波形、可重建并相减，残余由信道估计精度决定。**已实测的量级**（`tools/probe_kappa_necessity.py`，生产链路表口径）：近远比是**几何量**——legacy 论文几何（4 km / RCS 50 m²）为 41.3 dB，当前主场景（600 m / RCS 0.1 m²）为 **50.9 dB**。因此
+   * 在当前主场景，40 dB **不是**"对消到回波量级"：残余直连仍比处理后回波高约 **11 dB**；
+   * ~51 dB 才对应"到回波量级"，**60 dB 只让残余比回波低 2.4 dB**（且已触自残留/噪声地板，SINR −2.4 dB）；
+   * 所谓"提到 60 dB 意味着残留比回波低 18.7 dB"是拿 legacy 的 41.3 dB 算出来的，**在当前几何下不成立**。
+   结论方向不变（改 κ 要付假设代价并重新论证对消能力），但 40→60 在当前场景是**从"不够"补到"刚好"**，不是从"刚好"跳到"激进"。
 3. **`G_hw` 目前没有映射到任何真实天线/EIRP 设计**。`RADAR_LINK_BUDGET_CALIBRATION.md` 自己写的是 "calibration bridge, not a validated platform"。
 4. **本文只算了单目标视角的 SINR 缺口换算**，最坏目标的口径已对齐系统定义（先按目标平均再取最坏），但**跨目标的耦合（报告预算共享）在解析器中未建模**。
-5. **一个待澄清的口径张力**：`config.py:299-300` 声称 40 dB 对消"cancels the direct path down to the echo power level"，但实测 `r = residual/n0 ≈ +10 dB`，而 raw 回波约比 `n0` 低 37 dB ⇒ 残留直射实际比 raw 回波高约 **47 dB**。要么注释里的 "echo power level" 指未经相干积累的回波（则是措辞问题），要么近远比 41.3 dB 的标定与当前几何不符。**本轮未追到底，但引用 `kappa_dc` 前应先解决它。**
+5. **已澄清：口径张力来自两个叠加的错误，不是措辞问题**（2026-09-18 追到底）。
+   * "echo" 指**已含 `N*L` 相干积累的处理后回波**，不是 raw 回波。实测 600 m / RCS 0.1：`echo/n0 = -2.3 dB`，而 raw 回波约比 `n0` 低 37 dB——差的正是 `G_proc = 36.1 dB`。
+   * 近远比 41.3 dB 是在 **legacy 几何（4 km / RCS 50 m²）**标定的，它是几何/RCS 的量，**搬到 600 m / RCS 0.1 后实测为 50.9 dB**。
+   两者叠加才算出那个虚假的 47 dB。正确读数：κ=40 时 `residual/n0 = +8.7 dB`，而处理后回波 `= -2.3 dB` ⇒ 残余直连比（处理后）回波高 **11.0 dB**，与"50.9 − 40 = 10.9 dB"自洽。详见 `config.py` 中 `direct_cancellation_db` 的新注释。
 
 ---
 
@@ -195,3 +202,136 @@ python -c "import json;d=json.load(open('results_v1_lowrcs_shortfall/shortfall_s
 - 一次 MC 记录每条选中链路的 `gamma` / `rinr` / `dshare`，**所有杠杆在闭式后处理里应用**——因为分子类精确线性、分母类有闭式，不需要为每个杠杆重跑仿真；
 - `dshare` 用"把 `direct_cancellation_db` 加深 20 dB 再算一次"反推，不假设 `self`/`multi` 项的相对大小；
 - `apply_steps` 显式跟踪 `d_cur`（当前噪声底）与 `res`（残留干扰绝对值）。**不要退回单变量 `tot` 递推**：噪声系数杠杆会改变噪声底，混在一起会把组合路径算成负分母（已发生过一次，表现为 gap 打印 `999.90` = inf）。
+
+---
+
+## 8. 增益入口的闭合性：系统里还有没有"额外增益"？（2026-09-18 增补）
+
+**问题**：在 500–800 m / RCS 0.05–0.2 带内，缺口大到让 `P_D^req=0.95` 只剩 `G_hw` 一条路。那么系统里**还有没有没被开采的增益**？本文的回答是：入口可穷举，未开采的只有 4 个，其中**只有 1 个是真增益**。
+
+### 8.1 入口是可穷举的，不是"再试试别的旋钮"
+
+§1 的组装式就是 `isac_sim/model.py:743-828` 的全部物理。任何"增益"只能从下面 11 个位置进入；其余 150+ 个配置字段**不在链路上**，怎么改都动不了 $\gamma$ 与 LLR 矩：
+
+| 位置 | 代表键 | 家族（§2） |
+|---|---|---|
+| 感知功率占比 `rho` | `radio.rho` | 分子 |
+| 发射功率 `P` | `radio.P_default` | 分母（饱和） |
+| `target_gain` | RCS、几何、`path_loss_exp`、`shadow_std_db`、`rician_K_db` | 分子 |
+| `G_proc` | `waveform.N·L` 或 `detect.sensing_processing_gain` | 分子 |
+| `G_hw` | `radio.radar_net_gain_db`（或 tx/rx 增益与系统损耗） | 分子 |
+| `collision_penalty · dd_loss` | `dd.dd_collision_alpha`、DD 有效性 | 分子 |
+| `waveform_capture` | `waveform_impairments.*`（开起来只会 ≤1） | 分子 |
+| `n0` | `noise_figure_db`、带宽 | 分母（饱和） |
+| 三项残差 | `interference.direct_cancellation_db`、`residual_*_factor`、照明机调度 | 减分母 |
+| `eps` | `radio.eps_mode` / `eps_rel_db` | 分母护栏 |
+| 样本数 / 相关 | `detect.n_looks`、`refine.*`、`corr.*` | 样本数 |
+
+⇒「还有额外增益吗」**等价于**「这 11 个位置里哪些还没开采」，可穷举，不必逐个试旋钮。
+
+### 8.2 新工作点（600 m / RCS 0.1）上只有 4 个位置未开采
+
+实测（`tools/probe_lever_closure.py`，解析界、mc=24、`--areas 600 --rcs 0.1`；base gap = **5.62 dB**）：
+
+| 未开采入口 | gap 变为 | 买到 | 判读 |
+|---|---:|---:|---|
+| **垂直几何降到 h 200–500 m** | **2.79** | **2.83 dB** | ✅ 真增益，且**免费** |
+| `radio.rho` 0.8 → 1.0 | 4.97 | 0.65 | ⚠️ 不免费：用 20% 通信功率换，通信代价未建模 |
+| `isac_power_model=joint_waveform`（并发口径） | 5.53 | 0.09 | ✗ 分母同步 ×1.25 ⇒ 退化为饱和的功率步 |
+| `interference.coupling=legacy` | **6.08** | **−0.46** | ✗ **不是增益，是删掉了干扰杠杆** |
+
+`legacy` 值得单独说：它把直射残差整项删掉、改用解耦的手调地板（`residual_direct_factor` 等），直觉上应"白拿"。实测相反——600/0.1 上**反而更差**，且 **`kappa_dc` 在 legacy 下完全失联**（40/50/60/80 dB 给出同一个 gap `6.08`）。原因：手调地板在数值上与共享谱下的 `kappa_dc·I` 同量级，而它同时抹掉了唯一能压低它的物理旋钮。**所以 legacy 是"没有干扰杠杆的模型"，不是"更好的模型"。**
+
+三个"看起来像开关"的项也已排除：
+
+| 项 | 实测 | 判读 |
+|---|---|---|
+| `refine.apply_to_all=True` | 5.621 → 5.621（逐位不变） | 结构上不可能有用：它只影响选择器候选集**之外**的链路，而 gap 只在选中链路上算 |
+| `corr.enable=True` | 5.62 → 5.83（**+0.21**） | 负收益。V1 的 `corr=off` 是**乐观**设定，打开是损失不是增益 |
+| `isac_power_model=joint_waveform`（**正交口径**） | 5.621 → **5.007**（−0.61） | ⚠️ **记账白拿**，见 §8.3 |
+
+### 8.3 ⚠️ 新查出的口径不一致：正交口径下 `joint_waveform` 白送 0.97 dB
+
+`model.py:648-651` 在 `orthogonal` 下把感知干扰场**写死**成 `P_rad_sense = P_sense`（与 `isac_power_model` 无关）；而 `model.py:782-788` 的 `effective_sensing_power` 却随功率模型取 `P_sense` 或 `P_sense+P_comm`。于是同一个开关在两个口径下含义不同：
+
+| 口径 | `sensing_only` → `joint_waveform` | 物理上应该 |
+|---|---|---|
+| `full_concurrent` / `active_set`（并发） | gap 5.62 → 5.53（**−0.09 dB**） | 信号与干扰同乘 1.25 ⇒ 基本抵消 ✓ |
+| **`orthogonal`（V1 发布口径）** | gap 5.621 → **5.007（−0.61 dB）** | — |
+
+该 −0.61 dB 与 `rho 0.8→1.0` 的 0.65 dB 几乎相同 ⇒ 模型把"通信功率并用于感知"的收益**全给了分子、没给分母**。正交口径的语义是"感知观测期内不发射载荷"，所以这个增益是**记账产物而非物理**。**不要在正交口径下用 `joint_waveform` 申报增益**；若要改功率模型，必须同时改口径并重述假设。
+
+### 8.4 高度这一项为什么值得单独说
+
+同一面积（600 m）、同一 RCS（0.1）、同一 seed、同一 `comm_range`（实测无影响，见 §8.5），只换垂直几何：
+
+| 几何 | UAV / 目标高度 | 双站距离中位（500 → 800 m） | gap（600/0.1） | `rinr` 中位 |
+|---|---|---:|---:|---:|
+| `paper-vertical` | 800–1200 / 700–1500 m | 726 → 997 m（**2.7 dB**） | 5.62 | +8.05 dB |
+| `compact-small-uav` | 200–500 / 200–500 m | 577 → 865 m（**7.1 dB**） | **2.79** | +8.83 dB |
+
+低高度把分母**抬高**了（`rinr` +8.05 → +8.83 dB），但分子的 $d^{-4}$ 涨得更快 ⇒ 净赚 2.83 dB 缺口。**"缩场地"替代不了"降高度"。**
+
+⚠️ 不是"改一个数字"：它把平台从"中高空 UAV"改成"低空小无人机"，需独立论证（`MOBILE_GEOMETRY_FEASIBILITY.md`）。
+
+⚠️ **2.7 / 7.1 dB 是"链路预算的 500→800 m 位移"，不是"P_D 对距离的斜率"**。实测 P_D 斜率反而
+`compact` 更小（σ=0.05：−0.049 vs `paper-vertical` 的 −0.082），因为 `compact` 把整张图抬到
+接近饱和区。**低高度的作用是整体抬升（+0.077…+0.211 P_D），不是把距离轴拉直**
+（`LOW_RCS_SCENARIO_500_800.md` §2/§5/§5B）。
+
+### 8.5 附带查清：`comm_range` 在 500–800 m 带内不约束（拓扑退化为完全图）
+
+`geometry.comm_range` 只喂 `model.py:342` 的 `edge_mask`，而 `edge_mask` **确实**用在选择（`selection.py:183`）与上报（`reporting.py:216,220,229,284,386,543`）上。实测连通边数（seed 10917，前 6 个 trial）：
+
+| 面积 | `comm_range` = 1.25×边长 | = 2500 m | 连通边 / 210 | 最大 UAV 间距 |
+|---:|---:|---:|---:|---:|
+| 500 | 625 | 2500 | **210 / 210** | 568 m |
+| 600 | 750 | 2500 | **210 / 210** | 666 m |
+| 700 | 875 | 2500 | **210 / 210** | 767 m |
+| 800 | 1000 | 2500 | **210 / 210** | 869 m |
+| 4000 | — | 2500 | **138 / 210** | 4238 m |
+
+⇒ 带内 UAV 图**恒为完全图**，`comm_range` 取 625 还是 2500 结果逐位相同（这也是 §8.4 两个"低高度"臂逐格一致的原因）；论文 4 km 工作点才是部分图（138/210）。**任何依赖"邻居稀疏 / 拓扑选择"的结论不能从 4 km 搬到这条带**；带内的 `comm_range` 取值（含既有预设 `small-uav-compact-800m` 的 1000 m）是**装饰性**的。
+
+### 8.6 排序（新带内，600 m / RCS 0.1）
+
+| # | 动作 | gap 5.62 → | 代价 | 是不是物理增益 |
+|---|---|---:|---|---|
+| 1 | `G_hw` +15 dB | 1.83 | 天线/EIRP/损耗 | ✅ 真实，但需平台设计（`RADAR_LINK_BUDGET_CALIBRATION.md` 仍标 "calibration bridge"） |
+| 2 | 垂直几何降到 h 200–500 m | 2.79 | 换平台假设 | ✅ **免费** |
+| 3 | `kappa_dc` 40 → 60 dB | 1.52 | 需 18.7 dB 对消能力论证 | ✅ |
+| 4 | `G_proc` ×64 | 0.43 | 带宽 / 时间 | ✅ |
+| 5 | `n_looks` 16 → 256 | 2.13 | CPI ×16 | ✅ |
+| — | `rho`→1.0 / `joint@orthogonal` | 4.97 / 5.01 | 通信代价 / 记账 | ⚠️ 非免费 / 非物理 |
+| — | `joint@concurrent` / `corr` / `refine_all` / `legacy` | 5.53 / 5.83 / 5.62 / 6.08 | — | ✗ |
+
+**没有第 12 个入口。** 算法侧（§5）的空间是"重新分配预算"，物理侧剩下的都在上表里。
+
+### 8.7 复现
+
+```bash
+PY=E:/anaconda/3_11_python/python.exe
+# base（paper-vertical，600 m / RCS 0.1）
+$PY -u tools/probe_lever_closure.py --areas 600 --rcs 0.1 --mc 24 --workers 3 \
+    --out results_v1_lever_closure_pv600
+# 纯低高度臂（只改高度，comm_range 不动）
+$PY -u tools/probe_lever_closure.py --areas 600 --rcs 0.1 --mc 24 --workers 3 \
+    --override geometry.h_uav_min=200 --override geometry.h_uav_max=500 \
+    --override geometry.h_target_min=200 --override geometry.h_target_max=500 \
+    --out results_v1_lever_closure_pv600_lowalt
+# 紧凑场景臂（高度 + comm_range）
+$PY -u tools/probe_lever_closure.py --areas 600 --rcs 0.1 --mc 24 --workers 3 \
+    --scenario compact-small-uav --out results_v1_lever_closure_compact
+# 四个"未开采入口"臂
+$PY -u tools/probe_lever_closure.py --areas 600 --rcs 0.1 --mc 24 --workers 3 \
+    --override interference.coupling=legacy --out results_v1_lever_closure_arm_legacy
+$PY -u tools/probe_lever_closure.py --areas 600 --rcs 0.1 --mc 24 --workers 3 \
+    --override refine.apply_to_all=True --out results_v1_lever_closure_arm_refineall
+$PY -u tools/probe_lever_closure.py --areas 600 --rcs 0.1 --mc 24 --workers 3 \
+    --override corr.enable=True --out results_v1_lever_closure_arm_corr
+$PY -u tools/probe_lever_closure.py --areas 600 --rcs 0.1 --mc 24 --workers 3 \
+    --override radio.isac_power_model=joint_waveform \
+    --out results_v1_lever_closure_arm_jointorth
+```
+
+⚠️ `--override` 与 `--scenario` 是 2026-09-18 新增的**可选**入口，默认行为（`paper-vertical`、无 `--override`）与旧版逐位一致：`results_v1_lever_closure_pv600` 的 base 行 = **5.621**，与存档 `results_v1_lever_closure/closure.json` 的 600/0.1 列**逐位相同**。

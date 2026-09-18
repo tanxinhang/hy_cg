@@ -620,9 +620,34 @@ def compute_link_tables(
         else:
             P_rad_sense = P_sense + P_comm
             P_rad_pay = P_comm
-        if ic.sense_gate_by_active_tx and active_tx_mask is not None:
-            P_rad_sense = (P_sense + P_comm) * active_tx_mask
         P_leak = P_sense                                  # always radiated
+        # --- Coordination gate --------------------------------------------
+        # A muted node radiates NOTHING: not its sensing waveform, and not its
+        # leakage into the other receivers. The gated power must reproduce the
+        # UNGATED expression of the current 口径 -- the previous implementation
+        # always used ``(P_sense + P_comm) * mask``, which under the orthogonal
+        # release口径 silently switched the radiated power from ``P_sense``
+        # (= rho*P) to ``P_sense + P_comm`` (= P): 25% more interference, i.e.
+        # enabling coordination made the baseline worse before the coordination
+        # could help. With the fix, gating with an all-True mask is a no-op.
+        # Only active when the gate is enabled, so the frozen default path is
+        # bit-exact.
+        # ``gate_echo`` mirrors the block below into the *observation* path: a
+        # muted node radiates nothing, so its echo cannot be received either.
+        # Without it the gate deletes a muted illuminator's interference but
+        # keeps its observation, so a mask that omits an illuminator the
+        # schedule still uses is credited with detection it could not achieve
+        # (measured before the fix: with every node muted, 2100 of 2250
+        # sensing-SINR entries were still positive).
+        gate_echo = bool(ic.sense_gate_by_active_tx and active_tx_mask is not None)
+        if gate_echo:
+            if c.interference_model == "orthogonal":
+                P_rad_sense = P_sense * active_tx_mask
+                P_rad_pay = np.zeros_like(P_comm)
+            else:
+                P_rad_sense = (P_sense + P_comm) * active_tx_mask
+                P_rad_pay = P_comm * active_tx_mask
+            P_leak = P_sense * active_tx_mask
         I_sense_field = P_rad_sense @ base.direct_gain      # (M,) direct-path field at j
         I_pay_field = P_rad_pay @ base.direct_gain          # (M,) report-payload field at j
         I_leak_field = P_leak @ base.direct_gain            # (M,) sensing-waveform leakage at j
@@ -631,6 +656,7 @@ def compute_link_tables(
         I_sense_field = I_pay_field = I_leak_field = None
         P_leak = None
         kappa_dc = 0.0
+        gate_echo = False
 
     gamma_comm = np.zeros((M, M))
     rate = np.zeros((M, M))
@@ -761,6 +787,13 @@ def compute_link_tables(
                 effective_sensing_power = P_sense[i] + chi_comm[i, j] * P_comm[i]
             else:
                 raise ValueError(f"Unknown isac_power_model={r.isac_power_model!r}")
+
+            if gate_echo and not active_tx_mask[i]:
+                # Muted illuminator: no waveform was radiated on this CPI, so
+                # there is nothing to receive.  Both ``signal`` and
+                # ``raw_signal`` are built from this factor, so one assignment
+                # covers the gated observation and its raw SINR baseline.
+                effective_sensing_power = 0.0
 
             for q in range(Q):
                 if cfg.dd.use_otfs_bin_validity and (not base.valid_dd[i, j, q]):

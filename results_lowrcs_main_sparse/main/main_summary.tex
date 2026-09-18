@@ -1,0 +1,30 @@
+\begin{table}[t]
+    \centering
+    \caption{Main numerical comparison of different link selection methods.}
+    \label{tab:main_summary}
+    \begin{tabular}{l c c c c c}
+        \hline
+        Method & $P_D$ & $P_{\mathrm{FA}}$ & Delay/ms & Reports & $P_D$/ms \\
+        \hline
+        Proposed C2F & 0.6646 & 0.0487 & 9.22 & 8.64 & 0.0721 \
+        Proposed adaptive C2F & 0.6681 & 0.0489 & 7.67 & 7.19 & 0.0872 \
+        Proposed adaptive C2F (detector-aligned) & 0.7025 & 0.0485 & 9.04 & 8.48 & 0.0777 \
+        Proposed C2F (detector-aligned) & 0.7008 & 0.0490 & 10.56 & 9.90 & 0.0664 \
+        Proposed full DD refinement & 0.6621 & 0.0487 & 9.96 & 9.33 & 0.0665 \
+        Full refinement + detector-PD greedy & 0.7058 & 0.0487 & 11.71 & 10.98 & 0.0603 \
+        Proposed & 0.6880 & 0.0485 & 10.86 & 10.18 & 0.0634 \
+        Sensing-SINR & 0.7481 & 0.0493 & 14.66 & 13.74 & 0.0510 \
+        Raw sensing-SINR & 0.6984 & 0.0491 & 16.09 & 15.09 & 0.0434 \
+        Single-best & 0.6445 & 0.0493 & 4.77 & 4.47 & 0.1351 \
+        Top-K Deflection & 0.7512 & 0.0491 & 14.21 & 13.32 & 0.0529 \
+        Global Top-K Deflection & 0.5174 & 0.0497 & 14.32 & 13.42 & 0.0361 \
+        Cost-Aware Greedy & 0.6825 & 0.0491 & 0.00 & 0.00 & 682500000000.0000 \
+        Exact-Marginal Greedy & 0.6822 & 0.0490 & 15.77 & 14.79 & 0.0433 \
+        Nearest & 0.4056 & 0.0490 & 27.12 & 25.43 & 0.0150 \
+        Shortest-bistatic & 0.7246 & 0.0492 & 15.36 & 14.40 & 0.0472 \
+        Random & 0.4080 & 0.0489 & 25.49 & 23.90 & 0.0160 \
+        All-neighbor & 0.9772 & 0.0495 & 982.12 & 920.74 & 0.0010 \
+        sense-sinr-budgeted & 0.8607 & 0.0495 & 31.24 & 29.28 & 0.0276 \
+        \hline
+    \end{tabular}
+\end{table}

@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # ⚠️ 稿件数字与当前代码一致性告警
 
 日期：2026-09-16
@@ -57,7 +59,7 @@
 | 时间 | 事件 |
 |---|---|
 | 2026-09-14 17:46 | `84ae01c` release target-local fusion V1 and rebuild manuscript |
-| **2026-09-14 18:39** | **`results_target_local_v1/main/main.csv` 生成**（主实验 MC=1000） |
+| **2026-09-14 18:39** | **`_archive/2026-09-18/results_target_local_v1/main/main.csv` 生成**（主实验 MC=1000） |
 | 2026-09-14 19:19 | `overview/fusion-rule/fusion-rule.csv` 生成（MC=100） |
 | 2026-09-14 19:23 | `69f3300` 提交这批结果（即文档所称"生成主结果的源版本 69f3300"） |
 | **2026-09-15 01:26** | **`03f9612` 判决阈值更换为 `calibrated_fused_threshold`** |
@@ -120,7 +122,7 @@ thr = calibrated_fused_threshold(
    `gaussian_replacement` 在**选择**上有细微差异（预测 $P_D$ 不同 → 选择略变），
    但恰好不改变检测结果。**两者不是同一个模型**。
 
-产物：`results_v1_failure_model_check/erasure/`、`results_v1_utility_ablation/full/`。
+产物：`_archive/2026-09-18/results_v1_failure_model_check/erasure/`、`_archive/2026-09-18/results_v1_utility_ablation/full/`。
 
 ---
 
@@ -144,7 +146,7 @@ thr = calibrated_fused_threshold(
 2. ~~同步重跑 `overview/fusion-rule`、`prediction-stress`、`geometry`~~ → 已完成（overview 全部 6 个扫描 + prediction-stress + full-refinement）。
 3. ~~重建论文图~~ → 已完成，`tools/make_target_local_v1_paper_figs.py`（fig2/3 主稿 + fig4 补充材料）。
    ⚠️ 注意本文原稿写的 `tools/make_paper_figs.py` **是错的**：那读的是另一套
-   `results_release` 协议（$P_D$ 量级 0.87），与 V1 释放线无关。
+   `_archive/2026-09-18/results_release` 协议（$P_D$ 量级 0.87），与 V1 释放线无关。
 4. ~~更新 `SUBMISSION_TRACEABILITY.md` 的 commit 边界~~ → 已完成，同日重建。
 5. 不需要走"声明数字对应旧实现"的降级路线。
 

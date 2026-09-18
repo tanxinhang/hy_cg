@@ -41,6 +41,8 @@
     "interference.coupling": "shared_spectrum",
     "interference.direct_cancellation_db": 40.0,
     "interference.sense_gate_by_active_tx": false,
+    "coordination.enable": false,
+    "coordination.rounds": 6,
     "detect.soft_stat_model": "llr",
     "detect.n_looks": 16,
     "detect.Pfa_target": 0.05,
@@ -115,7 +117,9 @@
     "detect.target_rcs": 50.0,
     "waveform_impairments.enable": false,
     "run.num_mc": 200,
-    "run.seed": 2026
+    "run.seed": 2026,
+    "selector.tx_penalty": 0.0,
+    "selector.max_tx_nodes": null
   },
   "methods": {
     "default": [
@@ -182,6 +186,7 @@
     "topk_deflection": 641
   },
   "baseline_csv_md5": "659a07d4ce262d311303c5eb90d8b17e",
+  "release_baseline_csv_md5": "417d016b912f67558750610edfc8d42e",
   "preset_registry": [
     "capacitated-target-fusion-v1.1",
     "isac-consistent",
@@ -196,5 +201,10 @@
     "small-uav-sparse-s3",
     "target-local-v1",
     "target-local-waveform-v2-phase1"
-  ]
+  ],
+  "environment": {
+    "python": "3.11.0",
+    "implementation": "CPython",
+    "numpy": "2.2.6"
+  }
 }

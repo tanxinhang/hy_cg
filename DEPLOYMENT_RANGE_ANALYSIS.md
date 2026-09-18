@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # 部署距离的影响：600 m 与 4 km 对照
 
 > ⚠️ **数字口径**：本文引用的是 2026-09-16 晚重跑前的 V1 主结果（`0.9762` 等）。
@@ -6,8 +8,8 @@
 > 新数字见 `SUBMISSION_TRACEABILITY.md` §3/§7。
 
 日期：2026-09-16。本文回答"4 km 是不是太远了、改成 600 m 会怎样"，全部数据来自实跑，
-并标注口径、交叉验证与边界。配套数据：`results_v1_geometry_wide/`、
-`results_v1_distance_paperproto/`；机制探针：`tools/probe_geometry_scaling.py`。
+并标注口径、交叉验证与边界。配套数据：`_archive/2026-09-18/results_v1_geometry_wide/`、
+`_archive/2026-09-18/results_v1_distance_paperproto/`；机制探针：`tools/probe_geometry_scaling.py`。
 
 ## 0. 一句话结论
 
@@ -26,7 +28,7 @@
 所有新数据基于冻结协议：`target-local-v1` preset、Gaussian replacement 失败模型、
 `seed=10917`、MC=100、15 UAV / 10 目标，**只改 `geometry.area_xy`、`detect.target_rcs`、
 `selector.max_remote_reports`**。`results_v1_rcs_600m`（600 m 低 RCS）与
-`results_v1_rcs_joint`（4 km 低 RCS）、`results_v1_rcs_wide`（4 km 高 RCS）共享同一
+`results_v1_rcs_joint`（4 km 低 RCS）、`_archive/2026-09-18/results_v1_rcs_wide`（4 km 高 RCS）共享同一
 100 个基础场景，因此可逐场景（逐 trial）配对，而不是当独立样本比较。
 
 **口径差异已核实并消除。** 扫描走 `tools/audit_v1_exact_budget.config()`，它显式覆盖了
@@ -46,7 +48,7 @@
 本文件所有 P_D 曲线两者皆可引用；**涉及报告数/时延的数值须注明是否带上限**。
 
 论文口径复跑 4 km/50 m² 得到 0.9800 / 12.42 / 0.85 / 0.9067 ms，与审计口径逐位一致；
-与已发表 `results_target_local_v1/main/main.csv`（0.9762 / 12.101 / 0.751 / 0.801 ms）
+与已发表 `_archive/2026-09-18/results_target_local_v1/main/main.csv`（0.9762 / 12.101 / 0.751 / 0.801 ms）
 的差异来自**种子不同**（10917 vs 论文主实验）与 09-15 判决阈值更换，不是口径错误。
 
 ## 2. 600 m 全 RCS 曲线（K=8，平均目标 P_D，方法 `proposed_c2f_adaptive_pd`）
@@ -108,7 +110,7 @@
 
 弱目标在 2 km→4 km 掉 0.265；强目标在论文自带的几何扫描（2500→5500 m）只掉 0.060。
 **在 50 m² 上距离几乎无关紧要；在 0.2 m² 上 600→4000 m 就是生死线。**
-（论文 2500/4000/5500 m 三点来自 `results_target_local_v1/overview/geometry`，
+（论文 2500/4000/5500 m 三点来自 `_archive/2026-09-18/results_target_local_v1/overview/geometry`，
 生成于 09-14 旧判决阈值，绝对量级有约 0.002–0.007 的口径差，仅用于看趋势。）
 
 ## 4. 为什么只买到一半：机制分解
@@ -190,6 +192,6 @@ $PY run_isac_sim.py $FLAGS --set detect.target_rcs=5   --set geometry.area_xy=60
 $PY run_isac_sim.py $FLAGS --set detect.target_rcs=50  --set geometry.area_xy=4000 --out results_v1_distance_paperproto/d4000_rcs50
 ```
 
-输出：`results_v1_geometry_wide/{protocol,summary}.json`、`geometry_summary.csv`（119 行）、
+输出：`_archive/2026-09-18/results_v1_geometry_wide/{protocol,summary}.json`、`geometry_summary.csv`（119 行）、
 `geometry_contrasts.json`（含逐场景配对区间与等效 RCS 换算）；
-`results_v1_distance_paperproto/*/main/{main.csv,trials.csv,config.json}`。
+`_archive/2026-09-18/results_v1_distance_paperproto/*/main/{main.csv,trials.csv,config.json}`。

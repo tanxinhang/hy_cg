@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # V1 小规模精确基准与同预算验证
 
 日期：2026-09-16。用途：检验能否补强当前论文的最优性边界和比较公平性；不预设结果有利于V1。
@@ -153,11 +155,11 @@ E:/anaconda/3_11_python/python.exe tools/audit_v1_exact_budget.py --kind budget 
 E:/anaconda/3_11_python/python.exe tools/audit_v1_balanced_budget.py
 ```
 
-输出目录：results_v1_exact_budget/exact、results_v1_exact_budget_m4/exact、results_v1_exact_budget/budget。各目录包括逐场景CSV、汇总JSON、配置与源码哈希protocol.json。M=3完成后为支持M=4扩展了脚本接口，早期protocol保留当时源码哈希；数值目标与预算比较实现未更换。
+输出目录：_archive/2026-09-18/results_v1_exact_budget/exact、_archive/2026-09-18/results_v1_exact_budget_m4/exact、_archive/2026-09-18/results_v1_exact_budget/budget。各目录包括逐场景CSV、汇总JSON、配置与源码哈希protocol.json。M=3完成后为支持M=4扩展了脚本接口，早期protocol保留当时源码哈希；数值目标与预算比较实现未更换。
 
 新增tests/test_v1_exact_budget_audit.py验证向量目标与原标量目标一致、预算嵌套的oracle值单调性、差距分解、V1配置边界、零方差区间处理，以及均衡对照的目标覆盖和报告上限。全量测试：160 passed，6 subtests passed。没有替换原论文PDF、默认算法或83.7%的历史主实验。
 
-补充目录results_v1_exact_budget_obs12/budget保存共同观测上限12的初始对照，results_v1_balanced_budget保存覆盖均衡控制、分配集合及目标覆盖信息。所有运行均已完成。原规模60上限的1000条方法结果与小规模枚举均无报告/观测上限违规；后续12上限和均衡对照也逐场景执行相同约束断言。
+补充目录_archive/2026-09-18/results_v1_exact_budget_obs12/budget保存共同观测上限12的初始对照，_archive/2026-09-18/results_v1_balanced_budget保存覆盖均衡控制、分配集合及目标覆盖信息。所有运行均已完成。原规模60上限的1000条方法结果与小规模枚举均无报告/观测上限违规；后续12上限和均衡对照也逐场景执行相同约束断言。
 
 ## 6. 对论文的实际补强价值
 

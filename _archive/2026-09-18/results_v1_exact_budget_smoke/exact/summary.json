@@ -1,0 +1,86 @@
+{
+  "0": {
+    "trials": 2,
+    "placement_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    },
+    "selection_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    },
+    "total_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    }
+  },
+  "1": {
+    "trials": 2,
+    "placement_gap": {
+      "mean": 0.0034637823053068617,
+      "max": 0.006927564610613723,
+      "p95": 0.006581186380083037,
+      "zero_fraction": 0.5
+    },
+    "selection_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    },
+    "total_gap": {
+      "mean": 0.0034637823053068617,
+      "max": 0.006927564610613723,
+      "p95": 0.006581186380083037,
+      "zero_fraction": 0.5
+    }
+  },
+  "2": {
+    "trials": 2,
+    "placement_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    },
+    "selection_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    },
+    "total_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    }
+  },
+  "4": {
+    "trials": 2,
+    "placement_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    },
+    "selection_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    },
+    "total_gap": {
+      "mean": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "zero_fraction": 1.0
+    }
+  }
+}

@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # Repository release contract
 
 ## 2026-09-16 conference-review clarification
@@ -16,8 +18,8 @@ and silently claim an unchanged experiment. Original CSVs remain historical
 evidence; mapping this field does not assert bitwise parity across later
 source changes.
 
-New Gaussian-replacement component checks are in results_isac_review_revision;
-the explicit zero-replacement audit is in results_isac_review_revision_erasure.
+New Gaussian-replacement component checks are in _archive/2026-09-18/results_isac_review_revision;
+the explicit zero-replacement audit is in _archive/2026-09-18/results_isac_review_revision_erasure.
 Neither replaces the archived MC=1000 headline.
 
 > **Track separation.** The conference manuscript in
@@ -95,7 +97,7 @@ applies this preset before any experiment-specific override.
    `power_only`, `combined`) and the disjoint held-out aspect set before any
    architecture-gain claim.
 5. `python tools/rerun_paper.py --mc 1000 --workers 4 --out results_release`
-6. Regenerate manuscript figures only from `results_release`.
+6. Regenerate manuscript figures only from `_archive/2026-09-18/results_release`.
 7. Replace every numerical claim inherited from commit `603b61d`; those values
    were produced by a different model and are not canonical-release evidence.
 8. Compile the manuscript and visually inspect every page before tagging a
@@ -109,7 +111,7 @@ but must be labelled as such.
 - [x] Canonical configuration, validation, and consistency tests.
 - [x] Canonical main comparison, 1000 paired trials.
 - [x] Finite-instance structural audit (10 scenarios) and 50 exact-oracle cases.
-- [x] Figure 2 regenerated from `results_release` and manuscript compiled.
+- [x] Figure 2 regenerated from `_archive/2026-09-18/results_release` and manuscript compiled.
 - [ ] Canonical sensitivity, ablation, FBL, correlation, belief, and robustness
   sweeps at their final trial counts.
 - [ ] Final page-by-page camera-ready inspection after all release figures have

@@ -21,6 +21,17 @@ Only ``main`` feeds ``figs/fig2_v1_main_comparison.pdf`` and the headline table;
 ``overview`` feeds ``figs/fig3_v1_fusion_ablation.pdf`` and the supplement
 operating-envelope figure.  Both consume detection counts, so both must be
 regenerated whenever the detector's sampling path changes.
+
+Scenario re-anchoring
+---------------------
+``--set`` forwards extra dotted-path overrides to ``run_isac_sim.py`` for the
+``main`` and ``full-refinement`` suites.  It exists so the same frozen preset can
+be evaluated under a *different declared scenario* - e.g. the 500-800 m /
+RCS 0.05-0.2 m^2 band in ``LOW_RCS_SCENARIO_500_800.md`` - without editing the
+preset, which is part of the release identity.  With no ``--set`` the command
+lines are unchanged and therefore bit-exact against the archived V1 tree.
+``overview`` and ``prediction-stress`` drive their own scripts and reject
+``--set`` rather than ignoring it.
 """
 
 from __future__ import annotations
@@ -80,7 +91,8 @@ def assert_preset_semantics() -> None:
     )
 
 
-def run_main(out: Path, mc: int, seed: int, workers: int, plots: bool) -> None:
+def run_main(out: Path, mc: int, seed: int, workers: int, plots: bool,
+             extra: list[str]) -> None:
     cmd = [
         sys.executable,
         str(RUN),
@@ -104,6 +116,8 @@ def run_main(out: Path, mc: int, seed: int, workers: int, plots: bool) -> None:
         str(out),
         "--quiet",
     ]
+    for item in extra:
+        cmd += ["--set", item]
     if not plots:
         cmd.append("--no-plots")
     checked_run(cmd)
@@ -138,7 +152,7 @@ def normalize_flat_mode_dir(root: Path, mode: str) -> None:
 
 
 def run_full_refinement(out: Path, mc: int, seed: int, workers: int,
-                        plots: bool) -> None:
+                        plots: bool, extra: list[str]) -> None:
     cmd = [
         sys.executable,
         str(RUN),
@@ -162,6 +176,8 @@ def run_full_refinement(out: Path, mc: int, seed: int, workers: int,
         str(out),
         "--quiet",
     ]
+    for item in extra:
+        cmd += ["--set", item]
     if not plots:
         cmd.append("--no-plots")
     checked_run(cmd)
@@ -213,6 +229,12 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument(
+        "--set", dest="overrides", action="append", default=[],
+        metavar="KEY=VALUE",
+        help="scenario override forwarded to run_isac_sim.py (main and "
+             "full-refinement suites only); repeatable",
+    )
+    parser.add_argument(
         "--out", type=Path, default=ROOT / "results_target_local_v1"
     )
     parser.add_argument("--skip-tests", action="store_true")
@@ -227,6 +249,10 @@ def main() -> int:
 
     suites = SUITES if args.suite == "all" else (args.suite,)
     plots = not args.no_plots
+    if args.overrides and set(suites) - {"main", "full-refinement"}:
+        parser.error("--set only applies to the main and full-refinement "
+                     "suites; overview and prediction-stress drive their own "
+                     "scripts and would silently ignore it")
 
     if not args.skip_tests:
         checked_run(
@@ -242,11 +268,12 @@ def main() -> int:
     assert_preset_semantics()
 
     if "main" in suites:
-        run_main(args.out, args.mc, args.seed, args.workers, plots)
+        run_main(args.out, args.mc, args.seed, args.workers, plots,
+                 args.overrides)
     if "full-refinement" in suites:
         fr_out = args.out / "full-refinement-pd"
         run_full_refinement(fr_out, args.full_refinement_mc, args.seed,
-                            args.workers, plots)
+                            args.workers, plots, args.overrides)
         normalize_flat_mode_dir(fr_out, "main")
     if "overview" in suites:
         run_overview(args.out, args.overview_mc, args.seed, args.workers)

@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # 投稿可追溯边界（Submission Traceability）
 
 日期：2026-09-16
@@ -58,7 +60,7 @@
 
 ### 主比较（`SimulationResults.tex` 表 1、图 `fig2_v1_main_comparison`）
 
-来源：`results_target_local_v1/main/main.csv`（MC=1000，seed 2026）
+来源：`_archive/2026-09-18/results_target_local_v1/main/main.csv`（MC=1000，seed 2026）
 `method` 列取 `proposed_c2f_adaptive_pd` / `exact_marginal_greedy` / `sense_sinr`。
 
 | 正文表述 | CSV 列 | 值 |
@@ -76,7 +78,7 @@
 
 ### 全精细控制（MC=200）
 
-来源：`results_target_local_v1/full-refinement-pd/main.csv`
+来源：`_archive/2026-09-18/results_target_local_v1/full-refinement-pd/main.csv`
 
 | 正文表述 | 列 | 值 |
 |---|---|---|
@@ -88,7 +90,7 @@ full-refinement 是**计算控制组，不是 oracle**。
 
 ### 融合位置消融（图 `fig3_v1_fusion_ablation`，MC=100）
 
-来源：`results_target_local_v1/overview/fusion-rule/fusion-rule.csv`（`fusion_rule` 列区分）
+来源：`_archive/2026-09-18/results_target_local_v1/overview/fusion-rule/fusion-rule.csv`（`fusion_rule` 列区分）
 
 | 正文表述 | 列 | max-in-rate / max-min-rate / nearest-target |
 |---|---|---|
@@ -103,8 +105,8 @@ full-refinement 是**计算控制组，不是 oracle**。
 
 ### 运行边界（`Operating Boundaries` 小节）
 
-来源：`results_target_local_v1/overview/geometry/geometry.csv`、
-`results_target_local_v1/prediction-stress/prediction_stress.csv`
+来源：`_archive/2026-09-18/results_target_local_v1/overview/geometry/geometry.csv`、
+`_archive/2026-09-18/results_target_local_v1/prediction-stress/prediction_stress.csv`
 
 | 正文表述 | 来源列 | 值 |
 |---|---|---|
@@ -228,7 +230,7 @@ E:/anaconda/3_11_python/python.exe tools/rerun_target_local_v1.py \
 
 **已同步文件**：`SimulationResults.tex`（§Detection、§Fusion-Placement、§Operating Boundaries）、
 摘要、`Conclusion.tex`、`ReproducibilitySupplement.tex`、
-`results_target_local_v1/V1_EXPERIMENT_OVERVIEW.md`、`SYSTEM_PERFORMANCE_STATUS.md`、
+`_archive/2026-09-18/results_target_local_v1/V1_EXPERIMENT_OVERVIEW.md`、`SYSTEM_PERFORMANCE_STATUS.md`、
 `MANUSCRIPT_CODE_CONSISTENCY_ALERT.md`、`V1_STABLE_RELEASE.md` §5.1、
 `PAPER_RELEASE.md`、`TARGET_LOCAL_V1.md`、`CONFERENCE_PAPER_CONVERGENCE.md`。
 

@@ -282,11 +282,18 @@ class Interference:
       2. ``kappa_dc`` is the direct-path cancellation the sensing receiver can
          achieve, not a hand-tuned floor.  Cooperative ISAC knows every
          illuminator's waveform, so the deterministic direct path can be
-         reconstructed and subtracted; the residual is set by channel-estimation
-         accuracy.  The raw near-far ratio is 30-40 dB, so ``kappa_dc`` is
-         exactly the quantity that decides whether the sensing task survives --
-         hence it is swept by the ``interference-consistency`` experiment
-         instead of being asserted.
+         reconstructed and subtracted; the residual is then set by
+         reference-aided channel-estimation accuracy.  With ``N_p`` reference
+         elements at per-element SNR ``gamma_p`` the achievable depth is
+         ``min(10 log10(N_p gamma_p), kappa_hw)``, where ``kappa_hw`` is the
+         analogue/RF ceiling that more reference cannot remove.  The derivation,
+         its numerical check against the production link tables, and the
+         literature anchors for ``kappa_hw`` are in ``KAPPA_DERIVATION.md``
+         (tool: ``tools/derive_kappa_pilot_budget.py``).  Note the raw near-far
+         ratio is a *geometric* quantity -- 41.3 dB on the legacy paper geometry
+         versus 50.9 dB on the current headline scenario -- so ``kappa_dc``
+         decides whether the sensing task survives and may not be quoted
+         without the geometry it was calibrated on.
 
     The sensing waveform is assumed to be radiated continuously (that is the
     ISAC premise), so sensing interference is independent of the reporting
@@ -295,9 +302,42 @@ class Interference:
     """
 
     coupling: str = "shared_spectrum"
-    # Direct-path cancellation at the sensing receiver, in dB.  40 dB is the
-    # near-far ratio measured for the paper geometry (41.3 dB), i.e. it cancels
-    # the direct path down to the echo power level; the sweep covers 0-80 dB.
+    # Direct-path cancellation at the sensing receiver, in dB.  This is
+    # *interference suppression*, not a signal gain: because every illuminator's
+    # waveform is known in cooperative ISAC, the deterministic direct path can
+    # be reconstructed and subtracted, and the residual is set by
+    # reference-aided channel-estimation accuracy.  It does not touch the echo
+    # term.
+    #
+    # Derived, not tuned: with N_p reference elements at per-element SNR
+    # gamma_p, least-squares subtraction leaves a residual of 1/(N_p gamma_p) of
+    # the direct power, so the achievable depth is
+    # min(10 log10(N_p gamma_p), kappa_hw), with kappa_hw the analogue/RF
+    # ceiling that more reference cannot remove (published digital-domain
+    # full-duplex ISAC reaches ~60 dB).  The shipped 40 dB is exactly
+    # N_p*gamma_p = 1e4, e.g. 100 reference elements at 20 dB -- 2.4% of this
+    # waveform's 4096 elements.  Derivation, numerical check and literature
+    # anchors: KAPPA_DERIVATION.md, tools/derive_kappa_pilot_budget.py.
+    #
+    # Calibration history (both numbers are the median of
+    # ``residual direct field / processed echo``, i.e. the echo *after* the N*L
+    # processing gain, taken from the production link tables):
+    #   * legacy paper geometry (4 km, RCS 50 m^2): 48.0 dB.  The original 40 dB
+    #     default was calibrated there, where it leaves the residual only
+    #     2.6 dB above the processed echo -- i.e. roughly level, as intended.
+    #   * current headline scenario (600 m, RCS 0.1 m^2): 52.2 dB.  The ratio is
+    #     a *geometric* quantity, so it does not carry over: at 40 dB the
+    #     residual is still about 10 dB ABOVE the processed echo, and the
+    #     sensing SINR floor (self-residual + noise) is reached near 60 dB.
+    #   Both requirements sit below the ~60 dB hardware ceiling, i.e. both are
+    #   reachable from an ordinary cooperative reference budget.
+    #
+    # Consequence: kappa is a feasibility prerequisite, not a tuning knob that
+    # buys performance.  Measured at 600 m / RCS 0.1 with MC=200:
+    #   kappa=0  -> P_D 0.0505 against P_FA 0.0495 (no detection capability),
+    #   kappa=20 -> P_D 0.0890,  kappa=40 -> P_D 0.6830.
+    # The sweep covers 0-80 dB; quoting any kappa without also quoting the
+    # geometry it was calibrated on is meaningless.
     direct_cancellation_db: float = 40.0
     # Follow the active transmitter set on the sensing side as well.  Physically
     # unnecessary (illumination is continuous) but useful to isolate the effect.
@@ -625,6 +665,21 @@ class Selector:
     # Resource limits.
     max_links_per_target: int = 6
     max_total_links: int = 60
+    # --- Coordinated-radiation price --------------------------------------
+    # Every distinct UAV that radiates during the sensing observation re-injects
+    # its own direct-path leakage into every receiver.  The released objective
+    # maximises each target's marginal detection and never asks how many nodes it
+    # is waking up, so it happily spreads 25 links over 10-11 illuminators when 3
+    # would do (measured, 500 m / RCS 0.2: capping the count lifts the worst-target
+    # P_D from 0.205 to ~0.79, and even a random 3-node cap beats the reference).
+    #
+    # ``tx_penalty`` charges this price in utility units when a candidate would
+    # introduce a *new* radiating node; ``max_tx_nodes`` is the hard-cap dual.
+    # Inter-UAV signalling is assumed ideal and instantaneous (see the paper's
+    # assumption list).  Both default to "off", so the frozen release path stays
+    # bit-exact.
+    tx_penalty: float = 0.0
+    max_tx_nodes: int | None = None
     # Counterfactual control for auditing how strongly results depend on
     # zero-report-cost evidence produced at the fusion UAV.  ``-1`` keeps the
     # nominal unlimited policy, ``0`` forbids local evidence, and a positive
@@ -646,6 +701,47 @@ class Selector:
     bundle_cg_max_iterations: int = 8
     bundle_pricing_tolerance: float = 1e-8
     bundle_exact_pricing_max_candidates: int = 10
+
+
+@dataclass
+class Coordination:
+    """Inter-UAV radiation coordination on the *release* selection path.
+
+    The released selector scores every candidate against a sensing denominator
+    in which **every** UAV radiates, so a node that illuminates nothing still
+    injects its direct-path leakage into every receiver.  Coordination closes
+    that loop as a fixed point::
+
+        round 0: mask = None (everyone radiates)  -> select
+        round k: mask = illuminators of round k-1 -> rebuild tables -> reselect
+
+    It is the same map that ``coordination.select_with_coordination`` runs, but
+    wired into :func:`isac_sim.simulate.run_method_on_trial` so the released
+    entry point -- not only ``tools/*`` -- can report it.  The measured lever is
+    large and it is pure protocol: no extra hardware gain.  Quote it only from
+    the *release* entry point (600 m / RCS 0.1, G_hw = 0 dB, kappa = 40 dB,
+    MC = 1000, ``proposed_c2f_adaptive_pd`` + ``selector.max_tx_nodes = 3``)::
+
+        P_D        0.6938 -> 0.8501
+        worst P_D  0.6650 -> 0.8380     (paired, same seed)
+
+    The larger ``tools/*`` figure (0.85 -> 0.95) is a different 口径 and must
+    not be quoted next to these -- see ``COORDINATION_WIRING.md``.
+
+    ``enable`` defaults to ``False`` so the frozen release path stays
+    bit-exact.  Turning it on requires ``interference.sense_gate_by_active_tx``
+    (validated, not assumed): without the gate ``compute_link_tables`` ignores
+    the mask and coordination would silently be a no-op -- the failure mode
+    that made an earlier "coordination" number unreportable.
+
+    ``rounds`` is a *budget*, not a promise.  The mask map is deterministic but
+    has no convergence proof; measured on 6 seeds it settled after 2-4 rounds,
+    and the membership (not the count) was what moved.  A repeated mask is
+    reported as a cycle rather than silently burning the budget.
+    """
+
+    enable: bool = False
+    rounds: int = 6
 
 
 @dataclass
@@ -685,6 +781,7 @@ class Config:
     corr: Corr = field(default_factory=Corr)
     active_sensing: ActiveSensing = field(default_factory=ActiveSensing)
     interference: Interference = field(default_factory=Interference)
+    coordination: Coordination = field(default_factory=Coordination)
 
     # Backward-compatible aliases used by the model code, so the math reads the
     # same way as in the prototype.  These are properties, not stored fields.
@@ -814,10 +911,13 @@ PRESETS["small-uav-link-budget-bridge"] = {
     "radio.radar_system_loss_db": 5.0,
 }
 
-# Three physically named small-UAV scenario scales.  They share the explicit
-# provisional 27 dB radar hardware budget above; only geometry, connectivity,
-# and target-class mean RCS change.  Aspect fluctuation remains disabled until
-# its angular law is calibrated against measurements.
+# Three physically named small-UAV scenario scales.  They inherit
+# paper-canonical directly and therefore carry NO radar hardware budget
+# (radar_net_gain_db = 0 dB: 0 dBi tx / 0 dBi rx / 0 dB loss).  The 27 dB
+# budget belongs to small-uav-link-budget-bridge only and is deliberately not
+# shared here.  Only geometry, connectivity, and target-class mean RCS change.
+# Aspect fluctuation remains disabled until its angular law is calibrated
+# against measurements.
 PRESETS["small-uav-dense-s1"] = {
     **PRESETS["paper-canonical"],
     "geometry.area_xy": 1000.0,
@@ -1000,6 +1100,48 @@ def validate_config(cfg: Config) -> None:
         raise ValueError(
             "comm.interference_model='orthogonal' requires comm.mac_model='serial'"
         )
+    if cfg.interference.sense_gate_by_active_tx:
+        # ``sense_gate_by_active_tx`` declares "a node outside active_tx_mask
+        # radiates nothing".  That statement is only complete under the
+        # orthogonal 口径, where no report payload is radiated during the
+        # sensing observation: ``compute_link_tables`` gates the interference
+        # fields (and, since the echo-gate fix, the observation itself) but
+        # never the wanted communication signal.  Under a concurrent-payload
+        # 口径 a muted reporter would lose its interference while keeping its
+        # signal, i.e. the schedule would read better than it can be.  Binding
+        # the gate to the 口径 where it is self-consistent is what makes
+        # ``active_tx_mask`` mean exactly one thing -- the set of radiating
+        # illuminators -- instead of two depending on the caller.
+        if interference_model != "orthogonal":
+            raise ValueError(
+                "interference.sense_gate_by_active_tx=True requires "
+                "comm.interference_model='orthogonal' (got "
+                f"{cfg.comm.interference_model!r}): under a concurrent-payload "
+                "口径 the gate silences interference but not the communication "
+                "signal, so it cannot describe a radiation set."
+            )
+        if cfg.interference.coupling != "shared_spectrum":
+            raise ValueError(
+                "interference.sense_gate_by_active_tx=True requires "
+                "interference.coupling='shared_spectrum' (got "
+                f"{cfg.interference.coupling!r}); under the legacy coupling the "
+                "mask is not consulted at all, so the gate would be a silent "
+                "no-op."
+            )
+    if cfg.coordination.enable:
+        # The gate is what makes the mask physically meaningful; without it
+        # ``compute_link_tables`` never consults ``active_tx_mask`` and the
+        # coordination loop would re-select against an unchanged denominator --
+        # a silent no-op that has already produced one unreportable number.
+        if not cfg.interference.sense_gate_by_active_tx:
+            raise ValueError(
+                "coordination.enable=True requires "
+                "interference.sense_gate_by_active_tx=True; otherwise "
+                "active_tx_mask is ignored by compute_link_tables and the "
+                "coordination fixed point cannot change anything."
+            )
+        if cfg.coordination.rounds < 1:
+            raise ValueError("coordination.rounds must be at least one")
     if cfg.prior.scheduler_rcs.lower() not in {"realized", "mean"}:
         raise ValueError(
             f"Unknown prior.scheduler_rcs={cfg.prior.scheduler_rcs!r}; "

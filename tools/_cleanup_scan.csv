@@ -1,0 +1,184 @@
+path,category,reasons,areas,rcs,is_dir
+results,C-keep,,,0.2,yes
+results_active_information_v15,C-keep,,800,0.05,yes
+results_active_information_v15_system,C-keep,,800,0.05,yes
+results_active_information_v15_system_smoke,U-unknown,,,,yes
+results_active_system_15uav_10target_candidate2_screen,C-keep,,800,0.05,yes
+results_active_system_15uav_10target_candidate3_screen,C-keep,,800,0.05,yes
+results_active_system_15uav_10target_candidate4_screen,C-keep,,800,0.05,yes
+results_active_system_15uav_10target_candidate5_screen,C-keep,,800,0.05,yes
+results_active_system_15uav_10target_candidate6_screen,C-keep,,800,0.05,yes
+results_active_system_15uav_10target_fusion_crn_fix_screen,C-keep,,800,0.05,yes
+results_active_system_15uav_10target_multiseed_screen,C-keep,,800,0.05,yes
+results_active_system_15uav_10target_screen,C-keep,,800,0.05,yes
+results_active_system_v15,C-keep,,800,0.05,yes
+results_active_system_v15_smoke,U-unknown,,,,yes
+results_canonical_check,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_coord_600m_g0k60,U-unknown,,,,yes
+results_coord_600m_g15k40,A-hardware-gain,hw:dir_name_gain_db=15,,,yes
+results_coord_600m_g5k40,A-hardware-gain,hw:dir_name_gain_db=5,,,yes
+results_coord_800m_g0k60,U-unknown,,,,yes
+results_coordination_600m_rcs0.1,U-unknown,,,,yes
+results_coordination_800m_rcs0.05,U-unknown,,,,yes
+results_coordination_smoke,U-unknown,,,,yes
+results_crn_check,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_crn_parallel_check,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_fusion_headroom_v14_corr20,C-keep,,800,0.05,yes
+results_fusion_headroom_v14_headroom3,C-keep,,800,0.05,yes
+results_fusion_headroom_v14_mc10,C-keep,,800,0.05,yes
+results_fusion_headroom_v14_mc10_cal16384,C-keep,,800,0.05,yes
+results_fusion_headroom_v14_mc200,C-keep,,800,0.05,yes
+results_fusion_headroom_v14_refine_fix,C-keep,,800,0.05,yes
+results_fusion_headroom_v14_refine_fix_headroom_smoke,C-keep,,800,0.05,yes
+results_fusion_headroom_v14_refine_fix_mc10,C-keep,,800,0.05,yes
+results_fusion_headroom_v14_refine_fix_smoke,C-keep,,800,0.05,yes
+results_fusion_headroom_v14_screen,C-keep,,800,0.05,yes
+results_hw_vs_algo,U-unknown,,,,yes
+results_hw_vs_algo_800,U-unknown,,,,yes
+results_isac_review_revision,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_isac_review_revision_erasure,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_joint_bundle_v12,C-keep,,800,0.05,yes
+results_joint_bundle_v12_mc200,C-keep,,800,0.05,yes
+results_joint_bundle_v12_rcs,B-out-of-band,rcs:2,800,"0.025,0.05,0.1,0.2,2",yes
+results_joint_bundle_v12_smoke,U-unknown,,,,yes
+results_joint_bundle_v12_unlimited_reports,C-keep,,800,0.05,yes
+results_low_rcs_rescue_adaptive_budget_screen,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_baseline_screen,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_canonical_screen,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_gain15_screen,A-hardware-gain,hw:radar_net_gain_db=15; name/token:gain; rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_gain17p5_maxmin_screen,A-hardware-gain,hw:radar_net_gain_db=17.5; name/token:gain; rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_gain17p5_screen,A-hardware-gain,hw:radar_net_gain_db=17.5; name/token:gain; rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_long_cpi128_screen,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_long_cpi_screen,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_margin_screen,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_multiseed_screen,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_low_rcs_rescue_power_cpi_screen,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_lowrcs_500_800_main,C-keep,,600,0.1,yes
+results_lowrcs_kappa600_kcurve.png,U-unknown,,,,no
+results_lowrcs_main_gate,C-keep,,600,0.1,yes
+results_lowrcs_main_kappa60,C-keep,,600,0.1,yes
+results_lowrcs_main_kappa80,C-keep,,600,0.1,yes
+results_lowrcs_main_sparse,U-unknown,,,,yes
+results_preview_capability,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_radar_compact_800m_pilot.csv,U-unknown,,,,no
+results_radar_gain_s2_coarse.csv,U-unknown,,,,no
+results_radar_gain_s2_refined.csv,U-unknown,,,,no
+results_rcs_robust_v13,C-keep,,800,0.05,yes
+results_rcs_robust_v13_unlimited_reports,C-keep,,800,0.05,yes
+results_receiver_fusion_zero_gain_direct,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_receiver_fusion_zero_gain_local,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_receiver_fusion_zero_gain_local_accounted,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_receiver_fusion_zero_gain_local_final,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_release,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_release_kappa600.png,U-unknown,,,,no
+results_release_preview,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_release_preview_v2,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_release_preview_v3,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_report_budget_800m_coarse.csv,U-unknown,,,,no
+results_report_budget_800m_k10.csv,U-unknown,,,,no
+results_scientific_gates_v16,U-unknown,,,,yes
+results_small_uav_s2_candidate,A-hardware-gain,"hw:radar_rx_gain_dbi=16,radar_tx_gain_dbi=16,radar_system_loss_db=5; area:2000",2000,0.05,yes
+results_small_uav_s2_nearest,A-hardware-gain,"hw:radar_rx_gain_dbi=16,radar_tx_gain_dbi=16,radar_system_loss_db=5; area:2000",2000,0.05,yes
+results_target_local_v1,B-out-of-band,"area:2500,4000,5500; rcs:50","2500,4000,5500",50,yes
+results_target_local_v11,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_target_local_v11_full_pd,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_target_local_v1_smoke,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_frontier_anchored_rcs42p5_k0,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_anchored_rcs42p5_k2,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_anchored_rcs42p5_k4,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_anchored_rcs42p5_k6,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_anchored_rcs42p5_k8,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_lookahead_rcs42p5_k2,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_lookahead_rcs42p5_k4,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_lookahead_rcs42p5_k6,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_nearest_rcs42p5_k2,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_nearest_rcs42p5_k4,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_frontier_nearest_rcs42p5_k6,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_fusion_fix,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_nearest_detector_k0,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_nearest_detector_k8,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_pd_lookahead,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_pd_lookahead_k0,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_smoke,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_smoke2,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_transition_nearest_rcs42p5_k0,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_transition_nearest_rcs42p5_k8,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_transition_rcs25_k0,B-out-of-band,area:4000; rcs:25,4000,25,yes
+results_v11_transition_rcs25_k8,B-out-of-band,area:4000; rcs:25,4000,25,yes
+results_v11_transition_rcs37p5_k0,B-out-of-band,area:4000; rcs:37.5,4000,37.5,yes
+results_v11_transition_rcs37p5_k8,B-out-of-band,area:4000; rcs:37.5,4000,37.5,yes
+results_v11_transition_rcs42p5_k0,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_transition_rcs42p5_k8,B-out-of-band,area:4000; rcs:42.5,4000,42.5,yes
+results_v11_transition_rcs45_k0,B-out-of-band,area:4000; rcs:45,4000,45,yes
+results_v11_transition_rcs45_k8,B-out-of-band,area:4000; rcs:45,4000,45,yes
+results_v11_transition_rcs50_k0,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_transition_rcs50_k8,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_weak_gate_k0,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_weak_gate_k1,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_weak_gate_k2,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_weak_gate_k4,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v11_weak_gate_k8,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v16_mechanism_smoke,B-out-of-band,rcs:2,800,"0.05,2",yes
+results_v1_balanced_budget,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_convergence,U-unknown,,,,yes
+results_v1_convergence.log,U-unknown,,,,no
+results_v1_distance_paperproto,B-out-of-band,"area:4000; rcs:5,50","600,4000","0.2,5,50",yes
+results_v1_exact_budget,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_exact_budget_m4,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_exact_budget_obs12,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_exact_budget_smoke,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_failure_model_check,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_fusion_polish_audit,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_fusion_polish_heldout,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_geometry_wide,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_joint_revision_independent,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_joint_revision_smoke,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_joint_small,U-unknown,,,,yes
+results_v1_lever_closure,U-unknown,,,,yes
+results_v1_lever_closure_arm_corr,U-unknown,,,,yes
+results_v1_lever_closure_arm_jointorth,U-unknown,,,,yes
+results_v1_lever_closure_arm_legacy,U-unknown,,,,yes
+results_v1_lever_closure_arm_refineall,U-unknown,,,,yes
+results_v1_lever_closure_compact,U-unknown,,,,yes
+results_v1_lever_closure_pv600,U-unknown,,,,yes
+results_v1_lever_closure_pv600_lowalt,U-unknown,,,,yes
+results_v1_lever_closure_pv600_verify,U-unknown,,,,yes
+results_v1_lowrcs_500_800,B-out-of-band,rcs:50; note:has gain15 comparator cell (main arm G_hw=0),600,50,yes
+results_v1_lowrcs_500_800_compact,B-out-of-band,rcs:50; note:has gain15 comparator cell (main arm G_hw=0),600,50,yes
+results_v1_lowrcs_cheap,B-out-of-band,rcs:50; note:has gain15 comparator cell (main arm G_hw=0),600,50,yes
+results_v1_lowrcs_cheap.log,U-unknown,,,,no
+results_v1_lowrcs_kappa600_k40,B-out-of-band,rcs:50; note:has gain15 comparator cell (main arm G_hw=0),600,50,yes
+results_v1_lowrcs_kappa600_k50,B-out-of-band,rcs:50; note:has gain15 comparator cell (main arm G_hw=0),600,50,yes
+results_v1_lowrcs_kappa600_k60,B-out-of-band,rcs:50; note:has gain15 comparator cell (main arm G_hw=0),600,50,yes
+results_v1_lowrcs_kappa600_k80,B-out-of-band,rcs:50; note:has gain15 comparator cell (main arm G_hw=0),600,50,yes
+results_v1_lowrcs_kappa_smoke,B-out-of-band,rcs:50,600,50,yes
+results_v1_lowrcs_kappa_smoke80,B-out-of-band,rcs:50,600,50,yes
+results_v1_lowrcs_power,B-out-of-band,rcs:50,600,50,yes
+results_v1_lowrcs_power.log,U-unknown,,,,no
+results_v1_lowrcs_screen,B-out-of-band,rcs:50,600,50,yes
+results_v1_lowrcs_shortfall,U-unknown,,,,yes
+results_v1_lowrcs_shortfall.log,U-unknown,,,,no
+results_v1_lowrcs_sweep,B-out-of-band,rcs:50,600,50,yes
+results_v1_lowrcs_sweep.log,U-unknown,,,,no
+results_v1_move_geometry,U-unknown,,,,yes
+results_v1_power_c2f,B-out-of-band,rcs:50,600,50,yes
+results_v1_power_c2f_benchmark,U-unknown,,,,yes
+results_v1_power_joint,B-out-of-band,rcs:50,600,50,yes
+results_v1_power_joint_smoke,B-out-of-band,rcs:50,600,50,yes
+results_v1_prior_communication,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_probability_refinement,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_rcs_600m,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_rcs_joint,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_rcs_joint_smoke,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_rcs_wide,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_v1_rho_coordination,U-unknown,,,,yes
+results_v1_rho_coordination.log,U-unknown,,,,no
+results_v1_rho_coordination_smoke,U-unknown,,,,yes
+results_v1_rho_pd_check,B-out-of-band,rcs:50,600,50,yes
+results_v1_rho_pd_check.log,U-unknown,,,,no
+results_v1_utility_ablation,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_waveform_v2_gate1,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_waveform_v2_gate2a,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_waveform_v2_gate2b,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_waveform_v2_gate3,B-out-of-band,area:4000; rcs:50,4000,50,yes
+results_waveform_v2_phase1_smoke,B-out-of-band,area:4000; rcs:50,4000,50,yes

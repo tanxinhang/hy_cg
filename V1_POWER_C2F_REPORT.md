@@ -51,8 +51,8 @@ optimized_fusion = result.joint.plan
 ```
 
 ```powershell
-E:/anaconda/3_11_python/python.exe tools/audit_v1_power_c2f.py --mc 30 --workers 6 --out results_v1_power_c2f_new
-E:/anaconda/3_11_python/python.exe tools/benchmark_power_c2f.py --mc 4 --out results_v1_power_c2f_benchmark_new
+E:/anaconda/3_11_python/python.exe tools/audit_v1_power_c2f.py --mc 30 --workers 6 --out results_v1_power_c2f
+E:/anaconda/3_11_python/python.exe tools/benchmark_power_c2f.py --mc 4 --out results_v1_power_c2f_benchmark
 E:/anaconda/3_11_python/python.exe -m pytest -q
 ```
 

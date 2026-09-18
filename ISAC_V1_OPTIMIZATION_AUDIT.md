@@ -1,3 +1,5 @@
+> **归档提示（2026-09-18）**：本文引用的部分 `results_*` 产物已移入 `_archive/2026-09-18/`；正文中的路径引用已同步更新为归档位置，命令行示例里的 `--out` 目录仍写作历史原名（重跑时依旧输出到该名）。
+
 # V1 ISAC 一致性优化记录
 
 日期：2026-09-16。范围：当前 target-local fusion 会议稿。
@@ -20,7 +22,7 @@ ISAC 的资源共享与感知通信耦合依据：
 | 本地证据成本边界不明确 | 零报告开销不代表零感知、处理开销 | SystemModel.tex |
 | 最近目标融合解释过强 | 明确其他交付不变及检测概率不下降的条件；不声称位置最优或近似检测器单调 | ProposedMethod.tex |
 | C2F 评估成本被当作总复杂度 | 区分 DD 评估、贪心扫描和实际时间 | ProposedMethod.tex |
-| 精细评估节省口径混用 | MC=1000：61.278/860.244；MC=200独立控制：61.06/853.65 | results_target_local_v1/main/main.csv；full-refinement-pd/main.csv |
+| 精细评估节省口径混用 | MC=1000：61.278/860.244；MC=200独立控制：61.06/853.65 | _archive/2026-09-18/results_target_local_v1/main/main.csv；full-refinement-pd/main.csv |
 | 不显著被写成等效 | 明确未检出显著差异，不构成等效或非劣证明 | SimulationResults.tex |
 | 速率门限扫描叙述与数据矛盾 | 门限升高减少候选，但此条件下平均检测不变 | overview/communication/communication.csv |
 

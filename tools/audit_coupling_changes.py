@@ -219,7 +219,13 @@ for t in range(5):
 check("T2 reuse path matches rebuild", worst == 0.0, f"max relative diff = {worst:.3e}")
 
 # T2b. With sense_gate_by_active_tx the fast path must be DISABLED.
-cfg_gate = apply_overrides(cfg_cpl, {"interference.sense_gate_by_active_tx": True})
+# The gate now requires the orthogonal 口径 (validate_config), because under a
+# concurrent-payload 口径 the gate would silence a muted node's interference but
+# not its communication signal -- an incoherent config, so the diagnostic uses a
+# legal one. The subject of the check (reuse must be refused when gating) is
+# unchanged: the mask still forces the sensing block to be rebuilt.
+cfg_gate = apply_overrides(cfg_cpl, {"interference.sense_gate_by_active_tx": True,
+                                     "comm.interference_model": "orthogonal"})
 base = trial_objects(cfg0, 0)
 M = cfg0.scale.M
 mask = np.zeros(M, dtype=bool)
