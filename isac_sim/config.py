@@ -745,6 +745,96 @@ class Coordination:
 
 
 @dataclass
+class Cancellation:
+    """Receiver-side direct-path interference cancellation (TP-UIC V1).
+
+    ``interference.direct_cancellation_db`` is a *constant*: it asserts that a
+    sensing receiver removes a fixed 40 dB of the aggregated direct field,
+    whatever the geometry, the reference budget or the target state.  Measured
+    against the production link tables that constant is a *requirement*
+    (``KAPPA_DERIVATION.md``), not a description of a receiver.
+
+    This block replaces the constant by the output of an executable estimator:
+    target-preserving, uncertainty-aware interference cancellation (TP-UIC).
+    The receiver reconstructs every active illuminator's direct contribution
+    from its *known* cooperative waveform, but fits it only inside the subspace
+    orthogonal to the local target manifold, so that the interference estimate
+    cannot absorb a weak target.  The leftover interference is then split into
+
+      * interference deliberately retained because it projects onto the target
+        subspace (the price of protection), and
+      * estimation-uncertainty residual, described by the posterior covariance.
+
+    The realised cancellation depth is therefore an *output*: the same
+    algorithm reads 40 dB on one geometry and 20 dB on another, and states its
+    own target-retention ratio alongside.
+
+    ``enable`` defaults to ``False``: with the gate closed every released
+    number is bit-exact, exactly as for ``coordination.enable``.  Nothing in
+    this block is read outside :mod:`isac_sim.cancellation`.
+    """
+
+    enable: bool = False
+    # Cancellation depth to model when ``enable`` is False but an experiment
+    # asks for the *algorithm-shaped* residual (``mode="predict"``).  Unused by
+    # the default path.
+    mode: str = "off"
+    # --- reference budget -------------------------------------------------
+    # Coherent CPIs integrated for the direct-path channel estimate.  The
+    # estimator runs on the reference observation and is applied to the current
+    # observation, so this is a genuine receiver-side budget and not a fudge:
+    # ``n_cpi=1`` means "one CPI, no free gain".  Predicted depth grows as
+    # 10 log10(n_cpi) with the per-illuminator INR held fixed.
+    n_cpi: int = 1
+    # --- interference dictionary ------------------------------------------
+    # Fractional-DD tangent columns per active illuminator.  Default 0, and
+    # that default is a *physical* statement rather than a convenience: in a
+    # cooperative network the serving UAVs' positions are shared, so the
+    # direct-path delay and Doppler are computed, not estimated.  Adding
+    # tangent columns models the residual mismatch left by synchronisation and
+    # oscillator error, at a measurable cost in depth -- use it as a robustness
+    # axis, not as the baseline.
+    interference_tangent_order: int = 0
+    # --- target protection ------------------------------------------------
+    protect_targets: bool = True
+    # How many targets one receiver protects.
+    #
+    # This is the load-bearing design choice, and the first TP-UIC experiment
+    # found it the hard way: protecting *every* believed echo at a receiver
+    # means the union of 140 tangent spaces (15 UAVs x 10 targets), whose rank
+    # on the 600 m scenario is 195 of 4096 bins.  That subspace turned out to
+    # contain the entire 14-dimensional direct-path subspace -- every
+    # illuminator's kernel was >=99.9% inside it -- so stage-1 cancellation
+    # collapsed to zero depth.  Protecting a target costs interference-learning
+    # space, and the cost is convex in the number of protected targets.
+    #
+    # The default protects the ``max_protected_targets`` echoes with the
+    # *lowest* echo-to-total-field ratio at this receiver: exactly the weak
+    # targets the method is for.  Set it to ``0`` to protect everything (the
+    # unconstrained variant, kept for the ablation that documents the collapse).
+    max_protected_targets: int = 3
+    # 0 = protect the predicted DD centre only; 1 = also protect the first
+    # derivatives d/df_delay and d/df_doppler, i.e. the tangent space of the
+    # target manifold.  1 is the meaningful setting: the target will not sit
+    # exactly on its predicted bin, and a centre-only window makes no statement
+    # about how fast the response leaves it.
+    tangent_order: int = 1
+    # Finite-difference step, in DD-bin units, for the tangent columns.
+    tangent_step_bins: float = 0.05
+    # --- estimator --------------------------------------------------------
+    # Channel prior variance of the complex direct coefficient (unit-power
+    # Rician LOS component).  ``None`` disables the prior, leaving plain
+    # (protected) least squares.
+    prior_variance: float | None = 1.0
+    # --- stage 2 ----------------------------------------------------------
+    joint_refine: bool = True
+    # Local DD search half-width used to form the detection statistic.
+    search_half_width: int = 1
+    # --- accounting -------------------------------------------------------
+    hw_ceiling_db: float = 60.0
+
+
+@dataclass
 class Run:
     """Monte-Carlo, reproducibility and reporting knobs."""
 
@@ -782,6 +872,7 @@ class Config:
     active_sensing: ActiveSensing = field(default_factory=ActiveSensing)
     interference: Interference = field(default_factory=Interference)
     coordination: Coordination = field(default_factory=Coordination)
+    cancellation: Cancellation = field(default_factory=Cancellation)
 
     # Backward-compatible aliases used by the model code, so the math reads the
     # same way as in the prototype.  These are properties, not stored fields.
