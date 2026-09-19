@@ -34,15 +34,18 @@ Design of the measurement
   :class:`isac_sim.cancellation.CancellationResult`).  A plain ``||r||^2``
   would credit an estimator for the interference it removed while silently
   charging it for the target it ate.
-* The candidate gate of the joint stage is set from the receiver's *own*
-  predicted residual (``i_res_pred``), never from the truth.  Two passes per
-  observation: the first with the gate closed yields the prediction, the second
-  uses it.
+* The predicted residual ``i_res_pred`` still sets the *level* the joint stage
+  prints as ``gate``, but since 2026-09-19 it no longer decides the stage-2
+  support (``--candidate-policy``).  The support is the declared protection set,
+  because a test run on the stage-1 residual reads back energy the protection
+  itself deliberately kept; the old threshold rule is kept as
+  ``--candidate-policy statistic`` for the ablation.  Two passes per observation
+  are still used, the first yielding the prediction.
 * Two thresholds are in play and they are **not** the same thing, so they are
   reported separately:
   - ``gate`` (a column of ``arms_mc.csv``) is the *structural* level
     ``-ln(P_FA) * (n0 + I_res_pred / K)`` derived from the prediction.  It is
-    what the joint stage uses to accept a candidate; it is not a calibrated
+    what the joint stage used to accept a candidate; it is not a calibrated
     CFAR threshold.
   - the reported ``P_D``/``P_FA`` come from the **empirical per-arm H0 pool**
     (``quantile(H0, 1 - P_FA)``), which is what makes the arms comparable at
@@ -155,8 +158,16 @@ def pick_receiver(cfg: Config, base, rule: str = "worst") -> tuple[int, int]:
 # One trial
 # --------------------------------------------------------------------------
 def evaluate(cfg: Config, geom_true, geom_belief, base, receiver: int, weak: int,
-             rng: np.random.Generator) -> dict:
-    """Two-pass, H1/H0 evaluation of every arm for one trial."""
+             rng: np.random.Generator, policy: str = "protected_only") -> dict:
+    """Two-pass, H1/H0 evaluation of every arm for one trial.
+
+    ``policy`` selects the stage-2 joint support exactly as in
+    ``tools/run_tp_uic_v11.py``.  It defaults to the *declared* protection set;
+    the archived V1 tables were produced with the old energy-threshold gate, so
+    reproducing them needs ``policy="statistic"`` -- and, since they also predate
+    the echo-generation fix of 2026-09-19, they are a historical record rather
+    than a reproducible configuration either way.
+    """
     m = cfg.scale.M
     sense = np.full(m, cfg.radio.rho * cfg.radio.P_default)
     g_proc = cfg.waveform.N * cfg.waveform.L
@@ -172,10 +183,12 @@ def evaluate(cfg: Config, geom_true, geom_belief, base, receiver: int, weak: int
 
     def passes(obs):
         """Gate closed -> read the predicted residual -> gate open."""
-        first = cx.cancellation_arms(cfg, obs, weak_target=weak, threshold=0.0)
+        first = cx.cancellation_arms(cfg, obs, weak_target=weak, threshold=0.0,
+                                     candidate_policy=policy)
         level = n0 + first["tp_uic_stage1"].i_res_pred / max(obs.y.size, 1)
         gate = -math.log(cfg.detect.Pfa_target) * level
-        return cx.cancellation_arms(cfg, obs, weak_target=weak, threshold=gate), gate
+        return cx.cancellation_arms(cfg, obs, weak_target=weak, threshold=gate,
+                                    candidate_policy=policy), gate
 
     arms1, gate = passes(obs1)
     arms0, _ = passes(obs0)
@@ -202,7 +215,8 @@ def run(cfg: Config, args, label: str, trials: int) -> tuple[list[dict], dict[st
             cfg, geom, cfg.prior.belief_sigma_pos_m, cfg.prior.belief_sigma_vel_mps, rng
         )
         receiver, weak = pick_receiver(cfg, base, args.receiver_rule)
-        res = evaluate(cfg, geom, belief, base, receiver, weak, rng)
+        res = evaluate(cfg, geom, belief, base, receiver, weak, rng,
+                       policy=args.candidate_policy)
         for arm in ARMS:
             a1, a0 = res["arms1"][arm], res["arms0"][arm]
             rows.append({
@@ -210,6 +224,7 @@ def run(cfg: Config, args, label: str, trials: int) -> tuple[list[dict], dict[st
                 "kappa_db": a1.kappa_db, "kappa_pred_db": a1.kappa_pred_db,
                 "cal_err_db": a1.calibration_error_db,
                 "eta_protect": a1.eta_protect, "eta_survive": a1.eta_survive,
+                "eta_survive_q": a1.eta_survive_q,
                 "noise_enh_db": a1.noise_enhance_db,
                 "protect_dim": a1.protect_dim, "candidates": len(a1.candidates),
                 "i_in": a1.i_in, "i_res": a1.i_res,
@@ -338,6 +353,10 @@ def main() -> int:
                     help="'worst' = harshest echo-to-direct margin (the method's "
                          "target case); 'median' = the middle margin, reported "
                          "alongside so the result is not hostage to one geometry")
+    ap.add_argument("--candidate-policy", choices=("protected_only", "statistic"),
+                    default="protected_only",
+                    help="stage-2 joint support; 'statistic' is the old "
+                         "energy-threshold gate the archived V1 tables used")
     ap.add_argument("--sweeps", action="store_true",
                     help="also run the reference-budget and protection-budget sweeps")
     ap.add_argument("--out", default="results_tp_uic_v1")

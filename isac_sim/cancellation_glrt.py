@@ -467,6 +467,75 @@ class ResidualModel:
         )
 
 
+def _belief_bin_sigmas(cfg) -> Tuple[float, float]:
+    """``(sigma_delay_bins, sigma_doppler_bins)`` from the declared belief error.
+
+    The receiver's tracker states a position error and a velocity error; the
+    detector needs them in the units its templates are indexed by.  The delay
+    conversion is the one-way path error ``sigma_p / c`` scaled by the delay-bin
+    spacing ``1 / (L * delta_f)``; the Doppler conversion is the bistatic radial
+    rate error ``2 sigma_v / lambda`` scaled by the Doppler-bin spacing
+    ``1 / (N * T)``.  Both are the *largest* such error over viewing geometry, so
+    the term is conservative rather than tuned.
+    """
+    w = cfg.waveform
+    lam = float(w.c) / float(w.fc)
+    sigma_delay_bins = (float(cfg.prior.belief_sigma_pos_m) / float(w.c)
+                        * float(w.L) * float(w.delta_f))
+    sigma_doppler_bins = (2.0 * float(cfg.prior.belief_sigma_vel_mps) / lam
+                          * float(w.N) * float(w.T))
+    return float(sigma_delay_bins), float(sigma_doppler_bins)
+
+
+def _belief_error_factor(cfg, obs: Observation) -> np.ndarray:
+    """``B`` with ``B B^H = C_belief``: covariance of the template misalignment.
+
+    One pair of columns per believed echo: ``sqrt(P) * sigma_l * da/dl`` and
+    ``sqrt(P) * sigma_k * da/dk``, whose outer product is the covariance of the
+    first-order mismatch.  ``P`` is the believed echo power, so a target the
+    receiver can barely see contributes barely any mismatch -- the term scales
+    with what is actually there.
+
+    **The tested target's own sources are excluded.**  ``C_res`` is the
+    covariance of the residual *under H0*, and under H0 that target's echo is
+    absent, so charging its leakage would inflate the covariance exactly where
+    the false-alarm level is set.  The cost is honest and stated: under H1 the
+    tested echo's own misalignment is not charged, so this term buys calibrated
+    ``P_FA`` at the price of a slightly optimistic ``P_D``.
+
+    Uses the *believed* sources and their believed bins -- the receiver cannot
+    know the true ones, and a covariance charged on the truth would be an oracle
+    dressed as a calibration.
+    """
+    sources = obs.targets_belief if obs.targets_belief is not None else obs.targets
+    n_bins = int(obs.y.size)
+    if not sources:
+        return np.zeros((n_bins, 0), dtype=complex)
+    sigma_l, sigma_k = _belief_bin_sigmas(cfg)
+    if sigma_l <= 0.0 and sigma_k <= 0.0:
+        return np.zeros((n_bins, 0), dtype=complex)
+    step = float(cfg.cancellation.tangent_step_bins)
+    tested = int(getattr(obs, "weak_index", 0))
+    cols: List[np.ndarray] = []
+    for src in sources:
+        if int(src.target) == tested:
+            continue
+        block = tangent_columns(cfg, float(src.doppler_bin), float(src.delay_bin),
+                                1, step)
+        if block.shape[1] < 3:
+            continue
+        centre, d_delay, d_doppler = block[:, 0], block[:, 1], block[:, 2]
+        norm = float(np.sqrt(max(np.vdot(centre, centre).real, EPS)))
+        amp = math.sqrt(max(float(src.power), 0.0)) / norm
+        if sigma_l > 0.0:
+            cols.append((amp * sigma_l) * d_delay)
+        if sigma_k > 0.0:
+            cols.append((amp * sigma_k) * d_doppler)
+    if not cols:
+        return np.zeros((n_bins, 0), dtype=complex)
+    return np.stack(cols, axis=1)
+
+
 def _direct_prior(cfg, obs: Observation, plan: ArmPlan) -> Tuple[str, np.ndarray]:
     """``(label, R_diag)`` -- the belief the receiver states about ``h``.
 
@@ -551,6 +620,7 @@ def residual_model(
     plans: Dict[str, ArmPlan] | None = None,
     direct_variance: str = "prior",
     check: bool = True,
+    dictionary: str = "belief",
 ) -> ResidualModel:
     """Build the affine form and the residual covariance of one arm.
 
@@ -558,6 +628,14 @@ def residual_model(
 
         C_res = sigma^2 I  +  T_d X R_h X^H T_d^H  +  (M X) C_h (M X)^H / n_cpi
                 ^floor      ^direct field kept       ^coefficient error
+                            +  B B^H                 (optional, see below)
+                            ^belief-error template misalignment
+
+    ``dictionary="truth"`` builds the templates from the true target state, where
+    there is no misalignment to charge; ``dictionary="belief"`` (the default, and
+    what every released number uses) charges it when
+    ``cancellation.belief_error_in_cres`` is set.  Passing one and charging the
+    other is the easiest way to make a calibration measurement meaningless.
 
     The floor is ``sigma^2 I`` and **not** ``sigma^2 (I-F)(I-F)^H``, which is a
     modelling decision worth stating.  A canceller that fits its coefficients on
@@ -604,13 +682,19 @@ def residual_model(
     ix = X - (basis @ (small @ (basis.conj().T @ X))) if basis.shape[1] else X
     direct_factor = (gain * ix) * np.sqrt(r_diag)[None, :]
 
-    # Only the two *perturbations* enter the low-rank factor.  ``basis`` spans
+    if cfg.cancellation.belief_error_in_cres and dictionary == "belief":
+        belief_factor = _belief_error_factor(cfg, obs)
+    else:
+        belief_factor = np.zeros((n_bins, 0), dtype=complex)
+
+    # Only the *perturbations* enter the low-rank factor.  ``basis`` spans
     # the range of F and must NOT be added: the noise floor is sigma^2 I, not
     # sigma^2 (I-F)(I-F)^H, so F's range carries no covariance of its own --
-    # only ``(I-F) X`` (what the canceller leaves of the direct field) and the
-    # coefficient error do.  Adding it inflated the condition number to 1e13 and
-    # made ``eigh`` report a minimum eigenvalue below the floor.
-    blocks = [b for b in (direct_factor, est_factor) if b.shape[1]]
+    # only ``(I-F) X`` (what the canceller leaves of the direct field), the
+    # coefficient error and the belief-error misalignment do.  Adding it
+    # inflated the condition number to 1e13 and made ``eigh`` report a minimum
+    # eigenvalue below the floor.
+    blocks = [b for b in (direct_factor, est_factor, belief_factor) if b.shape[1]]
 
     def c_apply(V: np.ndarray) -> np.ndarray:
         """``C_res @ V``, without ever forming a K x K matrix."""

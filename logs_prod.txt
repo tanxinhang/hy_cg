@@ -1,0 +1,24 @@
+TP-UIC production wiring : paper-canonical, area=600 m, RCS=0.10 m^2, seed=2026
+  M = 15 UAVs, Q = 10 targets, K = 4096 bins
+  trial 4/24  [55 s]
+  trial 8/24  [110 s]
+  trial 12/24  [162 s]
+  trial 16/24  [210 s]
+  trial 20/24  [258 s]
+  trial 24/24  [303 s]
+
+=== TP-UIC in the production chain (area = 600 m, RCS = 0.10 m^2) ===
+  same geometry, same selector, same detector; only the receiver model differs
+  estimator arm = tp_uic_full ; n_cpi = 1 ; protected targets = 3
+
+  receiver     kappa med    k min    k max  rinr dB       P_D      P_FA   links
+  constant         40.00    40.00    40.00     8.47    0.6167    0.0499    33.5
+  measured         37.14    32.37    41.93    11.46    0.5458    0.0508    37.5
+
+  'constant' is the frozen 40 dB statement; 'measured' is what the
+  estimator actually delivers on these geometries, per receiver.
+  The comparison is against a *model*, not against a competitor arm:
+  the constant asserts a depth the scenario implies, the algorithm
+  reports the depth a receiver achieves.
+
+wrote D:\Desktop\conference\results_tp_uic_production\production.csv

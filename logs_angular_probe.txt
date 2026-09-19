@@ -1,0 +1,62 @@
+angular identifiability probe : paper-canonical, area=600 m, seed=2026
+  pre-registered PASS: rho >= 0.90 at 0.50 beamwidth for some M AND
+  >= 50% of co-located pairs reaching that separation.
+
+=== A. rho vs angular separation at identical (delay, doppler) ===
+  M        0.00BW   0.10BW   0.20BW   0.30BW   0.50BW   0.75BW   1.00BW   1.50BW   2.00BW   3.00BW   4.00BW
+  4      0.00e+00 6.04e-03 2.40e-02 5.33e-02 1.43e-01 2.99e-01 4.79e-01 8.10e-01 9.81e-01 9.38e-01 9.72e-01
+  8      0.00e+00 6.34e-03 2.52e-02 5.59e-02 1.49e-01 3.10e-01 4.95e-01 8.23e-01 9.83e-01 9.54e-01 9.84e-01
+  16     0.00e+00 6.41e-03 2.55e-02 5.66e-02 1.51e-01 3.13e-01 4.99e-01 8.26e-01 9.84e-01 9.57e-01 9.86e-01
+  1      0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00
+  cross-check vs the Dirichlet kernel 1-|A|^2 : max |diff| = 2.22e-16
+  M=1 is the DD-only abstraction: identical templates, rho = 0 at every
+  separation.  Note the curve is a function of M*delta_u alone, so in
+  *beamwidth* units it is the same curve for every M -- the aperture
+  only moves the unit, which is exactly why the unit must be beamwidths.
+
+=== B. separations that actually occur between co-located targets ===
+  DD separation <= 0.5 bins under some illuminator; 24 trials, n = 184 pairs
+  M     aper m  med BW x  med BW y  f>=1BW x  f>=2BW x   need BW
+  4       0.08      1.73      1.68      0.67      0.43      2.00   (best axis x)
+  8       0.18      3.46      3.36      0.82      0.67      2.00   (best axis x)
+  16      0.38      6.93      6.71      0.91      0.82      2.00   (best axis x)
+
+=== C. the real scene: rho with and without the array ===
+  nuisance = all other targets' believed echoes; amplitudes = production
+  echo power; averaging = production power weight; bearings from belief
+  M      rho_weighted(x)  rho_weighted(y)     rho_median  templates
+  1            2.279e-01        2.279e-01      4.102e-04      140.0
+  4            7.299e-01        7.451e-01      7.417e-01      140.0
+  8            8.715e-01        8.705e-01      9.406e-01      140.0
+  16           9.328e-01        9.441e-01      9.783e-01      140.0
+  recorded DD-only audit for comparison: rho_weighted 0.0080, on-grid median 1.83e-04
+
+=== C2. anchor: same trial, M=1, both conventions ===
+  one tested column vs one nuisance column, from build_observation:
+                                    production          gram
+  rho (median)                       9.976e-01     9.976e-01
+  max relative difference             2.33e-15
+  centre columns in the scene dictionary           140
+  Pairwise, because with all 140 scene templates rho is ~1e-6 and the
+  Gram shortcut's own error is that size -- no implementation can be
+  verified at that floor.  This is the well-conditioned certificate for
+  the shortcut used at M >= 4, where rho is 0.4-0.8.  The array half of
+  the template is certified separately in A (exact to 2e-16 against
+  the Dirichlet kernel 1-|A|^2).
+
+=== verdict (pre-registered, unchanged) ===
+  M=4   FAIL    rho(0.5BW)=1.43e-01  need=2.00 BW  co-located>=0.5BW: 82%
+  M=8   FAIL    rho(0.5BW)=1.49e-01  need=2.00 BW  co-located>=0.5BW: 91%
+  M=16  FAIL    rho(0.5BW)=1.51e-01  need=2.00 BW  co-located>=0.5BW: 95%
+  best over M: FAIL
+  ⚠️ the rule's constants are self-referential (RHO_PASS=0.9 needs ~2.0 BW,
+     which is BW_FAIL), so the verdict string is structurally FAIL. The
+     decision below uses the two loss budgets explicitly instead:
+     M=4   3 dB budget (rho>=0.5, needs 1.0 BW): 67% of pairs clear it;
+           0.5 dB budget (rho>=0.9, needs 2.0 BW): 43% clear it
+     M=8   3 dB budget (rho>=0.5, needs 1.0 BW): 82% of pairs clear it;
+           0.5 dB budget (rho>=0.9, needs 2.0 BW): 67% clear it
+     M=16  3 dB budget (rho>=0.5, needs 1.0 BW): 91% of pairs clear it;
+           0.5 dB budget (rho>=0.9, needs 2.0 BW): 82% clear it
+
+wrote D:\Desktop\conference\results_angular_probe\angular_probe.csv

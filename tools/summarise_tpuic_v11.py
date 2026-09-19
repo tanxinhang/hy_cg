@@ -121,8 +121,8 @@ def table_arms(rows):
     for r in rows:
         by_arm.setdefault(r["arm"], []).append(r)
     lines = [
-        "| arm | C_IC (dB) | eta_surv | rho_w | T_H1 | thr | P_D | P_FA | AUC | ncp_best |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| arm | C_IC (dB) | eta_surv | eta_q | rho_w | T_H1 | thr | P_D | P_FA | AUC | ncp_best |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for arm in by_arm:
         rs = by_arm[arm]
@@ -137,11 +137,17 @@ def table_arms(rows):
         p_d = sum(det_h1) / len(det_h1) if det_h1 else float("nan")
         p_fa = sum(det_h0) / len(det_h0) if det_h0 else float("nan")
         lines.append(
-            "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |"
+            "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |"
             % (
                 DISPLAY.get(arm, arm),
                 _fmt(_med([_f(r, "kappa_db") for r in rs]), 2),
                 _fmt(_med([_f(r, "eta_survive") for r in rs]), 3),
+                # The tested target's own survival.  Shown next to the
+                # field-level figure because the two answer different questions
+                # and only this one is about the weak target the method is for;
+                # a run recorded before 2026-09-19 has no such column and prints
+                # "--".
+                _fmt(_med([_f(r, "eta_survive_q") for r in rs]), 3),
                 _fmt(_med([_f(r, "rho_weighted") for r in rs]), 4),
                 _fmt(_med(t1), 2),
                 _fmt(_med(thr), 2),
@@ -259,6 +265,45 @@ def offgrid_table(rows):
     return "\n".join(lines)
 
 
+def table_oracle(rows):
+    """The oracle CFAR closure: perfect_channel + truth, H1/H0.
+
+    Reported separately from table A because it answers a different question --
+    "is the analytic level a CFAR level when nothing else can be blamed" -- and
+    because a reader must be able to see the H0 statistic *relative to its stated
+    mean* rather than relative to a threshold that a mis-stated ``C_res`` also
+    moves.  ``T_H0 / (dof/2)`` is that scale-free form: 1.0 is calibrated.
+    """
+    by_arm = OrderedDict()
+    for r in rows:
+        by_arm.setdefault(r["arm"], []).append(r)
+    lines = [
+        "| arm | thr | T_H0 | T_H0 / E[T_H0] | T_H1 | P_FA | P_D | C_res rank |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for arm, rs in by_arm.items():
+        t0 = [_f(r, "t_h0") for r in rs]
+        t1 = [_f(r, "t_h1") for r in rs]
+        dof = [_f(r, "dof_h0") for r in rs]
+        ratio = [t / (d / 2.0) for t, d in zip(t0, dof) if d == d and d > 0]
+        det0 = [_i(r, "det_h0") for r in rs]
+        det1 = [_i(r, "det_h1") for r in rs]
+        lines.append(
+            "| %s | %s | %s | %s | %s | %s | %s | %s |"
+            % (
+                DISPLAY.get(arm, arm),
+                _fmt(_med([_f(r, "thr_h0") for r in rs]), 2),
+                _fmt(_med(t0), 2),
+                _fmt(_med(ratio), 3),
+                _fmt(_med(t1), 2),
+                _fmt(sum(det0) / len(det0) if det0 else float("nan"), 3),
+                _fmt(sum(det1) / len(det1) if det1 else float("nan"), 3),
+                _fmt(_med([_f(r, "cov_rank_h0") for r in rs]), 0),
+            )
+        )
+    return "\n".join(lines)
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv:
@@ -269,6 +314,7 @@ def main(argv=None):
     single = _read(out / "single_target.csv")
     masking = _read(out / "masking.csv")
     ident = _read(out / "identifiability.csv")
+    oracle = _read(out / "oracle_cfar.csv")
 
     if arms:
         print("## A. Matched H1/H0 GLRT in the full multi-target scenario\n")
@@ -291,6 +337,10 @@ def main(argv=None):
             print("### D2. Off-grid deltas (median rho)\n")
             print(off)
             print()
+    if oracle:
+        print("## E. Oracle CFAR closure (perfect_channel + truth)\n")
+        print(table_oracle(oracle))
+        print()
     return 0
 
 

@@ -153,6 +153,11 @@ class DirectSource:
     gain: float  # direct-path power gain g_ij (dimensionless)
     doppler_bin: float  # fractional Doppler bin of the UAV-UAV link
     delay_bin: float  # fractional delay bin of the UAV-UAV link
+    # Bearing (direction cosine along the array axis) seen by the receiver.
+    # Default 0.0 keeps every existing construction site valid; only the lifted
+    # path (``aperture.enable``) reads it.  The direct path is *known* in a
+    # cooperative network, so this is the true bearing, not a belief.
+    u: float = 0.0
 
     @property
     def power_at_receiver(self) -> float:
@@ -168,6 +173,11 @@ class TargetSource:
     power: float  # P_sense * target_gain * G_proc * G_hw, i.e. echo power
     doppler_bin: float
     delay_bin: float
+    # Bearing (direction cosine along the array axis) seen by the receiver.
+    # Truth dictionaries carry the true bearing, belief dictionaries the believed
+    # one, so the lifted path prices bearing error the same way it already prices
+    # delay/Doppler error.  Default 0.0 keeps existing construction sites valid.
+    u: float = 0.0
 
 
 @dataclass
@@ -242,6 +252,29 @@ class CancellationResult:
     n_coefficients: int  # number of complex interference coefficients fit
     matched_stat: float = 0.0  # weak-target statistic at the belief offset
     candidates: Tuple[int, ...] = ()
+    # Provenance of the stage-2 support, recorded rather than inferred.
+    # ``gate_targets`` is what the energy test on the stage-1 residual would have
+    # selected; ``supported_targets`` is what the joint fit actually modelled.
+    # Reporting both is what makes the difference between a *declared* support
+    # rule and a *statistical* one visible in the results file instead of only in
+    # a docstring -- and it is the measurement that shows the old gate was firing
+    # on energy the protection itself had put there.
+    gate_targets: Tuple[int, ...] = ()
+    supported_targets: Tuple[int, ...] = ()
+    # The *tested target's own* echo survival, ``||s_q - f(s_q)||^2 / ||s_q||^2``.
+    #
+    # ``eta_survive`` above is a whole-field average and is **not** a substitute
+    # for this one: it moves with how many *other* targets the joint stage
+    # happens to model, so changing the stage-2 support moves it even when the
+    # protection budget is untouched.  Measured on the 600 m scenario with the
+    # corrected echo generator it reads 0.705 for ``tp_uic_full`` against 0.700
+    # for ``plain_ls`` -- a 0.5-point difference that says nothing about the weak
+    # target, because only the three protected targets are in the joint support
+    # while ten echoes are averaged over.  Q1 ("does TP-UIC damage the weak
+    # target less") is a question about ``s_q``, so it is reported directly.
+    # ``0.0`` when the observation carries no truth to isolate.
+    eta_survive_q: float = 0.0
+    s_q_energy: float = 0.0  # ||s_q||^2, so a caller can weight the ratio
 
     @property
     def kappa_db(self) -> float:
@@ -447,6 +480,80 @@ def orthonormalise(
 # ==========================================================================
 # 4. Dictionary construction
 # ==========================================================================
+def _u_of(points, p_rx: np.ndarray, q_count: int, axis: int) -> np.ndarray:
+    """``(Q,)`` direction cosines of ``points`` seen from ``p_rx``, along ``axis``."""
+    us = np.zeros(int(q_count), dtype=float)
+    for q in range(int(q_count)):
+        v = np.asarray(points[q], dtype=float)[:3] - p_rx
+        n = float(np.linalg.norm(v))
+        us[q] = float(v[axis] / n) if n > 0.0 else 0.0
+    return us
+
+
+def _n_obs(cfg: Config) -> int:
+    """Dimension of one observation: DD bins times receive elements.
+
+    One element is the released DD-only model, so this is K there and the
+    existing numbers do not move.
+    """
+    m_rx = int(cfg.aperture.m_rx) if cfg.aperture.enable else 1
+    return int(cfg.waveform.N * cfg.waveform.L) * max(int(m_rx), 1)
+
+
+def steering_vector(m_rx: int, u: float) -> np.ndarray:
+    """Unit-norm array response ``a(u)`` of a half-wavelength ULA.
+
+    Unit-norm on purpose: the array then changes the *coherence* between two
+    templates and nothing else, so the observation's SNR is the same with one
+    element as with sixteen and any measured change is selectivity, not gain.
+    The induced inner product is exactly :func:`isac_sim.aperture.array_factor`.
+    """
+    if m_rx <= 1:
+        return np.ones(1, dtype=complex)
+    idx = np.arange(int(m_rx), dtype=float)
+    return np.exp(-1j * math.pi * float(u) * idx) / math.sqrt(float(m_rx))
+
+
+def lift_dictionary(cfg: Config, matrix: np.ndarray, us: Sequence[float]) -> np.ndarray:
+    """``(K, n) -> (K*m, n)``: column ``c`` becomes ``kron(column_c, a(u_c))``.
+
+    This is the whole of P1-2: the observation space of an ``m``-element receiver
+    is the tensor product of the DD grid with the array, and a scatterer at
+    bearing ``u`` excites ``a_DD (x) a(u)``.  Everything downstream -- the
+    canceller's subspace fits, the residual covariance, the whitened statistic,
+    the escape fraction ``rho`` -- is dimension-agnostic linear algebra, so once
+    the dictionaries are lifted the array is present in all of them at once.
+
+    Inner products factor as ``<a_DD_i, a_DD_j> * A(u_i, u_j)`` (the Kronecker
+    identity the angular probe is built on), which is why two targets that share
+    a DD cell can still have ``rho`` near 1.
+    """
+    m_rx = int(cfg.aperture.m_rx) if cfg.aperture.enable else 1
+    if m_rx <= 1:
+        return matrix
+    k_bins, n_col = matrix.shape
+    if n_col == 0:
+        return np.zeros((k_bins * m_rx, 0), dtype=complex)
+    out = np.empty((k_bins * m_rx, n_col), dtype=complex)
+    cache: Dict[float, np.ndarray] = {}
+    for c in range(n_col):
+        u = float(us[c])
+        a = cache.get(u)
+        if a is None:
+            a = steering_vector(m_rx, u)
+            cache[u] = a
+        out[:, c] = np.kron(matrix[:, c], a)
+    return out
+
+
+def _source_bearings(sources: Sequence, width: int) -> List[float]:
+    """One bearing per *column*: each source's block is ``width`` columns wide."""
+    out: List[float] = []
+    for src in sources:
+        out.extend([float(getattr(src, "u", 0.0))] * int(width))
+    return out
+
+
 def direct_dictionary(
     cfg: Config,
     sources: Sequence[DirectSource],
@@ -470,8 +577,9 @@ def direct_dictionary(
         amp = math.sqrt(max(src.power_at_receiver, 0.0))
         blocks.append(amp * tangent_columns(cfg, src.doppler_bin, src.delay_bin, order, step))
     if not blocks:
-        return np.zeros((cfg.waveform.N * cfg.waveform.L, 0), dtype=complex)
-    return np.concatenate(blocks, axis=1)
+        return np.zeros((_n_obs(cfg), 0), dtype=complex)
+    return lift_dictionary(cfg, np.concatenate(blocks, axis=1),
+                           _source_bearings(sources, 1 + 2 * order))
 
 
 def target_dictionary(
@@ -486,8 +594,9 @@ def target_dictionary(
         amp = math.sqrt(max(src.power, 0.0))
         blocks.append(amp * tangent_columns(cfg, src.doppler_bin, src.delay_bin, order, step))
     if not blocks:
-        return np.zeros((cfg.waveform.N * cfg.waveform.L, 0), dtype=complex)
-    return np.concatenate(blocks, axis=1)
+        return np.zeros((_n_obs(cfg), 0), dtype=complex)
+    return lift_dictionary(cfg, np.concatenate(blocks, axis=1),
+                           _source_bearings(sources, 1 + 2 * order))
 
 
 # ==========================================================================
@@ -628,6 +737,9 @@ class _Arm:
     c_diag: np.ndarray
     subspace: Subspace
     candidates: Tuple[int, ...] = ()
+    # What the arm removes from the *tested target's own* echo.  ``None`` when the
+    # observation does not carry a truth to isolate (see ``eta_survive_q``).
+    sub_target_q: np.ndarray | None = None
     # How the residual is predicted for this arm.  ``estimator`` runs eq. (3);
     # the other two arms do not estimate a channel at all, so running the
     # estimator formula on them would invent a residual for an arm that has
@@ -641,6 +753,7 @@ def cancellation_arms(
     *,
     weak_target: int | None = None,
     threshold: float = 0.0,
+    candidate_policy: str = "protected_only",
 ) -> Dict[str, CancellationResult]:
     """Run every comparison arm of the first TP-UIC experiment on one trial.
 
@@ -661,7 +774,42 @@ def cancellation_arms(
     ``threshold`` is the CFAR level used to accept a target candidate for the
     joint stage; pass an empirically calibrated H0 level so the candidate set is
     never an oracle.
+
+    ``candidate_policy`` decides how the joint support of stage 2 is chosen, and
+    the V1/V1.1 gate was wrong in a way that only shows up when you ask what the
+    statistic *means*:
+
+    ``"protected_only"`` (default) makes the support the protection set itself:
+      stage 2 models exactly the echoes the receiver's own belief already
+      declared target-carrying, and nothing else.  This is a *declared design
+      rule*, not a test, and that is the point.  The old rule compared
+      ``||U_q^H r1||^2 / rank(U_q)`` against a threshold, but invariant
+      ``P r1 = P y`` says the protected part of ``r1`` is the protected part of
+      ``y`` unchanged -- it retains the direct field *by construction* at every
+      protected target, in **both** hypotheses.  A test whose level is
+      dominated by an assumption cannot be calibrated, so the "gate" was a
+      constant dressed as a decision: it selected every protected target on
+      every trial, and the threshold it printed had no relationship to a false
+      alarm rate.  Declaring the rule removes a statistic that cannot be
+      interpreted without changing what the arm does.
+
+    ``"statistic"`` keeps the old threshold test, and exists only so the
+      ablation can be run and the difference measured.  It is what the V1 and
+      V1.1 headline tables were produced with, so results built on it are not
+      comparable to results built on the default.  ``gate_targets`` reports what
+      that test selected whether or not the policy used it.
+
+    A third variant -- gate **minus** protected targets -- is deliberately *not*
+    offered: in a single-target scene every target is protected, so stage 2's
+    support becomes empty and ``tp_uic_full`` collapses onto ``tp_uic_stage1``.
+    A policy that deletes the mechanism is not a policy; the ablation that
+    removes the joint stage is already the ``tp_uic_stage1`` arm.
     """
+    if candidate_policy not in ("protected_only", "statistic"):
+        raise ValueError(
+            "candidate_policy must be 'protected_only' or 'statistic', got %r"
+            % (candidate_policy,)
+        )
     X, A, y = obs.X, obs.A, obs.y
     x, s = obs.x_direct, obs.s_target
     n = y - x - s
@@ -685,6 +833,18 @@ def cancellation_arms(
     )
     empty = Subspace(U=np.zeros((n_bins, 0), dtype=complex), rank=0)
     prior = cfg.cancellation.prior_variance if cfg.cancellation.prior_variance else None
+    # The tested target's own echo, isolated from the truth.  Everything below is
+    # linear, so applying an arm to ``s_q`` alone gives exactly the part of the
+    # total removal that fell on this target.
+    s_q = None
+    if obs.alpha_true is not None and obs.A_true_target_ids is not None:
+        ids_t = np.asarray(obs.A_true_target_ids)
+        alpha = np.asarray(obs.alpha_true)
+        A_true = target_dictionary(cfg, obs.targets)
+        if ids_t.size == alpha.size == A_true.shape[1]:
+            sel_q = ids_t == wt
+            if np.any(sel_q):
+                s_q = A_true[:, sel_q] @ alpha[sel_q]
     parts: Dict[str, _Arm] = {}
 
     def operator(name: str, subspace: Subspace, pv, candidates: Tuple[int, ...] = ()) -> _Arm:
@@ -701,10 +861,13 @@ def cancellation_arms(
         h_x, _ = solve(x)
         h_s, _ = solve(s)
         h_n, _ = solve(n)
+        h_q = solve(s_q)[0] if s_q is not None else None
         mx = subspace.complement_matrix(X)
         if candidates:
-            return _Arm(name, X @ h_x, X @ h_s, X @ h_n, h_y, c_y, subspace, candidates)
-        return _Arm(name, mx @ h_x, mx @ h_s, mx @ h_n, h_y, c_y, subspace, candidates)
+            return _Arm(name, X @ h_x, X @ h_s, X @ h_n, h_y, c_y, subspace, candidates,
+                        None if h_q is None else X @ h_q)
+        return _Arm(name, mx @ h_x, mx @ h_s, mx @ h_n, h_y, c_y, subspace, candidates,
+                    None if h_q is None else mx @ h_q)
 
     # ---- no_ic ----------------------------------------------------------
     zero = np.zeros(n_bins, dtype=complex)
@@ -731,22 +894,35 @@ def cancellation_arms(
     for name, pv in (("protected_ls", None), ("tp_uic_stage1", prior)):
         parts[name] = operator(name, belief, pv)
 
-    # ---- tp_uic_full: candidate support fixed by the stage-1 statistic ---
+    # ---- tp_uic_full: the joint support, declared rather than detected ---
     stage1_residual = y - (parts["tp_uic_stage1"].sub_direct
                            + parts["tp_uic_stage1"].sub_target
                            + parts["tp_uic_stage1"].sub_noise)
-    candidate_cols: List[int] = []
-    if obs.A_target_ids is not None and A.shape[1]:
-        ids = np.asarray(obs.A_target_ids)
-        for q in sorted(set(int(v) for v in ids)):
-            cols = np.flatnonzero(ids == q)
+    ids_here = None if obs.A_target_ids is None else np.asarray(obs.A_target_ids)
+    # The energy gate is always evaluated, because its reading is the provenance
+    # of the ablation -- but only the ``statistic`` policy acts on it.
+    gate_targets: List[int] = []
+    if ids_here is not None and A.shape[1]:
+        for q in sorted(set(int(v) for v in ids_here)):
+            cols = np.flatnonzero(ids_here == q)
             block = orthonormalise(A[:, cols])
             if not block.rank:
                 continue
             projected = block.U.conj().T @ stage1_residual
             level = float(np.vdot(projected, projected).real) / block.rank
             if level > threshold:
-                candidate_cols.extend(int(c) for c in cols)
+                gate_targets.append(int(q))
+    if candidate_policy == "statistic":
+        supported = list(gate_targets)
+    else:
+        shielded = protected_target_ids(cfg, obs.targets_belief or obs.targets)
+        supported = (
+            [] if ids_here is None
+            else sorted(q for q in set(int(v) for v in ids_here) if q in shielded)
+        )
+    candidate_cols: List[int] = []
+    for q in supported:
+        candidate_cols.extend(int(c) for c in np.flatnonzero(ids_here == q))
     candidates = tuple(candidate_cols)
     parts["tp_uic_full"] = operator("tp_uic_full", belief, prior, candidates)
 
@@ -786,6 +962,36 @@ def cancellation_arms(
             noise_db = float("-inf")
         else:
             noise_db = float(10.0 * math.log10(estimation / n_energy))
+        # Both ratios are guarded against a *zero* denominator and not against
+        # ``EPS``.  ``EPS = 1e-12`` is larger than a real echo energy on this
+        # scenario (measured: 1.21e-13 W on one single-target trial), so
+        # ``max(s_energy, EPS)`` replaced the denominator by a value eight times
+        # too large and reported ``eta_survive = 0.1209`` for the ``no_ic`` arm,
+        # whose survival is 1.0 by definition.  The same trap is documented on
+        # :func:`_positive_sigma`; it survived here because the old echo
+        # generator (three unit-modulus scatterers per target) inflated
+        # ``s_energy`` above ``EPS`` and hid it.
+        if s_energy > 0.0:
+            eta_protect = float(np.vdot(belief.project(s), belief.project(s)).real / s_energy)
+            eta_survive = float(np.vdot(s - arm.sub_target, s - arm.sub_target).real / s_energy)
+        else:
+            # No echo in the observation: both ratios are undefined, and a
+            # convention is safer than a NaN that silently poisons a median.
+            eta_protect = eta_survive = 0.0
+        # The tested target's own survival.  ``sub_target_q`` is ``None`` for the
+        # arms that are not estimators (``no_ic``, ``fixed_kappa``,
+        # ``perfect_channel``): they scale or subtract the *direct* field and
+        # never touch the echo, so the target survives whole.  Reporting the
+        # field default 0.0 there would read as "the echo was destroyed".
+        s_q_energy = eta_survive_q = 0.0
+        if s_q is not None:
+            s_q_energy = float(np.vdot(s_q, s_q).real)
+            if s_q_energy > 0.0:
+                removed_q = arm.sub_target_q
+                if removed_q is None:
+                    removed_q = np.zeros_like(s_q)
+                left = s_q - removed_q
+                eta_survive_q = float(np.vdot(left, left).real / s_q_energy)
         out[name] = CancellationResult(
             name=name,
             residual=residual,
@@ -798,13 +1004,20 @@ def cancellation_arms(
             i_res_pred=i_res_pred,
             i_res_retained=retained,
             i_res_pred_estimate=pred_estimate,
-            eta_protect=float(np.vdot(belief.project(s), belief.project(s)).real / max(s_energy, EPS)),
-            eta_survive=float(np.vdot(s - arm.sub_target, s - arm.sub_target).real / max(s_energy, EPS)),
+            eta_protect=eta_protect,
+            eta_survive=eta_survive,
+            eta_survive_q=eta_survive_q,
+            s_q_energy=s_q_energy,
             noise_enhance_db=noise_db,
             protect_dim=int(arm.subspace.rank),
             n_coefficients=int(X.shape[1]),
             matched_stat=statistic,
             candidates=arm.candidates,
+            # Only ``tp_uic_full`` has a candidate stage, so only it has a gate
+            # to report.  Recording these on the other arms would suggest they
+            # ran a gate they never had.
+            gate_targets=tuple(gate_targets) if name == "tp_uic_full" else (),
+            supported_targets=tuple(supported) if name == "tp_uic_full" else (),
         )
     return out
 
@@ -836,15 +1049,30 @@ def build_observation(
     basis do, which is precisely the asymmetry the experiment wants to price.
     """
     M, Q = cfg.scale.M, cfg.scale.Q
-    n_bins = int(cfg.waveform.N * cfg.waveform.L)
+    n_bins = _n_obs(cfg)   # DD bins x receive elements (K for the DD-only model)
     if active_mask is None:
         active_mask = np.ones(M, dtype=bool)
+
+    # Bearings are only needed when the receiver has an aperture.  Targets use
+    # the *same* belief/truth split as the DD offsets: the belief dictionary is
+    # what the receiver can steer, the truth dictionary is where the echo is.
+    m_rx = int(cfg.aperture.m_rx) if cfg.aperture.enable else 1
+    axis = int(cfg.aperture.axis)
+    if m_rx > 1:
+        p_rx = np.asarray(geom_true.p_uav[receiver], dtype=float)[:3]
+        u_tgt_true = _u_of(geom_true.p_tgt, p_rx, Q, axis)
+        u_tgt_belief = _u_of(geom_belief.p_tgt, p_rx, Q, axis)
 
     direct: List[DirectSource] = []
     for i in range(M):
         if i == receiver or not active_mask[i]:
             continue
         k_bin, l_bin = direct_link_offset(cfg, geom_true, i, receiver)
+        u_i = 0.0
+        if m_rx > 1:
+            v = np.asarray(geom_true.p_uav[i], dtype=float)[:3] - p_rx
+            n = float(np.linalg.norm(v))
+            u_i = float(v[axis] / n) if n > 0.0 else 0.0
         direct.append(
             DirectSource(
                 uav=i,
@@ -852,6 +1080,7 @@ def build_observation(
                 gain=float(base.direct_gain[i, receiver]),
                 doppler_bin=float(k_bin),
                 delay_bin=float(l_bin),
+                u=float(u_i),
             )
         )
 
@@ -868,13 +1097,17 @@ def build_observation(
             k_t, l_t = target_link_offset(cfg, geom_true, i, receiver, q)
             k_b, l_b = target_link_offset(cfg, geom_belief, i, receiver, q)
             power = float(sense_power[i]) * gain * float(processing_gain) * float(hw_gain)
-            targets_true.append(TargetSource(i, q, power, k_t, l_t))
-            targets_belief.append(TargetSource(i, q, power, k_b, l_b))
+            targets_true.append(TargetSource(
+                i, q, power, k_t, l_t,
+                u=(float(u_tgt_true[q]) if m_rx > 1 else 0.0)))
+            targets_belief.append(TargetSource(
+                i, q, power, k_b, l_b,
+                u=(float(u_tgt_belief[q]) if m_rx > 1 else 0.0)))
             true_ids.append(int(q))
 
     X = direct_dictionary(cfg, direct)
     A = target_dictionary(cfg, targets_belief) if cfg.cancellation.protect_targets else \
-        np.zeros((n_bins, 0), dtype=complex)
+        np.zeros((_n_obs(cfg), 0), dtype=complex)
     A_true = target_dictionary(cfg, targets_true)
 
     # Truth lives on the *centre* column of each block.  The tangent columns are
@@ -882,25 +1115,42 @@ def build_observation(
     # estimation variance -- which is exactly the cost the experiment measures
     # in eq. (3).  Writing the truth this way keeps the comparison honest: the
     # fractional-DD basis is a modelling choice, not free information.
+    #
+    # This rule applies to the *echo* dictionary exactly as it does to the
+    # direct one, and it was violated for the echo until 2026-09-19: the
+    # coefficients were drawn on the whole column set, so every tangent column
+    # carried a unit-modulus true scatterer.  With ``tangent_order = 1`` the
+    # generated echo was then ``a_0 a + a_tau d_tau a + a_nu d_nu a`` with three
+    # unit-modulus coefficients -- three physical scatterers where the model says
+    # one -- which is not the model being tested.  The detector measured the
+    # cost: on ``perfect_channel + truth`` (no belief error, no estimation
+    # error, only the generated echo) the analytic CFAR level returned
+    # ``P_FA = 0.64`` instead of ``0.05``, because H0 still contained the
+    # tangent components the nuisance projection had declared absent.  Two
+    # vectors that disagree about who carries the signal cannot be compared, so
+    # both are now built the same way.
     n_basis = 1 + 2 * int(cfg.cancellation.interference_tangent_order)
     h_true = np.zeros(X.shape[1], dtype=complex)
     if X.shape[1]:
         centre = np.arange(0, X.shape[1], n_basis)
         h_true[centre] = np.exp(1j * rng.uniform(0.0, 2.0 * np.pi, size=centre.size))
+    n_tgt_basis = 1 + 2 * int(cfg.cancellation.tangent_order)
     alpha_true = np.zeros(A_true.shape[1], dtype=complex)
     if alpha_true.size:
-        alpha_true = np.exp(1j * rng.uniform(0.0, 2.0 * np.pi, size=alpha_true.size))
+        centre_t = np.arange(0, alpha_true.size, n_tgt_basis)
+        alpha_true[centre_t] = np.exp(
+            1j * rng.uniform(0.0, 2.0 * np.pi, size=centre_t.size)
+        )
     # One target id per *column*, repeated over each source's basis block, so a
     # caller can select a target's block or drop its echo without knowing the
     # layout.
-    n_tgt_basis = 1 + 2 * int(cfg.cancellation.tangent_order)
     ids = np.repeat(np.asarray(true_ids, dtype=int), n_tgt_basis)
 
     x_direct = X @ h_true
     if include_echo:
         s_target = A_true @ alpha_true
     else:
-        s_target = np.zeros(n_bins, dtype=complex)
+        s_target = np.zeros(_n_obs(cfg), dtype=complex)
     if exclude_target is not None:
         drop = ids == int(exclude_target)
         s_target = s_target - A_true[:, drop] @ alpha_true[drop]
@@ -1012,6 +1262,34 @@ def build_observation_pair(
     return obs1, obs0
 
 
+def protected_target_ids(cfg: Config, sources: Sequence[TargetSource]) -> "frozenset[int]":
+    """Which targets the protection basis covers, at this receiver.
+
+    Extracted from :func:`_protection_basis` because stage 2 needs the same
+    answer for a different purpose.  The protection budget is spent on the
+    ``max_protected_targets`` *weakest* echoes, and stage 2's joint support is
+    declared to *be* this set (:func:`cancellation_arms`,
+    ``candidate_policy="protected_only"``): the echoes whose energy stage 1
+    deliberately keeps are exactly the ones stage 2 must model explicitly, and
+    the one rule that must not be used to find them is an energy test on the
+    stage-1 residual, which retains them by construction.
+    """
+    c = cfg.cancellation
+    if not c.protect_targets or not sources:
+        return frozenset()
+    budget = int(c.max_protected_targets)
+    if budget <= 0:
+        # ``0`` protects every believed echo; ``_protection_leakage_fraction``
+        # documents that this is the unconstrained variant kept for the
+        # ablation.
+        return frozenset(int(s.target) for s in sources)
+    by_target: Dict[int, List[TargetSource]] = {}
+    for src in sources:
+        by_target.setdefault(int(src.target), []).append(src)
+    ranked = sorted(by_target, key=lambda q: sum(s.power for s in by_target[q]))
+    return frozenset(int(q) for q in ranked[:budget])
+
+
 def _protection_basis(cfg: Config, sources: Sequence[TargetSource], n_bins: int) -> np.ndarray:
     """``U_j = orth([J_1, ..., J_Q])`` -- module M2.
 
@@ -1024,16 +1302,12 @@ def _protection_basis(cfg: Config, sources: Sequence[TargetSource], n_bins: int)
     """
     c = cfg.cancellation
     if not c.protect_targets or not sources:
-        return np.zeros((n_bins, 0), dtype=complex)
+        np.zeros((_n_obs(cfg), 0), dtype=complex)
 
-    budget = int(c.max_protected_targets)
-    if budget > 0:
-        by_target: Dict[int, List[TargetSource]] = {}
-        for src in sources:
-            by_target.setdefault(int(src.target), []).append(src)
-        ranked = sorted(by_target, key=lambda q: sum(s.power for s in by_target[q]))
-        wanted = set(ranked[:budget])
-        sources = [s for s in sources if int(s.target) in wanted]
+    wanted = protected_target_ids(cfg, sources)
+    sources = [s for s in sources if int(s.target) in wanted]
+    if not sources:
+        np.zeros((_n_obs(cfg), 0), dtype=complex)
 
     blocks = [
         tangent_columns(
@@ -1042,7 +1316,16 @@ def _protection_basis(cfg: Config, sources: Sequence[TargetSource], n_bins: int)
         )
         for s in sources
     ]
-    return orthonormalise(np.concatenate(blocks, axis=1)).U
+    # Lift *before* orthonormalising: the Kronecker product does not preserve
+    # orthonormality, because two columns that are orthogonal in DD are no longer
+    # orthogonal once they carry different steering (the inner product picks up
+    # the factor A(u_i, u_j)).  Lifting an already-orthonormalised basis would
+    # therefore protect a subspace the receiver is not actually spanning.
+    merged = np.concatenate(blocks, axis=1)
+    merged = lift_dictionary(
+        cfg, merged, _source_bearings(sources, 1 + 2 * int(c.tangent_order))
+    )
+    return orthonormalise(merged).U
 
 
 def _noise_power(cfg: Config) -> float:
@@ -1086,6 +1369,69 @@ def predict_cancellation(
     estimate = (d * n0 / n_cpi) / i_sense
     retained = np.full_like(estimate, _protection_leakage_fraction(cfg))
     return estimate + retained, retained
+
+
+def measure_residual_fraction(
+    cfg: Config,
+    geom,
+    base,
+    *,
+    rng: np.random.Generator,
+    active_mask: np.ndarray | None = None,
+    arm: str = "tp_uic_full",
+    sense_power: np.ndarray | None = None,
+    processing_gain: float | None = None,
+    hw_gain: float | None = None,
+    receivers: Sequence[int] | None = None,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """``(fraction, kappa_db)`` per receiver, **measured** by the real estimator.
+
+    ``fraction[j] = I_res / I_in`` for receiver ``j`` under ``arm``, i.e. exactly
+    the quantity ``model.compute_link_tables`` multiplies ``I_sense_field[j]`` by
+    when the constant ``kappa_dc = 10^(-direct_cancellation_db/10)`` is replaced
+    by the algorithm.  Being on the same scale, it is a drop-in substitution --
+    which is the whole reason :func:`predict_cancellation` returns a *fraction*
+    and not a dB.
+
+    Why a scheduler must use this rather than the prediction: the predicted
+    retention is a dimension ratio (``_protection_leakage_fraction``) and the
+    module's own measurement on the 600 m scenario reads ~17 % of the input
+    direct field where the ratio says 3.1 % -- a 5x optimistic error, because the
+    direct kernels and the target kernels occupy the *same* compact DD region.
+    The prediction is a planning number; this is the deliverable.
+
+    Receivers with no active illuminator have ``I_in = 0``, for which any
+    fraction gives the same residual (zero) and the dB figure is undefined; those
+    entries are reported as ``1.0`` and ``inf`` so that a caller multiplying the
+    two never produces a silent ``0 * inf``.
+    """
+    m = int(cfg.scale.M)
+    if receivers is None:
+        receivers = range(m)
+    if processing_gain is None:
+        processing_gain = float(cfg.waveform.N * cfg.waveform.L)
+    if hw_gain is None:
+        from .model import radar_hardware_gain
+
+        hw_gain = float(radar_hardware_gain(cfg))
+    if sense_power is None:
+        sense_power = np.full(m, cfg.radio.rho * cfg.radio.P_default)
+    sense_power = np.asarray(sense_power, dtype=float)
+
+    fraction = np.ones(m, dtype=float)
+    for j in receivers:
+        obs = build_observation(
+            cfg, geom, geom, base, int(j), rng=rng, sense_power=sense_power,
+            radiated_power=sense_power, processing_gain=processing_gain,
+            hw_gain=hw_gain, active_mask=active_mask, include_echo=True,
+            weak_index=0,
+        )
+        result = cancellation_arms(cfg, obs)[arm]
+        if result.i_in > 0.0:
+            fraction[int(j)] = float(result.i_res / result.i_in)
+    with np.errstate(divide="ignore"):
+        kappa = -10.0 * np.log10(np.clip(fraction, EPS, None))
+    return fraction, kappa
 
 
 def _protection_leakage_fraction(cfg: Config) -> float:

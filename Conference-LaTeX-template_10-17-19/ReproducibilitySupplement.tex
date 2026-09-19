@@ -35,7 +35,12 @@ each axis, including conservative nonzero vertical entries. It is not a
 calibrated posterior from an implemented tracker. The delay/Doppler gate uses
 the bistatic Jacobian applied to this covariance and a three-standard-deviation
 margin in each coordinate. Selection uses the predicted geometry and mean
-RCS of $50~\mathrm{m}^2$; detection uses the unknown current state. Blind first
+RCS of $50~\mathrm{m}^2$ at the nominal work point, and $0.1~\mathrm{m}^2$ at
+the low-RCS work point of Sec.~\ref{sec:work_points}; detection uses the unknown
+current state. At the low-RCS work point the declared 150~m position error
+exceeds one delay-resolution cell (78.1~m for $L=64$ and
+$\Delta f=30$~kHz), which is why the belief-error term discussed there matters
+and why the two work points are never mixed in one table. Blind first
 acquisition and inference of an unknown target inventory are outside scope.
 The position-error scan tests 50--500 m; it does not prove robustness to arbitrary
 tracking errors or unknown RCS distributions.

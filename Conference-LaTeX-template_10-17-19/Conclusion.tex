@@ -2,9 +2,14 @@
 \label{sec:conclusion}
 
 Target-local fusion retains evidence at its producing UAV before adaptive C2F
-selects remote reports. In 1000 paired trials, it achieved $P_D=0.9764$ with
+selects remote reports. In 1000 paired trials at the nominal work point
+($4000$~m, $50~\mathrm m^2$) it achieved $P_D=0.9764$ with
 no statistically resolved detection difference from Sensing-SINR and 83.7\%
-less payload and serial reporting delay. The contribution is architectural
+less payload and serial reporting delay. That reading is work-point specific:
+at the low-RCS work point ($600$~m, $0.1~\mathrm m^2$) the same paired
+comparison against Sensing-SINR is resolved and negative ($-0.0260$,
+$[-0.0334,-0.0185]$), so there the method buys 51.9\% of the payload and delay
+for $0.026$ detection probability. The contribution is architectural
 communication efficiency under independent LLRs, fixed packets, and
 prior-assisted sensing. Placement remains heuristic, detector prediction
 approximate, and performance sensitive to belief error and sparse deployment.

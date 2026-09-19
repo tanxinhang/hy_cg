@@ -1,0 +1,14 @@
+  m_rx=1   done  [30 s]
+  m_rx=4   done  [58 s]
+  m_rx=8   done  [87 s]
+  m_rx=16  done  [117 s]
+
+  m_rx    coll mean   coll max     coll>1   rinr med      P_D     P_FA
+  1           1.149       3.00      0.138      6.992    0.595    0.050
+  4           1.058       2.59      0.138      6.992    0.595    0.051
+  8           1.030       2.27      0.138      6.992    0.595    0.051
+  16          1.015       2.07      0.138      6.992    0.595    0.051
+
+  m_rx = 1 is the released DD-only model; every row is the same
+  geometry and seed, so only the aperture moves between them.
+wrote D:\Desktop\conference\results_aperture_check

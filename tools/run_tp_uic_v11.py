@@ -20,6 +20,12 @@ Three experiments, one for each question the revision note poses:
              continuous-DD audit that moves the tested template off the grid.
 ``single``   With the multi-target question removed, does cancellation transfer
              to detection at all?  One echo, one protection basis, no nuisance.
+``oracle``   Is the analytic level a CFAR level once nothing else can be blamed?
+             ``perfect_channel`` + ``truth`` + no belief error: the H0 residual
+             is the other targets' echoes and noise, and nothing else.  This is
+             the experiment that separates a mis-stated ``C_res`` from a
+             mis-stated signal model, and the one the V1.1 headline lacked --
+             it measured ``P_FA = 0.40 .. 0.94`` and could not attribute the gap.
 
 Run::
 
@@ -29,6 +35,22 @@ Run::
 
 Nothing here touches the released path: ``cancellation.enable`` gates every
 component and ``model.py`` is not imported for anything but geometry and gains.
+
+Two fixes landed on 2026-09-19 and both change the numbers, so results from
+before that date are not comparable to results from after it:
+
+* the generated echo now carries its true coefficients on the **centre column
+  only** (``isac_sim.cancellation.build_observation``); before the fix every
+  fractional-DD tangent column also carried a unit-modulus scatterer, i.e. the
+  generator wrote three echoes per target while the detector modelled one;
+* the stage-2 joint support is now the *declared* protection set instead of the
+  output of an energy threshold (``--candidate-policy``).  The old gate compared
+  a threshold against ``||U_q^H r1||^2 / rank(U_q)``, whose level is set by the
+  direct field the protection *deliberately retains*, so it selected every
+  protected target on every trial and the threshold it printed was not a false
+  alarm rate.  The old behaviour is kept as ``--candidate-policy statistic`` for
+  the ablation, and every row records both selections (``gate_targets`` /
+  ``supported_targets``).
 """
 
 from __future__ import annotations
@@ -77,14 +99,25 @@ def build_config(args) -> Config:
     )
 
 
-def make_trial(cfg: Config, args, index: int):
-    """One geometry, one matched ``(H1, H0)`` pair, one tested (receiver, target)."""
+def make_trial(cfg: Config, args, index: int, *, truth_belief: bool = False):
+    """One geometry, one matched ``(H1, H0)`` pair, one tested (receiver, target).
+
+    Returns ``(obs1, obs0, receiver, weak)``.  ``receiver`` is the node the
+    observation was built for and ``weak`` is the *target* index under test --
+    two different integers that an earlier version of this driver conflated in
+    its output rows, which silently destroyed the provenance of every recorded
+    arm number.  They are returned separately so a row can carry both.
+
+    ``truth_belief`` forces the receiver's tracker to be perfect (belief ==
+    truth) regardless of ``--no-belief-error``; the oracle experiment needs that
+    by definition rather than by flag.
+    """
     rng = np.random.default_rng([cfg.run.seed, int(index)])
     geom = generate_geometry(cfg, rng)
     base = build_base_gains(cfg, geom, rng)
     belief = (
         geom
-        if args.no_belief_error
+        if (truth_belief or args.no_belief_error)
         else perturbed_geometry(
             cfg, geom, cfg.prior.belief_sigma_pos_m, cfg.prior.belief_sigma_vel_mps, rng
         )
@@ -97,10 +130,10 @@ def make_trial(cfg: Config, args, index: int):
         radiated_power=sense, processing_gain=cfg.waveform.N * cfg.waveform.L,
         hw_gain=1.0, exclude_target=weak, weak_index=weak,
     )
-    return obs1, obs0, weak
+    return obs1, obs0, receiver, weak
 
 
-def arms_with_gate(cfg: Config, obs, weak: int):
+def arms_with_gate(cfg: Config, obs, weak: int, policy: str = "protected_only"):
     """Two-pass support gate, identical to ``run_tp_uic_v1.passes``.
 
     Pass 1 runs with the gate closed so the receiver's own predicted residual
@@ -110,12 +143,19 @@ def arms_with_gate(cfg: Config, obs, weak: int):
     oracle.  Sharing this helper with V1 is what keeps ``tp_uic_full`` from
     degenerating: with ``threshold = 0`` every target column clears the gate and
     the joint stage collapses onto plain LS.
+
+    ``policy`` is forwarded to :func:`isac_sim.cancellation.cancellation_arms`
+    in both passes.  It must be the same in both: the level is read out of pass
+    1's stage-1 residual, and a pass 2 with a different support would be
+    calibrating one arm and scoring another.
     """
-    first = cx.cancellation_arms(cfg, obs, weak_target=weak, threshold=0.0)
+    first = cx.cancellation_arms(cfg, obs, weak_target=weak, threshold=0.0,
+                                 candidate_policy=policy)
     n0 = float(cx._noise_power(cfg))
     level = n0 + first["tp_uic_stage1"].i_res_pred / max(int(obs.y.size), 1)
     gate = -math.log(float(cfg.detect.Pfa_target)) * level
-    return cx.cancellation_arms(cfg, obs, weak_target=weak, threshold=gate), gate
+    return cx.cancellation_arms(cfg, obs, weak_target=weak, threshold=gate,
+                                candidate_policy=policy), gate
 
 
 def model_of(cfg, obs, name, arms, cache, label):
@@ -140,12 +180,12 @@ def model_of(cfg, obs, name, arms, cache, label):
 def experiment_arms(cfg: Config, args, out_dir: str) -> List[dict]:
     rows: List[dict] = []
     for t in range(int(args.trials)):
-        obs1, obs0, weak = make_trial(cfg, args, t)
-        arms1, gate1 = arms_with_gate(cfg, obs1, weak)
-        arms0, _ = arms_with_gate(cfg, obs0, weak)
+        obs1, obs0, receiver, weak = make_trial(cfg, args, t)
+        arms1, gate1 = arms_with_gate(cfg, obs1, weak, args.candidate_policy)
+        arms0, _ = arms_with_gate(cfg, obs0, weak, args.candidate_policy)
         cache: Dict = {}
         for name in gl.ARM_ORDER:
-            row = {"trial": t, "arm": name, "receiver": int(weak),
+            row = {"trial": t, "arm": name, "receiver": int(receiver),
                    "target": int(weak), "gate": gate1}
             for label, obs, arms in (("h1", obs1, arms1), ("h0", obs0, arms0)):
                 model = model_of(cfg, obs, name, arms, cache, label)
@@ -163,12 +203,21 @@ def experiment_arms(cfg: Config, args, out_dir: str) -> List[dict]:
                     row.update({
                         "kappa_db": arms[name].kappa_db,
                         "eta_survive": arms[name].eta_survive,
+                        "eta_survive_q": arms[name].eta_survive_q,
+                        "s_q_energy": arms[name].s_q_energy,
                         "rho_weighted": got.rho_weighted,
                         "rho_min": got.rho_min,
                         "xi_rel": got.xi_rel_q,
                         "ncp_unit": got.ncp_unit,
                         "ncp_best": got.ncp_best,
                         "calib_min_ratio": model.cov.min_ratio,
+                        # Stage-2 provenance: how many targets the energy gate
+                        # selected, and how many the joint fit actually modelled.
+                        # Comparing the two is the direct measurement of what the
+                        # declared support rule replaced.
+                        "gate_targets": len(arms[name].gate_targets),
+                        "supported_targets": len(arms[name].supported_targets),
+                        "n_candidates": len(arms[name].candidates),
                     })
             rows.append(row)
         if (t + 1) % max(int(args.trials) // 5, 1) == 0 and not args.quiet:
@@ -184,8 +233,8 @@ def experiment_masking(cfg: Config, args, out_dir: str) -> Dict[str, List[dict]]
     curves: List[dict] = []
     audits: List[dict] = []
     for t in range(int(args.audit_trials)):
-        obs1, _, weak = make_trial(cfg, args, t)
-        arms1, _ = arms_with_gate(cfg, obs1, weak)
+        obs1, _, _, weak = make_trial(cfg, args, t)
+        arms1, _ = arms_with_gate(cfg, obs1, weak, args.candidate_policy)
         cache: Dict = {}
         for name in AUDIT_ARMS:
             model = model_of(cfg, obs1, name, arms1, cache, "h1")
@@ -239,9 +288,9 @@ def experiment_masking(cfg: Config, args, out_dir: str) -> Dict[str, List[dict]]
 def experiment_single(cfg: Config, args, out_dir: str) -> List[dict]:
     rows: List[dict] = []
     for t in range(int(args.single_trials)):
-        obs1, _, weak = make_trial(cfg, args, t)
+        obs1, _, _, weak = make_trial(cfg, args, t)
         single = gl.restrict_to_target(cfg, obs1, weak)
-        arms, _ = arms_with_gate(cfg, single, weak)
+        arms, _ = arms_with_gate(cfg, single, weak, args.candidate_policy)
         cache: Dict = {}
         for name in gl.ARM_ORDER:
             model = model_of(cfg, single, name, arms, cache, "single")
@@ -263,8 +312,83 @@ def experiment_single(cfg: Config, args, out_dir: str) -> List[dict]:
 
 
 # --------------------------------------------------------------------------
-# Reporting
+# D. Oracle CFAR closure: perfect_channel + truth, H1/H0 pair
 # --------------------------------------------------------------------------
+ORACLE_ARMS = ("perfect_channel", "no_ic", "tp_uic_stage1")
+
+
+def experiment_oracle(cfg: Config, args, out_dir: str) -> List[dict]:
+    """Is the analytic GLRT level a CFAR level once nothing else can be blamed?
+
+    ``perfect_channel`` removes the true direct field exactly and the ``truth``
+    dictionary states every other target's echo exactly, so on the H0
+    observation the residual is *exactly* "the other nine echoes plus noise" and
+    the nuisance projection removes those nine exactly.  Whatever ``P_FA`` the
+    analytic threshold then achieves is a property of the detector and of the
+    echo the generator actually wrote -- no estimator error, no belief error, no
+    cancellation depth in the way.
+
+    That is the experiment V1.1 could not run.  Its headline measured
+    ``P_FA = 0.40 .. 0.94`` at a threshold that should give 0.05 and could not
+    separate three explanations: a mis-stated ``C_res``, a belief error, or a
+    mis-stated *signal model*.  Isolating the three is what makes the remaining
+    gap attributable, and it is cheap: one matched pair per trial and three arms.
+    """
+    rows: List[dict] = []
+    for t in range(int(args.oracle_trials)):
+        obs1, obs0, receiver, weak = make_trial(cfg, args, t, truth_belief=True)
+        arms1, gate1 = arms_with_gate(cfg, obs1, weak, args.candidate_policy)
+        arms0, _ = arms_with_gate(cfg, obs0, weak, args.candidate_policy)
+        cache: Dict = {}
+        for name in ORACLE_ARMS:
+            row = {"trial": t, "arm": name, "receiver": int(receiver),
+                   "target": int(weak), "gate": gate1}
+            for label, obs, arms in (("h1", obs1, arms1), ("h0", obs0, arms0)):
+                model = model_of(cfg, obs, name, arms, cache, label)
+                got = gl.target_conditioned_glrt(
+                    cfg, obs, arms[name], model, target=weak, p_fa=float(args.p_fa),
+                    nuisance_manifold=int(args.manifold), dictionary="truth",
+                )
+                row.update({
+                    f"t_{label}": got.statistic,
+                    f"thr_{label}": got.threshold,
+                    f"det_{label}": int(got.detected),
+                    f"dof_{label}": got.dof_real,
+                    f"cov_rank_{label}": model.cov.rank,
+                    f"min_ratio_{label}": model.cov.min_ratio,
+                })
+            rows.append(row)
+        if (t + 1) % max(int(args.oracle_trials) // 5, 1) == 0 and not args.quiet:
+            print("  oracle %d/%d" % (t + 1, args.oracle_trials), flush=True)
+    _write(os.path.join(out_dir, "oracle_cfar.csv"), rows)
+    return rows
+
+
+def report_oracle(rows: List[dict], args) -> None:
+    print("\n=== D. oracle CFAR closure: perfect_channel + truth, p_fa = %.3f ===" % args.p_fa)
+    print("  no belief error, truth dictionary, direct field removed exactly:")
+    print("  the H0 residual is other targets' echoes + noise, nothing else.")
+    print()
+    print("  %-16s %9s %9s %8s %8s %9s %9s" % (
+        "arm", "thr", "T_H0 med", "P_FA", "P_D", "ratio med", "C_res rank"))
+    for name in ORACLE_ARMS:
+        sub = [r for r in rows if r["arm"] == name]
+        if not sub:
+            continue
+        ratio = []
+        for r in sub:
+            if float(r.get("t_h0", 0.0)) > 0.0:
+                ratio.append(float(r["t_h1"]) / float(r["t_h0"]))
+        ratio_med = st.median(ratio) if ratio else float("nan")
+        print("  %-16s %9.2f %9.2f %8.3f %8.3f %9.2f %9.0f" % (
+            name, _med(sub, "thr_h1"), _med(sub, "t_h0"), _rate(sub, "det_h0"),
+            _rate(sub, "det_h1"), ratio_med, _med(sub, "cov_rank_h1")))
+    print("\n  A calibrated detector lands on P_FA = %.3f here.  Anything above it," % args.p_fa)
+    print("  with belief error and estimation error both absent by construction,")
+    print("  is the *generated echo* disagreeing with the nuisance model.")
+
+
+
 def _write(path: str, rows: List[dict]) -> None:
     if not rows:
         return
@@ -294,17 +418,24 @@ def report_arms(rows: List[dict], args) -> None:
     print("\n=== A. arm comparison, T_q on a matched H1/H0 pair (p_fa = %.3f) ===" % args.p_fa)
     print("  receiver rule = %s ; nuisance manifold order = %d ; dictionary = %s"
           % (args.receiver_rule, args.manifold, args.dictionary))
+    print("  stage-2 joint support = %s" % args.candidate_policy)
     print()
-    print("  %-16s %8s %8s %9s %6s %6s %8s %8s %8s" % (
-        "arm", "C_IC", "eta_surv", "T1 med", "P_D", "P_FA", "rho", "xi_rel", "ncp"))
+    print("  %-16s %8s %8s %8s %9s %6s %6s %8s %8s %8s %6s %6s" % (
+        "arm", "C_IC", "eta_surv", "eta_q", "T1 med", "P_D", "P_FA", "rho", "xi_rel",
+        "ncp", "gate", "supp"))
     for name in gl.ARM_ORDER:
         sub = [r for r in rows if r["arm"] == name]
         if not sub:
             continue
-        print("  %-16s %8.2f %8.4f %9.2f %6.3f %6.3f %8.4f %8.4f %8.3f" % (
-            name, _med(sub, "kappa_db"), _med(sub, "eta_survive"), _med(sub, "t_h1"),
+        print("  %-16s %8.2f %8.4f %8.4f %9.2f %6.3f %6.3f %8.4f %8.4f %8.3f %6.1f %6.1f" % (
+            name, _med(sub, "kappa_db"), _med(sub, "eta_survive"),
+            _med(sub, "eta_survive_q"), _med(sub, "t_h1"),
             _rate(sub, "det_h1"), _rate(sub, "det_h0"), _med(sub, "rho_weighted"),
-            _med(sub, "xi_rel"), _med(sub, "ncp_unit")))
+            _med(sub, "xi_rel"), _med(sub, "ncp_unit"),
+            _med(sub, "gate_targets"), _med(sub, "supported_targets")))
+    print("\n  eta_surv is the whole echo field; eta_q is the *tested target* alone.")
+    print("  Q1 ('does TP-UIC damage the weak target less') is a question about")
+    print("  eta_q -- eta_surv also moves when the stage-2 support changes size.")
     print("\n  P_FA is measured at the *analytic* threshold, so it is also the")
     print("  residual-covariance calibration check: a well-stated C_res lands on %.3f." % args.p_fa)
 
@@ -370,7 +501,15 @@ def main(argv=None) -> int:
     ap.add_argument("--trials", type=int, default=40)
     ap.add_argument("--audit-trials", type=int, default=12)
     ap.add_argument("--single-trials", type=int, default=40)
-    ap.add_argument("--skip", default="", help="comma list of arms,masking,single to skip")
+    ap.add_argument("--oracle-trials", type=int, default=60,
+                    help="trials for the D. oracle CFAR closure experiment")
+    ap.add_argument("--candidate-policy",
+                    choices=("protected_only", "statistic"),
+                    default="protected_only",
+                    help="stage-2 joint support: 'protected_only' (default) models "
+                         "exactly the protection set, 'statistic' keeps the "
+                         "V1/V1.1 energy-threshold gate for the ablation")
+    ap.add_argument("--skip", default="", help="comma list of arms,masking,single,oracle to skip")
     ap.add_argument("--out", default="results_tp_uic_v11")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args(argv)
@@ -383,6 +522,7 @@ def main(argv=None) -> int:
         args.preset, args.area, args.rcs, args.seed))
     print("  K = %d bins, %d UAVs, %d targets" % (
         cfg.waveform.N * cfg.waveform.L, cfg.scale.M, cfg.scale.Q))
+    print("  stage-2 joint support: %s" % args.candidate_policy)
     print("  detector: target-conditioned whitened GLRT, p_fa = %.3f" % args.p_fa)
 
     if "arms" not in skip:
@@ -396,6 +536,9 @@ def main(argv=None) -> int:
     if "single" not in skip:
         rows = experiment_single(cfg, args, args.out)
         report_single(rows, args)
+    if "oracle" not in skip:
+        rows = experiment_oracle(cfg, args, args.out)
+        report_oracle(rows, args)
     print("\nwrote %s" % os.path.abspath(args.out))
     return 0
 

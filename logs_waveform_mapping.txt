@@ -1,0 +1,31 @@
+﻿waveform: delta_f 30 kHz, T 33.333 us, fc 5.9 GHz, area 600 m
+
+  the delay axis is quantised on L*delta_f; the noise bandwidth is
+  N*delta_f.  Only N == L makes those the same statement.
+
+  N x L         B MHz   noise x    G_proc delay cell L delay cell B doppler cell      N==L
+                                      N*L            m            m         m/s          
+  64x64          1.92      1.00      4096         78.1         78.1        11.9       yes
+  64x128         1.92      1.00      8192         39.1         78.1        11.9        NO
+  64x256         1.92      1.00     16384         19.5         78.1        11.9        NO
+  128x64         3.84      2.00      8192         78.1         39.1         6.0        NO
+  256x64         7.68      4.00     16384         78.1         19.5         3.0        NO
+  128x128        3.84      2.00     16384         39.1         39.1         6.0       yes
+  256x256        7.68      4.00     65536         19.5         19.5         3.0       yes
+
+  read: 'delay cell L' is what the grid resolves; 'delay cell B' is
+  what 1/B says the waveform can resolve.  They differ by N/L.
+
+scene collisions (one geometry, one seed; area 600 m, alpha = 1.00):
+  N x L           valid    colliding    count max      pen med worst dB
+  64x64           0.933        0.119            3       1.0000     4.77
+  64x128          0.933        0.044            2       1.0000     3.01
+  64x256          0.933        0.023            2       1.0000     3.01
+  128x64          0.933        0.051            2       1.0000     3.01
+  256x64          0.933        0.027            2       1.0000     3.01
+  128x128         0.933        0.019            2       1.0000     3.01
+  256x256         0.933        0.008            2       1.0000     3.01
+
+wrote D:\Desktop\conference\results_waveform_mapping
+......                                                                   [100%]
+6 passed in 1.41s

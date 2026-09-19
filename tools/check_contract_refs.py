@@ -42,11 +42,11 @@ class Ref:
 # Theory layer (V1_STABLE_RELEASE.md section 2.1)
 # --------------------------------------------------------------------------
 THEORY: tuple[Ref, ...] = (
-    Ref("eq:comm_sinr_rate", "isac_sim/model.py", 685, 705, ("gamma_comm", "rate[i, j]")),
+    Ref("eq:comm_sinr_rate", "isac_sim/model.py", 805, 830, ("gamma_comm", "rate[i, j]")),
     Ref("eq:fbl_reliability", "isac_sim/fbl.py", 120, 160, ("def chi_from_gamma",)),
     Ref("eq:bistatic_delay_doppler", "isac_sim/model.py", 350, 410, ("delay_bin", "doppler_bin")),
     Ref("eq:local_dd_energy", "isac_sim/dd.py", 1, 287, ("eta_local", "eta_fine_array")),
-    Ref("eq:sensing_sinr", "isac_sim/model.py", 800, 849, ("gamma_sense",)),
+    Ref("eq:sensing_sinr", "isac_sim/model.py", 830, 879, ("gamma_sense",)),
     Ref("eq:local_llr", "isac_sim/llr.py", 80, 115, ("def llr_delta", "def llr_var1")),
     Ref("eq:received_moments", "isac_sim/soft_channel.py", 30, 95, ("def _mix", "received_moments")),
     Ref("eq:detector_prediction", "isac_sim/fusion.py", 180, 260, ("def predicted_pd_for_links",)),
@@ -63,9 +63,9 @@ THEORY: tuple[Ref, ...] = (
 # Model layer (section 2.2)
 # --------------------------------------------------------------------------
 MODEL: tuple[Ref, ...] = (
-    Ref("coupling=shared_spectrum", "isac_sim/model.py", 560, 620, ("shared_spectrum",)),
-    Ref("residual direct/multi", "isac_sim/model.py", 755, 790, ("residual_direct", "residual_multi")),
-    Ref("direct-path cancellation depth", "isac_sim/model.py", 650, 660, ("kappa_dc", "direct_cancellation_db")),
+    Ref("coupling=shared_spectrum", "isac_sim/model.py", 625, 675, ("shared_spectrum",)),
+    Ref("residual direct/multi", "isac_sim/model.py", 875, 900, ("residual_direct", "residual_multi")),
+    Ref("direct-path cancellation depth", "isac_sim/model.py", 760, 800, ("kappa_dc", "direct_cancellation_db")),
     Ref("denominator_guard", "isac_sim/model.py", 55, 75, ("def denominator_guard",)),
     Ref("radar_hardware_gain", "isac_sim/model.py", 38, 58, ("def radar_hardware_gain",)),
     Ref("threshold_from_pfa", "isac_sim/model.py", 105, 125, ("def threshold_from_pfa",)),
@@ -85,7 +85,7 @@ ALGORITHM: tuple[Ref, ...] = (
     Ref("coordination: release-path fixed point", "isac_sim/simulate.py", 615, 640, ("COORDINATION_C2F_METHODS",)),
     Ref("coordination: reported diagnostics", "isac_sim/simulate.py", 1500, 1545, ("coordination_rounds_mean",)),
     Ref("coordination: eval tables under own mask", "isac_sim/simulate.py", 705, 735, ("def _coordination_eval_tables",)),
-    Ref("coordination: mask gating in link tables", "isac_sim/model.py", 624, 650, ("gate_echo", "active_tx_mask")),
+    Ref("coordination: mask gating in link tables", "isac_sim/model.py", 690, 715, ("gate_echo", "active_tx_mask")),
 )
 
 GROUPS = (("theory", THEORY), ("model", MODEL), ("algorithm", ALGORITHM))
@@ -104,9 +104,19 @@ def _check(ref: Ref) -> list[str]:
     window = "\n".join(lines[ref.start - 1: ref.end])
     missing = [t for t in ref.tokens if t not in window]
     if missing:
+        # Say *where the tokens went*.  Ranges are part of the contract (a
+        # symbol present somewhere else in the file is not the contract), so the
+        # checker must not silently re-anchor -- but making the next person
+        # bisect the file by hand for a number the checker already computed is
+        # gratuitous.  Measured on the 2026-09-19 edit: a one-line insertion in
+        # ``compute_link_tables`` moved three refs at once.
+        moved = {
+            t: [i + 1 for i, line in enumerate(lines) if t in line][:4]
+            for t in missing
+        }
         return [
             f"{ref.where}: {ref.path}:{ref.start}-{ref.end} does not contain "
-            f"{missing} -- the reference has drifted"
+            f"{missing} -- the reference has drifted. Now at {moved}"
         ]
     return []
 

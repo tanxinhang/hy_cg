@@ -441,8 +441,11 @@ def build_base_gains(
                     rcs_fluct[i, j, q] = rng.exponential(scale=d.target_rcs)
                 target_gain[i, j, q] = lam ** 2 * rcs_fluct[i, j, q] / ((4.0 * np.pi) ** 3 * d_iq ** 2 * d_jq ** 2)
 
+    from .aperture import bearings as _bearings, masking_fraction as _masking
+
     dd_collision_count = np.ones((M, M, Q), dtype=float)
     if cfg.dd.enable_dd_collision_penalty:
+        use_aperture = bool(cfg.aperture.enable) and int(cfg.aperture.m_rx) > 1
         for i in range(M):
             for j in range(M):
                 if i == j:
@@ -453,9 +456,26 @@ def build_base_gains(
                         continue
                     key = (int(delay_bin[i, j, q]), int(doppler_bin[i, j, q]))
                     bins.setdefault(key, []).append(q)
+                if use_aperture:
+                    us = _bearings(geom, j, Q, int(cfg.aperture.axis))
+                    m_rx = int(cfg.aperture.m_rx)
                 for qs in bins.values():
                     for q in qs:
-                        dd_collision_count[i, j, q] = float(len(qs))
+                        if not use_aperture:
+                            dd_collision_count[i, j, q] = float(len(qs))
+                            continue
+                        # Soft count: every co-bin neighbour masks this echo by
+                        # |A(du)|^2 rather than by the whole of itself.  With one
+                        # element |A|^2 == 1 exactly, so this *is* the integer
+                        # count the released model uses -- the array only ever
+                        # removes masking it can actually resolve, and there is no
+                        # hard threshold to tune.
+                        masked = 1.0
+                        for r in qs:
+                            if r == q:
+                                continue
+                            masked += _masking(m_rx, float(us[r] - us[q]))
+                        dd_collision_count[i, j, q] = float(masked)
 
     # C2F DD-refinement (paper eq. coarse/fine_dd_gain).  When refinement is
     # disabled both arrays equal ``dd_frac_loss`` so the existing path is
@@ -512,6 +532,7 @@ def compute_link_tables(
     active_tx_mask: np.ndarray | None = None,
     reuse_from: LinkTables | None = None,
     sensing_power_scale_by_uav: np.ndarray | None = None,
+    residual_fraction_by_receiver: np.ndarray | None = None,
 ) -> LinkTables:
     """Per-link communication / sensing-SINR quantities.
 
@@ -544,10 +565,50 @@ def compute_link_tables(
     UAV's sensing power strengthens its own echoes and increases the
     interference seen by other receivers.  The default all-one vector exactly
     preserves the released passive model.
+
+    ``residual_fraction_by_receiver`` replaces the constant
+    ``kappa_dc = 10^(-interference.direct_cancellation_db/10)`` by a per-receiver
+    measured fraction of the aggregated direct field, i.e. it plugs a real
+    target-preserving canceller into the production chain instead of the
+    assumption.  ``None`` (the default) keeps the released constant *bit for
+    bit*, which is what every frozen baseline pins -- so this argument is the
+    only supported way to change it: ``cfg.cancellation.mode`` alone can select
+    the analytic bridge (``"predict"``), and ``"measure"`` is refused because
+    measuring needs the trial geometry, which this function is not given.
     """
     M, Q = cfg.scale.M, cfg.scale.Q
     r, c, d = cfg.radio, cfg.comm, cfg.detect
     dd_used = base.dd_frac_loss if dd_gain is None else dd_gain
+
+    # ---- Receiver-side cancellation: is it still the frozen constant? ------
+    # Anything else -- a measured per-receiver fraction or the analytic bridge --
+    # changes the *sensing* block, so ``can_reuse_sensing`` below must not fire:
+    # the fast path copies ``reuse_from``'s sensing quantities verbatim, and that
+    # table was built with whatever receiver model its own call had.  Letting the
+    # two mix is a silent failure of the worst kind -- the caller passes a
+    # measured fraction, the returned table reports the constant's numbers, and
+    # nothing raises.  Validated up front rather than inside the branch for the
+    # same reason.
+    if cfg.cancellation.mode not in ("off", "predict", "measure"):
+        # A misspelt switch must not be read as "off": silently falling back to
+        # the frozen constant is the most expensive failure mode in this file,
+        # because the run then looks configured-for-the-algorithm and reports the
+        # assumption's numbers.
+        raise ValueError(
+            "Unknown cancellation.mode=%r; expected 'off', 'predict' or 'measure'"
+            % (cfg.cancellation.mode,)
+        )
+    if cfg.cancellation.mode == "measure" and residual_fraction_by_receiver is None:
+        raise ValueError(
+            "cancellation.mode='measure' needs the per-trial geometry to run the "
+            "estimator, which compute_link_tables does not receive. Pass "
+            "residual_fraction_by_receiver=... instead, built from "
+            "isac_sim.cancellation.measure_residual_fraction(cfg, geom, base)."
+        )
+    algorithm_receiver = (
+        residual_fraction_by_receiver is not None
+        or cfg.cancellation.mode == "predict"
+    )
 
     # Sensing quantities are independent of the communication interference
     # except for the "reliable_comm_assisted" power model, where the effective
@@ -560,6 +621,7 @@ def compute_link_tables(
         and r.rho_by_uav is None
         and sensing_power_scale_by_uav is None
         and dd_gain is None
+        and not algorithm_receiver
         and r.isac_power_model != "reliable_comm_assisted"
         # Under active-set coupling the sensing denominator contains the active
         # report payloads and must be rebuilt.  Orthogonal reporting contains no
@@ -651,11 +713,61 @@ def compute_link_tables(
         I_sense_field = P_rad_sense @ base.direct_gain      # (M,) direct-path field at j
         I_pay_field = P_rad_pay @ base.direct_gain          # (M,) report-payload field at j
         I_leak_field = P_leak @ base.direct_gain            # (M,) sensing-waveform leakage at j
-        kappa_dc = 10.0 ** (-ic.direct_cancellation_db / 10.0)
+        # ---- Receiver-side cancellation: constant or algorithm -----------
+        # ``kappa_dc`` is the fraction of the aggregated direct field that
+        # survives cancellation, and it is deliberately a *fraction* and not a
+        # dB so that a receiver model and the shipped constant are the same
+        # kind of object.
+        #
+        # Three sources, in priority order, and the default is bit-exact:
+        #
+        # * ``residual_fraction_by_receiver`` -- a measured per-receiver
+        #   fraction, produced by
+        #   :func:`isac_sim.cancellation.measure_residual_fraction` (or by a
+        #   calibration table).  This is the only one the canceller's own
+        #   documentation allows a scheduler to consume.
+        # * ``cancellation.mode == "predict"`` -- the analytic bridge
+        #   :func:`isac_sim.cancellation.predict_cancellation`, i.e. the
+        #   dimension-ratio retention plus the reference-budget estimation term.
+        #   It is *optimistic* (measured 5x on the 600 m scenario) and exists to
+        #   close the loop end to end, not to report a result.
+        # * otherwise the frozen constant.
+        kappa_dc_vec = None
+        if residual_fraction_by_receiver is not None:
+            kappa_dc_vec = np.asarray(residual_fraction_by_receiver, dtype=float)
+            if kappa_dc_vec.shape != (M,):
+                raise ValueError(
+                    "residual_fraction_by_receiver must have shape (%d,), got %s"
+                    % (M, np.shape(residual_fraction_by_receiver))
+                )
+            if not np.all(np.isfinite(kappa_dc_vec)) or np.any(kappa_dc_vec < 0.0):
+                raise ValueError(
+                    "residual_fraction_by_receiver must be finite and non-negative"
+                )
+            kappa_dc = 0.0
+        elif cfg.cancellation.mode == "predict":
+            from .cancellation import predict_cancellation
+
+            # How many illuminators actually reach receiver j: the diagonal and
+            # the non-edge entries of ``direct_gain`` are zero, so counting the
+            # strictly positive products is the same count the model used when it
+            # summed ``I_sense_field``.
+            n_illum = np.asarray(
+                [
+                    np.count_nonzero((P_rad_sense * base.direct_gain[:, j]) > 0.0)
+                    for j in range(M)
+                ],
+                dtype=float,
+            )
+            kappa_dc_vec = predict_cancellation(cfg, I_sense_field, n_illum)[0]
+            kappa_dc = 0.0
+        else:
+            kappa_dc = 10.0 ** (-ic.direct_cancellation_db / 10.0)
     else:
         I_sense_field = I_pay_field = I_leak_field = None
         P_leak = None
         kappa_dc = 0.0
+        kappa_dc_vec = None
         gate_echo = False
 
     gamma_comm = np.zeros((M, M))
@@ -762,7 +874,9 @@ def compute_link_tables(
                 # differs.  Note that the illuminator i is NOT excluded: its
                 # direct path is precisely the near-far term that a bistatic
                 # sensing receiver has to cancel.
-                residual_direct = kappa_dc * float(I_sense_field[j])
+                residual_direct = (
+                    kappa_dc if kappa_dc_vec is None else kappa_dc_vec[j]
+                ) * float(I_sense_field[j])
                 residual_multi = 0.0
             else:
                 residual_direct = 0.0

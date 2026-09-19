@@ -775,9 +775,22 @@ class Cancellation:
     """
 
     enable: bool = False
-    # Cancellation depth to model when ``enable`` is False but an experiment
-    # asks for the *algorithm-shaped* residual (``mode="predict"``).  Unused by
-    # the default path.
+    # How ``model.compute_link_tables`` forms the residual direct field (the term
+    # the frozen constant ``interference.direct_cancellation_db`` describes):
+    #
+    # ``"off"``     the frozen constant, bit for bit.  The default.
+    # ``"predict"`` the analytic bridge :func:`cancellation.predict_cancellation`,
+    #               per receiver: the dimension-ratio retention plus the
+    #               reference-budget estimation term.  It is *optimistic*
+    #               (measured 5x on the 600 m scenario) and exists so the chain
+    #               can be closed end to end, not to report a result.
+    # ``"measure"`` refused by ``compute_link_tables``.  Measuring the residual
+    #               needs the trial geometry, which that function is not given;
+    #               build ``cancellation.measure_residual_fraction(cfg, geom,
+    #               base)`` and pass the array to ``compute_link_tables`` as
+    #               ``residual_fraction_by_receiver``.  That measured array -- not
+    #               this field -- is what the module's documentation allows a
+    #               scheduler to consume.
     mode: str = "off"
     # --- reference budget -------------------------------------------------
     # Coherent CPIs integrated for the direct-path channel estimate.  The
@@ -826,12 +839,70 @@ class Cancellation:
     # Rician LOS component).  ``None`` disables the prior, leaving plain
     # (protected) least squares.
     prior_variance: float | None = 1.0
+    # --- detector calibration ---------------------------------------------
+    # Charge the *belief error* to the residual covariance ``C_res``.
+    #
+    # Every echo template is built at the **believed** target state while the
+    # echo arrives from the true one, so each template is misplaced by
+    # ``delta_l * da/dl + delta_k * da/dk`` to first order, with ``delta_l`` and
+    # ``delta_k`` the position and velocity error expressed in DD bins.  The
+    # echoes therefore leak through the templates into the residual, which is
+    # what lifts the measured ``P_FA`` above its nominal level.
+    #
+    # This is **not** the coefficient prior above: the prior describes the
+    # receiver's uncertainty about the interference amplitudes it is *fitting*;
+    # this term describes the geometry of a template that *cannot be placed
+    # exactly*.  Charging one for the other is what leaves the detector
+    # mis-calibrated by exactly the amount being measured.
+    #
+    # Off by default so every released number stays bit-exact; the flag exists so
+    # that both the benefit (calibrated ``P_FA``) and the cost (a slightly
+    # inflated ``C_res``, hence a little ``P_D``) can be measured rather than
+    # asserted.
+    belief_error_in_cres: bool = False
     # --- stage 2 ----------------------------------------------------------
     joint_refine: bool = True
     # Local DD search half-width used to form the detection statistic.
     search_half_width: int = 1
     # --- accounting -------------------------------------------------------
     hw_ceiling_db: float = 60.0
+
+
+@dataclass
+class Aperture:
+    """Receive array: adds the *angular* dimension to the DD sensing model.
+
+    The released model is DD-only, and the angular probe
+    (``ANGULAR_IDENTIFIABILITY_PROBE.md``) measured what that costs: with one
+    element the *typical* per-link escape fraction is ``4.1e-04``, i.e. targets
+    that share a delay-Doppler cell are not separable at all, and the whole
+    "identifiability" story is about the receiver having a spatial dimension.
+
+    This block adds that dimension where it enters the **production** number: the
+    delay-Doppler collision penalty (``model.build_base_gains``).  Two targets in
+    one DD cell currently mask each other completely, so the link's echo power is
+    divided by the number of co-bin targets.  With an array the pair is masked by
+    ``|A(delta_u)|^2`` instead, which is ``1`` for a single element and shrinks as
+    the pair separates in angle -- so the penalty becomes a *soft* count that
+    reduces exactly to today's integer count at ``m_rx = 1``.
+
+    **What this deliberately does not do.**  It does not add the array's
+    collection gain (``10 log10 m`` on the desired echo).  That is a link-budget
+    quantity, indistinguishable in its effect from ``radar_net_gain_db``, and
+    folding it in here would make any measured improvement ambiguous between
+    "more selective" and "simply louder".  See :mod:`isac_sim.aperture`.
+
+    ``enable`` defaults to ``False`` and ``m_rx`` to ``1``: with the gate closed
+    every released number is bit-exact.
+    """
+
+    enable: bool = False
+    # Receive elements of a half-wavelength ULA.  1 == the released DD-only model.
+    m_rx: int = 1
+    # Body axis the 1-D array resolves along (0 = x, 1 = y).  Fixed, not fitted:
+    # a 1-D array resolves one axis and has a front/back ambiguity, so "the
+    # better axis" is an oracle choice this model is not allowed to make.
+    axis: int = 0
 
 
 @dataclass
@@ -873,6 +944,7 @@ class Config:
     interference: Interference = field(default_factory=Interference)
     coordination: Coordination = field(default_factory=Coordination)
     cancellation: Cancellation = field(default_factory=Cancellation)
+    aperture: Aperture = field(default_factory=Aperture)
 
     # Backward-compatible aliases used by the model code, so the math reads the
     # same way as in the prototype.  These are properties, not stored fields.

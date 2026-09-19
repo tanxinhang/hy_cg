@@ -1,0 +1,14 @@
+  m_rx=1   done  [124 s]
+  m_rx=4   done  [552 s]
+  m_rx=8   done  [1427 s]
+
+  m_rx   arm                   P_D     P_FA      AUC      rho
+  1      perfect_channel     0.550    0.450    0.557    0.182
+  1      tp_uic_full         0.350    0.200    0.555    0.174
+  4      perfect_channel     0.350    0.150    0.568    0.692
+  4      tp_uic_full         0.350    0.150    0.562    0.689
+  8      perfect_channel     0.150    0.050    0.540    0.893
+  8      tp_uic_full         0.150    0.050    0.512    0.893
+
+  stats are paired within a trial; AUC is over all (H1, H0) pairs.
+wrote D:\Desktop\conference\results_aperture_det
