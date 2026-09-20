@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from isac_sim.config import Config, apply_preset
-from isac_sim.fusion_polish import minimize_fixed_set_reports
+from isac_sim.fusion_polish import maximize_fixed_set_pd, minimize_fixed_set_reports
 from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry
 from isac_sim.reporting import ReportingPlan
 from isac_sim.selection import DEFAULT_METHODS
@@ -80,6 +80,36 @@ def test_rejects_coupled_models(kind):
         cfg.selector.require_local_anchor = True
     with pytest.raises(ValueError):
         minimize_fixed_set_reports(cfg, base, tables, selected, plan)
+
+
+def test_fixed_set_pd_polish_matches_per_target_exhaustive_search():
+    cfg, base, tables, selected, plan = fixture()
+    scores = np.array([[0.40, 0.85, 0.70, 0.60], [0.50, 0.45, 0.90, 0.80]])
+
+    def pd(cfg, tables, q, links, *, plan, base):
+        return scores[q, plan.f_q[q]]
+
+    with patch("isac_sim.fusion_polish.predicted_pd_for_links", side_effect=pd):
+        result = maximize_fixed_set_pd(cfg, base, tables, selected, plan)
+    np.testing.assert_array_equal(result.plan.f_q, [1, 2])
+    np.testing.assert_allclose(result.predicted_before, [0.40, 0.50])
+    np.testing.assert_allclose(result.predicted_after, [0.85, 0.90])
+    np.testing.assert_array_equal(plan.f_q, [0, 0])
+
+
+def test_fixed_set_pd_polish_skips_infeasible_best_destination():
+    cfg, base, tables, selected, plan = fixture()
+    # q=0 has a receiver at node 2, whose report to destination 1 is infeasible.
+    tables.feasible_comm[1, 2] = False
+    scores = np.array([[0.40, 0.99, 0.80, 0.70], [0.50, 0.45, 0.90, 0.80]])
+
+    def pd(cfg, tables, q, links, *, plan, base):
+        return scores[q, plan.f_q[q]]
+
+    with patch("isac_sim.fusion_polish.predicted_pd_for_links", side_effect=pd):
+        result = maximize_fixed_set_pd(cfg, base, tables, selected, plan)
+    assert result.plan.f_q[0] == 2
+    assert result.predicted_after[0] == pytest.approx(0.80)
 
 
 def test_real_pipeline_preserves_observations_fine_work_and_pd_floor():

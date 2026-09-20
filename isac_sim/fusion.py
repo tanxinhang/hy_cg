@@ -236,10 +236,15 @@ def predicted_pd_for_links(
             (weights[link] ** 2) * mom.v1 for link, mom in zip(links, moments)
         ))
 
-    if weight_mode == "exact_llr_sum":
+    if (
+        weight_mode == "exact_llr_sum"
+        or cfg.detect.exact_gaussian_replacement_threshold
+    ):
         threshold = calibrated_fused_threshold(
             cfg, tables, q, links, weights, plan=plan, base=base,
-            statistic_mode="exact_llr_sum",
+            statistic_mode=(
+                "exact_llr_sum" if weight_mode == "exact_llr_sum" else weight_mode
+            ),
         )
     else:
         skew0 = fused_h0_skewness(cfg, tables, q, links, weights, plan=plan, base=base)
@@ -341,6 +346,38 @@ def calibrated_fused_threshold(
                 n_looks, 1.0, n_samples
             )
             received = np.where(rng.random(n_samples) < chi, exact, 0.0)
+            fused += float(weights[link]) * received
+        return float(np.quantile(fused, 1.0 - cfg.detect.Pfa_target, method="higher"))
+
+    if (
+        cfg.detect.exact_gaussian_replacement_threshold
+        and cfg.detect.soft_stat_model.lower() == "llr"
+        and cfg.detect.comm_error_model == "gaussian_replacement"
+        and not cfg.corr.enable
+    ):
+        from .reporting import report_chi
+        from .soft_channel import local_moments
+
+        n_samples = int(cfg.detect.fused_calibration_samples)
+        n_looks = max(int(cfg.detect.n_looks), 1)
+        rng = np.random.default_rng(0x6A551A)
+        fused = np.zeros(n_samples, dtype=float)
+        for link in links:
+            i, j = link
+            gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
+            a = gamma / (1.0 + gamma)
+            local = local_moments(cfg, tables, link, q)
+            chi = (
+                float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
+                if cfg.detect.enable_comm_error_pollution else 1.0
+            )
+            success = a * (rng.gamma(n_looks, 1.0, n_samples) - n_looks)
+            failure = rng.normal(
+                0.0,
+                cfg.detect.soft_error_sigma_scale * np.sqrt(max(local.v0, 0.0)),
+                n_samples,
+            )
+            received = np.where(rng.random(n_samples) < chi, success, failure)
             fused += float(weights[link]) * received
         return float(np.quantile(fused, 1.0 - cfg.detect.Pfa_target, method="higher"))
 

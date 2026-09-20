@@ -1,0 +1,20 @@
+# Continuous-integration dependencies.
+#
+# Version policy: one file, both worlds.  CI installs exactly what a local
+# release run uses, so "271 passed locally / 22 collection errors on the
+# runner" can no longer happen.
+#
+# numpy is PINNED because the bit-exact release gates are interpreter- and
+# BLAS-bound: the frozen baselines were produced under numpy 2.2.6 on CPython
+# 3.11, and other versions show sub-1e-12 cell differences on identical code
+# (documented in .github/workflows/ci.yml and V1_STABLE_RELEASE.md).
+#
+# scipy is NOT optional and never was: isac_sim.mixture_probability (fftconvolve,
+# gamma/norm), isac_sim.bundle_master and isac_sim.active_system
+# (scipy.optimize.milp) import it at module scope, so a runner without scipy
+# cannot even collect the test suite.  The old workflow installed only
+# numpy/matplotlib/pytest and therefore failed before running a single test.
+numpy==2.2.6
+scipy
+matplotlib
+pytest

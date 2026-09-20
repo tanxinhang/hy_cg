@@ -168,6 +168,41 @@ def test_every_arm_is_reproduced_by_its_low_rank_form():
         assert model.probe_error < 1e-6, name
 
 
+def test_adaptive_soft_arm_is_reproduced_by_its_low_rank_form():
+    cfg = make_cfg(**{
+        "cancellation.adaptive_soft_enable": True,
+        "cancellation.adaptive_soft_risk_slack": 1.0,
+    })
+    obs, _, target = make_trial(cfg)
+    arms = cx.cancellation_arms(cfg, obs, weak_target=target)
+    adaptive = arms["adaptive_soft_tpuic"]
+    assert adaptive.soft_mu is not None
+    plans = gl.arm_plans(cfg, obs, arms)
+    model = gl.residual_model(
+        cfg, obs, "adaptive_soft_tpuic", arms, plans=plans
+    )
+    got = model.remove(obs.y) + model.const
+    want = obs.y - adaptive.residual
+    scale = max(float(np.linalg.norm(want)), 1e-300)
+    assert float(np.linalg.norm(got - want)) / scale < 1e-6
+    assert model.probe_error < 1e-6
+
+
+def test_null_covariance_threshold_reduces_to_standard_for_same_model():
+    cfg = make_cfg()
+    obs, _, target = make_trial(cfg)
+    arms, plans = make_arms(cfg, obs)
+    model = gl.residual_model(cfg, obs, "tp_uic_full", arms, plans=plans)
+    standard = gl.target_conditioned_glrt(
+        cfg, obs, arms["tp_uic_full"], model, target=target
+    )
+    calibrated = gl.target_conditioned_glrt(
+        cfg, obs, arms["tp_uic_full"], model, target=target,
+        null_cov_model=model,
+    )
+    assert calibrated.threshold == pytest.approx(standard.threshold, rel=1e-10)
+
+
 def test_oracle_arms_do_not_depend_on_the_observation():
     """``fixed_kappa`` and ``perfect_channel`` remove a constant, so ``F = 0``.
 
@@ -235,13 +270,15 @@ def test_residual_covariance_matches_its_own_generative_model():
     arms, plans = make_arms(cfg, obs)
     rng = np.random.default_rng(3)
     n_samples = 1500
-    for name in ("plain_ls", "tp_uic_stage1"):
+    for name in ("plain_ls", "tp_uic_stage1", "tp_uic_full"):
         model = gl.residual_model(cfg, obs, name, arms, plans=plans)
         plan = plans[name]
         L = gl._psd_sqrt(gl._estimator_covariance(cfg, obs, plan)) / math.sqrt(
             float(cfg.cancellation.n_cpi)
         )
-        mx = plan.subspace.complement_matrix(obs.X)
+        subtraction_dictionary = (
+            obs.X if plan.candidates else plan.subspace.complement_matrix(obs.X)
+        )
         X = obs.X
         d = X.shape[1]
         res = np.zeros((obs.y.size, n_samples), dtype=complex)
@@ -251,7 +288,10 @@ def test_residual_covariance_matches_its_own_generative_model():
             n = (rng.normal(size=obs.y.size) + 1j * rng.normal(size=obs.y.size)) * math.sqrt(
                 obs.sigma2 / 2.0
             )
-            res[:, j] = model.signal_transfer(X @ h) + n - (mx @ (L @ e))
+            res[:, j] = (
+                model.signal_transfer(X @ h) + n
+                - subtraction_dictionary @ (L @ e)
+            )
         for _ in range(3):
             v = rng.normal(size=obs.y.size) + 1j * rng.normal(size=obs.y.size)
             v = v / np.linalg.norm(v)
@@ -358,6 +398,29 @@ def test_masking_grows_with_the_number_of_nuisance_targets():
     assert all(
         b <= a + 1e-12 for a, b in zip(curve.rho_weighted, curve.rho_weighted[1:])
     ), curve.rho_weighted
+
+
+def test_nuisance_manifold_is_lifted_into_spatial_observation_space():
+    cfg = make_cfg(**{"aperture.enable": True, "aperture.m_rx": 4})
+    obs, _, target = make_trial(cfg)
+    extra = gl._manifold_columns(cfg, obs, target, order=1)
+    sources = [s for s in obs.targets_belief if int(s.target) != int(target)]
+    assert extra.shape[0] == obs.y.size
+    assert extra.shape[1] == 4 * len(sources)  # centre DD + 2 DD tangents + angle
+
+
+def test_belief_error_covariance_is_lifted_into_spatial_observation_space():
+    cfg = make_cfg(**{
+        "aperture.enable": True,
+        "aperture.m_rx": 4,
+        "cancellation.belief_error_in_cres": True,
+    })
+    obs, _, _ = make_trial(cfg)
+    factor = gl._belief_error_factor(cfg, obs)
+    assert factor.shape[0] == obs.y.size
+    arms = cx.cancellation_arms(cfg, obs)
+    model = gl.residual_model(cfg, obs, "tp_uic_full", arms)
+    assert model.cov.W.shape[0] == obs.y.size
 
 
 def test_moving_the_template_off_the_grid_restores_identifiability():

@@ -408,6 +408,7 @@ def joint_bundle_column_generation(
     *,
     value_tables: LinkTables | None = None,
     allowed_fusions: Dict[int, Sequence[int]] | None = None,
+    allowed_transmitters: Sequence[int] | None = None,
 ) -> BundleMasterResult:
     """Dual-guided C2F pricing followed by an exact integer restricted master.
 
@@ -420,7 +421,8 @@ def joint_bundle_column_generation(
     """
     bundle_tables = value_tables if value_tables is not None else tables
     pair_candidates = _shortlisted_pair_candidates(
-        cfg, base, tables, allowed_fusions=allowed_fusions
+        cfg, base, tables, allowed_fusions=allowed_fusions,
+        allowed_transmitters=allowed_transmitters,
     )
     pool = _seed_bundle_pool(cfg, base, bundle_tables, pair_candidates)
     seen = {_bundle_identity(bundle) for bundle in pool}
@@ -478,6 +480,7 @@ def rcs_robust_bundle_column_generation(
     *,
     value_tables: LinkTables | None = None,
     allowed_fusions: Dict[int, Sequence[int]] | None = None,
+    allowed_transmitters: Sequence[int] | None = None,
 ) -> BundleMasterResult:
     """Optimize the bundle master at the RCS uncertainty-set lower endpoint.
 
@@ -498,6 +501,7 @@ def rcs_robust_bundle_column_generation(
         robust_tables,
         value_tables=robust_value_tables,
         allowed_fusions=allowed_fusions,
+        allowed_transmitters=allowed_transmitters,
     )
 
 
@@ -507,10 +511,15 @@ def _shortlisted_pair_candidates(
     tables: LinkTables,
     *,
     allowed_fusions: Dict[int, Sequence[int]] | None = None,
+    allowed_transmitters: Sequence[int] | None = None,
 ) -> Dict[tuple[int, int], List[Link]]:
     Q, M = cfg.scale.Q, cfg.scale.M
     limit = int(cfg.selector.bundle_shortlist_per_type)
     result: Dict[tuple[int, int], List[Link]] = {}
+    allowed_tx = (
+        None if allowed_transmitters is None
+        else {int(node) for node in allowed_transmitters}
+    )
     for q in range(Q):
         for f in _fusion_choices(cfg, q, allowed_fusions):
             plan = ReportingPlan(mode="explicit", f_q=np.full(Q, f, dtype=int))
@@ -523,6 +532,7 @@ def _shortlisted_pair_candidates(
                     link,
                 )
                 for link in feasible_links_for_target(cfg, base, tables, q, plan)
+                if allowed_tx is None or int(link[0]) in allowed_tx
             ]
             local = sorted(
                 (item for item in scored if is_local_observation(plan, item[1], q)),

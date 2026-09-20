@@ -487,6 +487,11 @@ class Detect:
     # Deterministic Monte-Carlo quadrature size used by the common calibrated
     # multi-report detector under the true-erasure model.
     fused_calibration_samples: int = 8192
+    # Experimental exact-mixture calibration for the released
+    # ``gaussian_replacement`` reporting channel.  False keeps the frozen
+    # Cornish--Fisher path bit-exact; True uses deterministic quadrature of the
+    # implemented centred-Gamma / Gaussian replacement mixture.
+    exact_gaussian_replacement_threshold: bool = False
     # Environment-level pollution used by the Monte-Carlo detector.
     enable_comm_error_pollution: bool = True
     # ``gaussian_replacement`` is the released V1 surrogate: failed packets
@@ -496,6 +501,10 @@ class Detect:
     soft_error_flip_scale: float = 1.0
     soft_error_bias_scale: float = 0.5
     h0_error_bias_scale: float = 0.0
+    # Independent H1 noise/report realizations per target.  One preserves the
+    # released Monte-Carlo protocol; larger values are for conditional-P_D
+    # audits at a fixed geometry and selected set.
+    num_h1_per_target: int = 1
     num_false_per_target: int = 30
     # Channel abstraction
     path_loss_exp: float = 2.0
@@ -834,11 +843,30 @@ class Cancellation:
     tangent_order: int = 1
     # Finite-difference step, in DD-bin units, for the tangent columns.
     tangent_step_bins: float = 0.05
+    # Experimental belief-covariance protection.  When enabled, the hard
+    # protection basis includes deterministic 95% marginal DD/bearing sigma
+    # points in addition to the centre tangent space.  Off by default so the
+    # released receiver remains bit-exact.
+    covariance_protection: bool = False
     # --- estimator --------------------------------------------------------
     # Channel prior variance of the complex direct coefficient (unit-power
     # Rician LOS component).  ``None`` disables the prior, leaving plain
     # (protected) least squares.
     prior_variance: float | None = 1.0
+    # Soft target-protection weight.  Zero is exactly unprotected ridge LS;
+    # larger values increasingly penalise reconstructed direct interference in
+    # the believed target subspace.  Used by the experimental ``soft_tpuic``
+    # arm at fixed n_cpi=1.
+    soft_protection_mu: float = 1.0
+    # Belief-only adaptive soft protection.  Each multiplier is screened
+    # against the hard TP-UIC arm for predicted residual and risk survival.
+    # Disabled by default because each grid point requires another solve.
+    adaptive_soft_enable: bool = False
+    adaptive_soft_mu_grid: Tuple[float, ...] = (
+        0.0, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0,
+    )
+    adaptive_soft_risk_slack: float = 0.0
+    adaptive_soft_residual_quantile: float = 0.80
     # --- detector calibration ---------------------------------------------
     # Charge the *belief error* to the residual covariance ``C_res``.
     #
@@ -1171,6 +1199,10 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("detect.Pfa_target must lie in (0, 1)")
     if cfg.detect.n_looks < 1:
         raise ValueError("detect.n_looks must be at least one")
+    if cfg.detect.num_h1_per_target < 1:
+        raise ValueError("detect.num_h1_per_target must be at least one")
+    if cfg.detect.num_false_per_target < 1:
+        raise ValueError("detect.num_false_per_target must be at least one")
     corr_values = (
         cfg.corr.rho_tx,
         cfg.corr.rho_rx,
@@ -1312,6 +1344,34 @@ def validate_config(cfg: Config) -> None:
         )
     if not 0.0 < cfg.prior.rcs_lower_factor <= 1.0:
         raise ValueError("prior.rcs_lower_factor must lie in (0, 1]")
+    if int(cfg.cancellation.n_cpi) < 1:
+        raise ValueError("cancellation.n_cpi must be positive")
+    if cfg.cancellation.adaptive_soft_enable:
+        grid = tuple(float(v) for v in cfg.cancellation.adaptive_soft_mu_grid)
+        if not grid or any(not math.isfinite(v) or v < 0.0 for v in grid):
+            raise ValueError(
+                "adaptive soft mu grid must be finite, non-empty, and non-negative"
+            )
+        slack = float(cfg.cancellation.adaptive_soft_risk_slack)
+        if not math.isfinite(slack) or not 0.0 <= slack <= 1.0:
+            raise ValueError("adaptive soft risk slack must lie in [0, 1]")
+        quantile = float(cfg.cancellation.adaptive_soft_residual_quantile)
+        if not math.isfinite(quantile) or not 0.5 <= quantile < 1.0:
+            raise ValueError(
+                "adaptive soft residual quantile must lie in [0.5, 1)"
+            )
+    if int(cfg.cancellation.tangent_order) not in (0, 1):
+        raise ValueError(
+            "cancellation.tangent_order currently supports only 0 or 1"
+        )
+    if int(cfg.cancellation.interference_tangent_order) not in (0, 1):
+        raise ValueError(
+            "cancellation.interference_tangent_order currently supports only 0 or 1"
+        )
+    if not math.isfinite(cfg.cancellation.tangent_step_bins) or (
+        cfg.cancellation.tangent_step_bins <= 0.0
+    ):
+        raise ValueError("cancellation.tangent_step_bins must be positive")
     if cfg.selector.score_mode.lower() not in {"first_order", "exact_utility", "detector_pd"}:
         raise ValueError(
             f"Unknown selector.score_mode={cfg.selector.score_mode!r}; "

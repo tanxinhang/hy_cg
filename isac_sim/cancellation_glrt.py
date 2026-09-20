@@ -125,8 +125,13 @@ from .cancellation import (
     Subspace,
     TargetSource,
     _protection_basis,
+    joint_interference_covariance,
     joint_refine,
+    lift_dictionary,
+    orthonormalise,
     protected_map,
+    soft_protected_map,
+    steering_derivative,
     tangent_columns,
     target_dictionary,
 )
@@ -255,6 +260,7 @@ class ArmPlan:
     subspace: Subspace
     prior: float | None
     candidates: Tuple[int, ...] = ()
+    soft_mu: float | None = None
 
 
 def _empty_subspace(n_bins: int) -> Subspace:
@@ -277,7 +283,7 @@ def arm_plans(
     candidates: Tuple[int, ...] = ()
     if results is not None and "tp_uic_full" in results:
         candidates = tuple(int(c) for c in results["tp_uic_full"].candidates)
-    return {
+    plans = {
         "no_ic": ArmPlan("no_ic", "none", empty, None),
         "fixed_kappa": ArmPlan("fixed_kappa", "oracle", empty, None),
         "plain_ls": ArmPlan("plain_ls", "estimator", empty, None),
@@ -287,6 +293,21 @@ def arm_plans(
         "tp_uic_full": ArmPlan("tp_uic_full", "estimator", belief, prior, candidates),
         "perfect_channel": ArmPlan("perfect_channel", "oracle", empty, None),
     }
+    if results is not None and "adaptive_soft_tpuic" in results:
+        adaptive = results["adaptive_soft_tpuic"]
+        if adaptive.soft_mu is None:
+            plans["adaptive_soft_tpuic"] = ArmPlan(
+                "adaptive_soft_tpuic", "estimator", belief, prior, candidates
+            )
+        else:
+            ids = np.asarray(obs.A_target_ids)
+            tested = int(obs.weak_index)
+            target_subspace = orthonormalise(obs.A[:, ids == tested])
+            plans["adaptive_soft_tpuic"] = ArmPlan(
+                "adaptive_soft_tpuic", "estimator", target_subspace, prior,
+                soft_mu=float(adaptive.soft_mu),
+            )
+    return plans
 
 
 def _removed_vector(cfg, obs: Observation, plan: ArmPlan, v: np.ndarray) -> np.ndarray:
@@ -298,6 +319,11 @@ def _removed_vector(cfg, obs: Observation, plan: ArmPlan, v: np.ndarray) -> np.n
     if plan.candidates:
         A_cand = A[:, list(plan.candidates)]
         h, _a = joint_refine(v, X, A_cand, sigma2, plan.prior, plan.prior or 1.0)
+        return X @ h
+    if plan.soft_mu is not None:
+        h, _cov = soft_protected_map(
+            v, X, plan.subspace, sigma2, plan.prior, plan.soft_mu
+        )
         return X @ h
     h, _c, mx = protected_map(v, X, plan.subspace, sigma2, plan.prior)
     return mx @ h
@@ -315,6 +341,8 @@ def _probe_basis(obs: Observation, plan: ArmPlan) -> np.ndarray:
         return np.zeros((int(obs.y.size), 0), dtype=complex)
     if plan.candidates:
         return np.concatenate([obs.X, obs.A[:, list(plan.candidates)]], axis=1)
+    if plan.soft_mu is not None:
+        return obs.X
     return plan.subspace.complement_matrix(obs.X)
 
 
@@ -490,11 +518,11 @@ def _belief_bin_sigmas(cfg) -> Tuple[float, float]:
 def _belief_error_factor(cfg, obs: Observation) -> np.ndarray:
     """``B`` with ``B B^H = C_belief``: covariance of the template misalignment.
 
-    One pair of columns per believed echo: ``sqrt(P) * sigma_l * da/dl`` and
-    ``sqrt(P) * sigma_k * da/dk``, whose outer product is the covariance of the
-    first-order mismatch.  ``P`` is the believed echo power, so a target the
-    receiver can barely see contributes barely any mismatch -- the term scales
-    with what is actually there.
+    Up to three columns per believed echo describe delay, Doppler, and bearing
+    mismatch.  DD derivatives are lifted by the source steering vector and the
+    bearing derivative is ``a_DD (x) da_array/du``.  Their outer products form
+    the first-order mismatch covariance.  ``P`` is the believed echo power, so
+    a target the receiver can barely see contributes barely any mismatch.
 
     **The tested target's own sources are excluded.**  ``C_res`` is the
     covariance of the residual *under H0*, and under H0 that target's echo is
@@ -527,10 +555,30 @@ def _belief_error_factor(cfg, obs: Observation) -> np.ndarray:
         centre, d_delay, d_doppler = block[:, 0], block[:, 1], block[:, 2]
         norm = float(np.sqrt(max(np.vdot(centre, centre).real, EPS)))
         amp = math.sqrt(max(float(src.power), 0.0)) / norm
-        if sigma_l > 0.0:
-            cols.append((amp * sigma_l) * d_delay)
-        if sigma_k > 0.0:
-            cols.append((amp * sigma_k) * d_doppler)
+        sigma_l_src = (
+            sigma_l if src.sigma_delay_bin is None
+            else max(float(src.sigma_delay_bin), 0.0)
+        )
+        sigma_k_src = (
+            sigma_k if src.sigma_doppler_bin is None
+            else max(float(src.sigma_doppler_bin), 0.0)
+        )
+        sigma_u_src = max(float(src.sigma_bearing_u or 0.0), 0.0)
+        u_src = float(getattr(src, "u", 0.0))
+        if sigma_l_src > 0.0:
+            cols.append(lift_dictionary(
+                cfg, ((amp * sigma_l_src) * d_delay)[:, None], [u_src]
+            )[:, 0])
+        if sigma_k_src > 0.0:
+            cols.append(lift_dictionary(
+                cfg, ((amp * sigma_k_src) * d_doppler)[:, None], [u_src]
+            )[:, 0])
+        m_rx = int(cfg.aperture.m_rx) if cfg.aperture.enable else 1
+        if sigma_u_src > 0.0 and m_rx > 1:
+            cols.append(
+                (amp * sigma_u_src)
+                * np.kron(centre, steering_derivative(m_rx, u_src))
+            )
     if not cols:
         return np.zeros((n_bins, 0), dtype=complex)
     return np.stack(cols, axis=1)
@@ -581,14 +629,18 @@ def _estimator_covariance(cfg, obs: Observation, plan: ArmPlan) -> np.ndarray:
     pv = plan.prior
     if plan.candidates:
         A_cand = obs.A[:, list(plan.candidates)]
-        D = np.concatenate([obs.X, A_cand], axis=1)
-        gram = D.conj().T @ D
-        lam = np.zeros(gram.shape[0])
+        return joint_interference_covariance(
+            obs.X, A_cand, sigma2, pv, pv or 1.0
+        )
+    if plan.soft_mu is not None:
+        px = plan.subspace.project(obs.X)
+        gram = obs.X.conj().T @ obs.X + float(plan.soft_mu) * (
+            px.conj().T @ px
+        )
+        precision = gram / sigma2
         if pv:
-            lam[:d] = sigma2 / float(pv)
-        lam[d:] = sigma2 / max(float(pv or 1.0), EPS)
-        cov = sigma2 * np.linalg.pinv(gram + np.diag(lam), rcond=1e-12)
-        return np.asarray(cov[:d, :d], dtype=complex)
+            precision = precision + (1.0 / float(pv)) * np.eye(d)
+        return np.asarray(np.linalg.pinv(precision, rcond=1e-12), dtype=complex)
     mx = plan.subspace.complement_matrix(obs.X)
     gram = mx.conj().T @ mx
     if pv:
@@ -666,7 +718,11 @@ def residual_model(
         basis, small, error = _low_rank_form(cfg, obs, plan)
         const = np.zeros(n_bins, dtype=complex)
         gain = 1.0
-        est_factor = plan.subspace.complement_matrix(obs.X) @ _psd_sqrt(
+        subtraction_dictionary = (
+            obs.X if (plan.candidates or plan.soft_mu is not None)
+            else plan.subspace.complement_matrix(obs.X)
+        )
+        est_factor = subtraction_dictionary @ _psd_sqrt(
             _estimator_covariance(cfg, obs, plan)
         )
         est_factor = est_factor / math.sqrt(float(cfg.cancellation.n_cpi))
@@ -846,7 +902,9 @@ def _dictionary(cfg, obs: Observation, which: str) -> Tuple[np.ndarray, np.ndarr
     if which == "belief":
         return obs.A, np.asarray(obs.A_target_ids)
     if which == "truth":
-        return target_dictionary(cfg, obs.targets), np.asarray(obs.A_true_target_ids)
+        return target_dictionary(
+            cfg, obs.targets, covariance_expanded=False
+        ), np.asarray(obs.A_true_target_ids)
     raise ValueError("dictionary must be 'belief' or 'truth', got %r" % (which,))
 
 
@@ -864,6 +922,21 @@ def _centre_mask(cfg, n_cols: int) -> np.ndarray:
     mask = np.zeros(int(n_cols), dtype=bool)
     if n_basis > 0:
         mask[::n_basis] = True
+    return mask
+
+
+def _dictionary_centre_mask(cfg, obs: Observation, which: str, n_cols: int) -> np.ndarray:
+    explicit = (
+        obs.A_centre_mask if which == "belief" else obs.A_true_centre_mask
+    )
+    if explicit is None:
+        return _centre_mask(cfg, n_cols)
+    mask = np.asarray(explicit, dtype=bool)
+    if mask.shape != (int(n_cols),):
+        raise ValueError(
+            "%s dictionary centre mask has shape %r, expected (%d,)"
+            % (which, mask.shape, int(n_cols))
+        )
     return mask
 
 
@@ -891,7 +964,20 @@ def _manifold_columns(
         if allowed is not None and int(src.target) not in allowed:
             continue
         amp = math.sqrt(max(float(src.power), 0.0))
-        blocks.append(amp * tangent_columns(cfg, src.doppler_bin, src.delay_bin, order, h))
+        dd_block = amp * tangent_columns(
+            cfg, src.doppler_bin, src.delay_bin, order, h
+        )
+        blocks.append(
+            lift_dictionary(cfg, dd_block, [float(src.u)] * dd_block.shape[1])
+        )
+        m_rx = int(cfg.aperture.m_rx) if cfg.aperture.enable else 1
+        if m_rx > 1:
+            centre = amp * tangent_columns(
+                cfg, src.doppler_bin, src.delay_bin, 0, h
+            )[:, 0]
+            blocks.append(
+                np.kron(centre, steering_derivative(m_rx, float(src.u)))[:, None]
+            )
     if not blocks:
         return np.zeros((int(obs.y.size), 0), dtype=complex)
     return np.concatenate(blocks, axis=1)
@@ -911,6 +997,8 @@ def target_conditioned_glrt(
     template_override: np.ndarray | None = None,
     centre_only: bool = True,
     nuisance_targets: Sequence[int] | None = None,
+    null_cov_model: ResidualModel | None = None,
+    threshold_override: float | None = None,
 ) -> TargetGLRT:
     """``T_q`` of eq. (1) plus the identifiability numbers that go with it.
 
@@ -928,7 +1016,10 @@ def target_conditioned_glrt(
         raise ValueError(
             "target %d has no column in the %s dictionary" % (tgt, dictionary)
         )
-    base = _centre_mask(cfg, A.shape[1]) if centre_only else np.ones(A.shape[1], dtype=bool)
+    base = (
+        _dictionary_centre_mask(cfg, obs, dictionary, A.shape[1])
+        if centre_only else np.ones(A.shape[1], dtype=bool)
+    )
     sel_q = sel_tgt & base
     if not np.any(sel_q):
         raise ValueError("target %d has no centre column" % (tgt,))
@@ -962,7 +1053,44 @@ def target_conditioned_glrt(
     B_q = _project_out(w_neg, w_q)
     statistic = _projector_energy(B_q, r_whitened)
     dof_real = 2 * _numerical_rank(B_q)
-    threshold = glrt_threshold(p_fa, dof_real)
+    threshold = (
+        float(threshold_override)
+        if threshold_override is not None else glrt_threshold(p_fa, dof_real)
+    )
+    if (
+        threshold_override is None
+        and null_cov_model is not None
+        and dof_real > 0
+    ):
+        rank_q = dof_real // 2
+        q_basis = np.linalg.qr(B_q)[0][:, :rank_q]
+        raw_directions = cov.whiten_matrix(q_basis)
+        null_small = raw_directions.conj().T @ (
+            null_cov_model.cov.apply_matrix(raw_directions)
+        )
+        null_eigenvalues = np.maximum(
+            np.real(np.linalg.eigvalsh(
+                0.5 * (null_small + null_small.conj().T)
+            )),
+            0.0,
+        )
+        if np.allclose(
+            null_eigenvalues, null_eigenvalues[0], rtol=1e-10, atol=0.0
+        ):
+            threshold = float(null_eigenvalues[0]) * glrt_threshold(
+                p_fa, dof_real
+            )
+        else:
+            # A complex Gaussian quadratic form is a weighted sum of unit
+            # exponentials.  Fixed numerical quadrature makes the threshold
+            # deterministic and independent of the evaluated H0 draws.
+            rng = np.random.default_rng(0x43464152)
+            draws = rng.exponential(
+                scale=1.0, size=(262144, int(null_eigenvalues.size))
+            ) @ null_eigenvalues
+            threshold = float(np.quantile(
+                draws, 1.0 - float(p_fa), method="higher"
+            ))
 
     g_self = np.real(np.sum(np.abs(w_q) ** 2, axis=0))
     g_keep = np.real(np.sum(np.abs(B_q) ** 2, axis=0))
@@ -1264,14 +1392,26 @@ def restrict_to_target(cfg, obs: Observation, target: int) -> Observation:
     if not true_sources:
         raise ValueError("target %d has no true source" % (target,))
 
-    A_true = target_dictionary(cfg, true_sources)
+    A_true = target_dictionary(
+        cfg, true_sources, covariance_expanded=False
+    )
     alpha_true = np.asarray(obs.alpha_true)[sel].copy()
     s_target = A_true @ alpha_true
     if belief_sources:
         A = target_dictionary(cfg, belief_sources)
         A_ids = np.full(A.shape[1], int(target), dtype=int)
+        centre_blocks = []
+        for src in belief_sources:
+            width = target_dictionary(cfg, [src]).shape[1]
+            block = np.zeros(width, dtype=bool)
+            if width:
+                block[0] = True
+            centre_blocks.append(block)
+        A_centres = np.concatenate(centre_blocks)
     else:  # a caller that built the observation by hand
         A, A_ids = obs.A, np.full(int(obs.A.shape[1]), int(target), dtype=int)
+        A_centres = _centre_mask(cfg, A.shape[1])
+    true_centres = _centre_mask(cfg, A_true.shape[1])
     noise = obs.y - obs.x_direct - obs.s_target
     n_bins = int(obs.y.size)
     return replace(
@@ -1280,6 +1420,8 @@ def restrict_to_target(cfg, obs: Observation, target: int) -> Observation:
         A=A,
         A_target_ids=A_ids,
         A_true_target_ids=np.full(A_true.shape[1], int(target), dtype=int),
+        A_centre_mask=A_centres,
+        A_true_centre_mask=true_centres,
         s_target=s_target,
         alpha_true=alpha_true,
         targets=true_sources,

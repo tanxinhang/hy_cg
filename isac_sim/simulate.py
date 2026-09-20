@@ -179,7 +179,8 @@ def evaluate_detection(
     detected = 0
     detected_per_target = np.zeros(cfg.scale.Q, dtype=int)
     false_alarm_active = 0
-    total_targets = cfg.scale.Q
+    h1_repetitions = max(int(d.num_h1_per_target), 1)
+    total_targets = cfg.scale.Q * h1_repetitions
     total_false_active = 0
     total_false_overall = cfg.scale.Q * d.num_false_per_target
 
@@ -212,24 +213,25 @@ def evaluate_detection(
 
         ordered_links = list(weights)
         weight_vector = np.asarray([weights[link] for link in ordered_links])
-        h1_rngs = keyed_rngs(q, ordered_links, True, 0)
-        if weight_mode == "exact_llr_sum":
-            h1_vector = np.asarray([
-                draw_received_full_llr(
-                    cfg, tables, link, q,
-                    h1_rngs[link] if h1_rngs is not None else rng,
-                    True, plan,
-                ) for link in ordered_links
-            ], dtype=float)
-        else:
-            h1_vector = draw_received_soft_vector(
-                cfg, tables, ordered_links, q, rng, True, plan, base,
-                rng_by_link=h1_rngs,
-            )
-        F = float(weight_vector @ h1_vector)
-        if F > thr:
-            detected += 1
-            detected_per_target[q] = 1
+        for h1_index in range(h1_repetitions):
+            h1_rngs = keyed_rngs(q, ordered_links, True, h1_index)
+            if weight_mode == "exact_llr_sum":
+                h1_vector = np.asarray([
+                    draw_received_full_llr(
+                        cfg, tables, link, q,
+                        h1_rngs[link] if h1_rngs is not None else rng,
+                        True, plan,
+                    ) for link in ordered_links
+                ], dtype=float)
+            else:
+                h1_vector = draw_received_soft_vector(
+                    cfg, tables, ordered_links, q, rng, True, plan, base,
+                    rng_by_link=h1_rngs,
+                )
+            F = float(weight_vector @ h1_vector)
+            if F > thr:
+                detected += 1
+                detected_per_target[q] += 1
 
         for false_index in range(d.num_false_per_target):
             h0_rngs = keyed_rngs(q, ordered_links, False, false_index)

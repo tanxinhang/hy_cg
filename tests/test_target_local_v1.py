@@ -29,13 +29,128 @@ from isac_sim.bundle_master import (
     rcs_robust_bundle_column_generation,
 )
 from isac_sim.report import scalar_summary_row
-from isac_sim.selection import DEFAULT_METHODS
+from isac_sim.selection import (
+    DEFAULT_METHODS,
+    feasible_links_for_target,
+    polish_risk_secondary_pd,
+    polish_worst_target_pd,
+)
+from isac_sim.fusion import predicted_pd_for_links
 from isac_sim.simulate import run_simulation
 from isac_sim.simulate import rng_for_observation, run_one_trial
 from isac_sim.soft_channel import draw_received_soft_vector
 
 
 class TargetLocalV1ContractTests(unittest.TestCase):
+    def test_risk_secondary_polish_preserves_nominal_service(self) -> None:
+        cfg = apply_preset(Config(), "paper-canonical")
+        cfg.scale.M, cfg.scale.Q = 4, 2
+        cfg.selector.max_links_per_target = 3
+        cfg.selector.max_total_links = 4
+        cfg.selector.max_tx_nodes = None
+        rng = np.random.default_rng(1002)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        nominal = compute_link_tables(cfg, base)
+        risk = compute_link_tables(
+            cfg, base,
+            residual_fraction_by_receiver=np.asarray([1e-4, 3e-4, 1e-3, 3e-3]),
+        )
+        plan = assign_fusion_nodes(cfg, base, nominal, geom)
+        selected = {
+            q: feasible_links_for_target(cfg, base, nominal, q, plan)[:2]
+            for q in range(cfg.scale.Q)
+        }
+
+        def pd(tables, schedule):
+            return np.asarray([
+                predicted_pd_for_links(
+                    cfg, tables, q, schedule[q], plan=plan, base=base
+                ) for q in range(cfg.scale.Q)
+            ])
+
+        nominal_before = pd(nominal, selected)
+        risk_before = pd(risk, selected)
+        polished, history = polish_risk_secondary_pd(
+            cfg, base, nominal, risk, selected, plan=plan,
+            min_links_per_target=1, max_rounds=3,
+            allow_target_pair_exchange=True,
+        )
+        nominal_after = pd(nominal, polished)
+        risk_after = pd(risk, polished)
+        weak_req = float(cfg.detect.weak_pd_required)
+        self.assertEqual(
+            sum(map(len, polished.values())), sum(map(len, selected.values()))
+        )
+        self.assertGreaterEqual(
+            float(np.min(nominal_after)) + 1e-12,
+            float(np.min(nominal_before)),
+        )
+        self.assertGreaterEqual(
+            float(np.sum(np.minimum(nominal_after, weak_req))) + 1e-12,
+            float(np.sum(np.minimum(nominal_before, weak_req))),
+        )
+        self.assertGreaterEqual(
+            float(np.min(risk_after)) + 1e-12,
+            float(np.min(risk_before)),
+        )
+        for step in history:
+            self.assertGreaterEqual(
+                step["nominal_worst_after"] + 1e-12,
+                step["nominal_worst_before"],
+            )
+            self.assertGreaterEqual(
+                step["nominal_objective_after"] + 1e-12,
+                step["nominal_objective_before"],
+            )
+            self.assertGreaterEqual(
+                step["risk_worst_after"] + 1e-12,
+                step["risk_worst_before"],
+            )
+
+    def test_worst_target_polish_preserves_budget_and_is_monotone(self) -> None:
+        cfg = apply_preset(Config(), "paper-canonical")
+        cfg.scale.M, cfg.scale.Q = 4, 2
+        cfg.selector.max_links_per_target = 3
+        cfg.selector.max_total_links = 4
+        cfg.selector.max_tx_nodes = None
+        rng = np.random.default_rng(1001)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = assign_fusion_nodes(cfg, base, tables, geom)
+        selected = {
+            q: feasible_links_for_target(cfg, base, tables, q, plan)[:2]
+            for q in range(cfg.scale.Q)
+        }
+        before = np.asarray([
+            predicted_pd_for_links(
+                cfg, tables, q, selected[q], plan=plan, base=base
+            )
+            for q in range(cfg.scale.Q)
+        ])
+
+        polished, history = polish_worst_target_pd(
+            cfg, base, tables, selected, plan=plan,
+            min_links_per_target=1, max_rounds=4,
+        )
+        after = np.asarray([
+            predicted_pd_for_links(
+                cfg, tables, q, polished[q], plan=plan, base=base
+            )
+            for q in range(cfg.scale.Q)
+        ])
+
+        self.assertEqual(
+            sum(map(len, polished.values())), sum(map(len, selected.values()))
+        )
+        self.assertTrue(all(len(polished[q]) >= 1 for q in polished))
+        self.assertGreaterEqual(float(np.min(after)) + 1e-12, float(np.min(before)))
+        for step in history:
+            self.assertGreaterEqual(
+                step["worst_pd_after"] + 1e-12, step["worst_pd_before"]
+            )
+
     def test_v11_preset_removes_scalar_price_without_mutating_v1(self) -> None:
         v1 = apply_preset(Config(), "target-local-v1")
         v11 = apply_preset(Config(), "capacitated-target-fusion-v1.1")
@@ -389,6 +504,29 @@ class TargetLocalV1ContractTests(unittest.TestCase):
         self.assertEqual(robust.plan.f_q.tolist(), nominal.plan.f_q.tolist())
         self.assertEqual(robust.selected, nominal.selected)
         self.assertEqual(robust.objective, nominal.objective)
+
+    def test_bundle_column_generation_honours_allowed_transmitters(self) -> None:
+        cfg = apply_preset(Config(), "joint-bundle-v1.2")
+        cfg.scale.M, cfg.scale.Q = 4, 2
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.selector.max_links_per_target = 3
+        cfg.selector.max_total_links = 5
+        cfg.selector.bundle_shortlist_per_type = 20
+        cfg.selector.bundle_exact_pricing_max_candidates = 20
+        rng = np.random.default_rng(122)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng, rcs_view="mean")
+        tables = compute_link_tables(cfg, base)
+
+        result = rcs_robust_bundle_column_generation(
+            cfg, base, tables, allowed_transmitters=(0, 2)
+        )
+
+        self.assertTrue(any(result.selected.values()))
+        self.assertTrue(all(
+            int(link[0]) in {0, 2}
+            for links in result.selected.values() for link in links
+        ))
 
     def test_rcs_robust_column_generation_matches_full_lower_endpoint_pool(self) -> None:
         from isac_sim.model import rescale_sensing_tables_for_rcs

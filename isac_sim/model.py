@@ -533,6 +533,7 @@ def compute_link_tables(
     reuse_from: LinkTables | None = None,
     sensing_power_scale_by_uav: np.ndarray | None = None,
     residual_fraction_by_receiver: np.ndarray | None = None,
+    target_retention_by_receiver: np.ndarray | None = None,
 ) -> LinkTables:
     """Per-link communication / sensing-SINR quantities.
 
@@ -568,13 +569,33 @@ def compute_link_tables(
 
     ``residual_fraction_by_receiver`` replaces the constant
     ``kappa_dc = 10^(-interference.direct_cancellation_db/10)`` by a per-receiver
-    measured fraction of the aggregated direct field, i.e. it plugs a real
+    ``(M,)`` or per-(receiver,target) ``(M,Q)`` measured fraction of the
+    aggregated direct field, i.e. it plugs a real
     target-preserving canceller into the production chain instead of the
     assumption.  ``None`` (the default) keeps the released constant *bit for
     bit*, which is what every frozen baseline pins -- so this argument is the
     only supported way to change it: ``cfg.cancellation.mode`` alone can select
     the analytic bridge (``"predict"``), and ``"measure"`` is refused because
     measuring needs the trial geometry, which this function is not given.
+
+    ``target_retention_by_receiver`` is the *other half* of that substitution,
+    and passing the denominator alone leaves the loop half closed.  A real
+    canceller is an affine map applied to the whole observation: it leaves
+    interference behind (the denominator's ``I_res``) **and** it attenuates the
+    echo that passes through it (this argument's ``eta_surv``).  The SINR a
+    receiver actually sees is::
+
+        gamma = eta_surv * S / (N0 + I_res)
+
+    so a caller that supplies ``residual_fraction_by_receiver`` without this is
+    running a *power-equivalent* bridge: it prices what the canceller failed to
+    remove but credits the target with energy the canceller may have taken.
+    Shapes ``(M,)`` (broadcast over targets) or ``(M, Q)``; ``None`` (the
+    default) leaves the numerator bit-exact, which is every frozen baseline's
+    numerator.  Produced by
+    ``cancellation.measure_receiver_context(...).as_retention()``, which clamps
+    the survival factor at 1 -- the raw ratio can exceed 1 on some receivers,
+    and a scalar SINR must not be credited with that.
     """
     M, Q = cfg.scale.M, cfg.scale.Q
     r, c, d = cfg.radio, cfg.comm, cfg.detect
@@ -605,8 +626,33 @@ def compute_link_tables(
             "residual_fraction_by_receiver=... instead, built from "
             "isac_sim.cancellation.measure_residual_fraction(cfg, geom, base)."
         )
+    # ---- The numerator half: echo survival under the same affine map ------
+    retention = None
+    if target_retention_by_receiver is not None:
+        retention = np.asarray(target_retention_by_receiver, dtype=float)
+        if retention.shape not in ((M,), (M, Q)):
+            raise ValueError(
+                "target_retention_by_receiver must have shape (%d,) or (%d, %d), "
+                "got %s" % (M, M, Q, np.shape(target_retention_by_receiver))
+            )
+        if not np.all(np.isfinite(retention)) or np.any(retention < 0.0):
+            raise ValueError("target_retention_by_receiver must be finite and non-negative")
+        if np.any(retention > 1.0):
+            # A survival factor above 1 is not gain the receiver earned: the
+            # joint stage leaves behind whatever else projects onto a target's
+            # block, so the ratio can exceed 1 (measured 1.001).  Refusing is
+            # better than clamping silently, because a caller passing it has
+            # almost certainly skipped ``as_retention()`` and is about to
+            # multiply a detection statistic by an artefact.
+            raise ValueError(
+                "target_retention_by_receiver must not exceed 1.0; max is %.6f. "
+                "Use measure_receiver_context(...).as_retention(), which clamps."
+                % float(np.max(retention))
+            )
+
     algorithm_receiver = (
         residual_fraction_by_receiver is not None
+        or target_retention_by_receiver is not None
         or cfg.cancellation.mode == "predict"
     )
 
@@ -721,7 +767,8 @@ def compute_link_tables(
         #
         # Three sources, in priority order, and the default is bit-exact:
         #
-        # * ``residual_fraction_by_receiver`` -- a measured per-receiver
+        # * ``residual_fraction_by_receiver`` -- a measured per-receiver or
+        #   per-(receiver,target)
         #   fraction, produced by
         #   :func:`isac_sim.cancellation.measure_residual_fraction` (or by a
         #   calibration table).  This is the only one the canceller's own
@@ -735,10 +782,11 @@ def compute_link_tables(
         kappa_dc_vec = None
         if residual_fraction_by_receiver is not None:
             kappa_dc_vec = np.asarray(residual_fraction_by_receiver, dtype=float)
-            if kappa_dc_vec.shape != (M,):
+            if kappa_dc_vec.shape not in ((M,), (M, Q)):
                 raise ValueError(
-                    "residual_fraction_by_receiver must have shape (%d,), got %s"
-                    % (M, np.shape(residual_fraction_by_receiver))
+                    "residual_fraction_by_receiver must have shape (%d,) or "
+                    "(%d, %d), got %s"
+                    % (M, M, Q, np.shape(residual_fraction_by_receiver))
                 )
             if not np.all(np.isfinite(kappa_dc_vec)) or np.any(kappa_dc_vec < 0.0):
                 raise ValueError(
@@ -868,15 +916,25 @@ def compute_link_tables(
                 continue
 
             residual_self = r.residual_self_factor * P[j]
+            residual_direct_by_target = None
             if shared:
                 # Same interferer set, same gains and same radiated powers as the
                 # communication receiver at j -- only the receiver's suppression
                 # differs.  Note that the illuminator i is NOT excluded: its
                 # direct path is precisely the near-far term that a bistatic
                 # sensing receiver has to cancel.
-                residual_direct = (
-                    kappa_dc if kappa_dc_vec is None else kappa_dc_vec[j]
-                ) * float(I_sense_field[j])
+                if kappa_dc_vec is not None and kappa_dc_vec.ndim == 2:
+                    residual_direct_by_target = (
+                        kappa_dc_vec[j, :] * float(I_sense_field[j])
+                    )
+                    # Pair-level RINR/sigma0 cannot encode q.  Report the
+                    # conservative worst target while gamma_sense/var0_q below
+                    # consume the exact target-conditioned denominator.
+                    residual_direct = float(np.max(residual_direct_by_target))
+                else:
+                    residual_direct = (
+                        kappa_dc if kappa_dc_vec is None else kappa_dc_vec[j]
+                    ) * float(I_sense_field[j])
                 residual_multi = 0.0
             else:
                 residual_direct = 0.0
@@ -920,7 +978,19 @@ def compute_link_tables(
                 collision_penalty = 1.0 / (max(base.dd_collision_count[i, j, q], 1.0) ** cfg.dd.dd_collision_alpha)
                 dd_loss = dd_used[i, j, q] if cfg.dd.enable_dd_fractional_penalty else 1.0
 
-                signal = effective_sensing_power * base.target_gain[i, j, q] * G_proc * G_hw * collision_penalty * dd_loss
+                # Echo survival under the receiver's affine map.  This is the
+                # numerator's half of the canceller; see the docstring.  It is
+                # applied to ``gamma_sense`` only -- ``raw_gamma_sense`` is the
+                # raw-SINR baseline and by construction describes the link
+                # before any receiver processing, so it must not move.
+                eta_ret = 1.0
+                if retention is not None:
+                    eta_ret = float(retention[j] if retention.ndim == 1 else retention[j, q])
+
+                signal = (
+                    effective_sensing_power * base.target_gain[i, j, q] * G_proc * G_hw
+                    * collision_penalty * dd_loss * eta_ret
+                )
                 waveform_capture = 1.0
                 waveform_inr = 0.0
                 if cfg.waveform_impairments.enable:
@@ -935,9 +1005,15 @@ def compute_link_tables(
                         + wi.multipath_inr
                         + wi.unresolved_target_inr * unresolved
                     )
+                residual_total_q = residual_total
+                if residual_direct_by_target is not None:
+                    residual_total_q = (
+                        residual_self + float(residual_direct_by_target[q])
+                        + residual_multi
+                    )
                 gamma = (
                     signal * waveform_capture
-                    / ((n0 + residual_total + eps_den) * (1.0 + waveform_inr))
+                    / ((n0 + residual_total_q + eps_den) * (1.0 + waveform_inr))
                 )
                 gamma_sense[i, j, q] = gamma
                 # Soft statistic under the configured model: the legacy

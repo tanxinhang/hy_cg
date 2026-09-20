@@ -41,6 +41,7 @@ from isac_sim.waveform import (
 )
 from isac_sim.selection import feasible_links_for_target, select_c2f_adaptive
 from isac_sim.simulate import (
+    evaluate_detection,
     rng_for_detection,
     rng_for_method,
     run_method_on_trial,
@@ -52,6 +53,12 @@ from isac_sim.simulate import (
 
 
 class CanonicalConfigurationTests(unittest.TestCase):
+    def test_unsupported_tangent_orders_are_rejected_explicitly(self) -> None:
+        cfg = apply_preset(Config(), "paper-canonical")
+        cfg.cancellation.tangent_order = 2
+        with self.assertRaisesRegex(ValueError, "supports only 0 or 1"):
+            validate_config(cfg)
+
     def test_small_uav_scenario_presets_are_physically_named_and_valid(self) -> None:
         expected = {
             "small-uav-compact-800m": (800.0, 0.05),
@@ -265,6 +272,34 @@ class CanonicalConfigurationTests(unittest.TestCase):
             "proposed_c2f_adaptive_pd",
         )
         self.assertNotIn("paired_proposed_delta_P_D", summary["sense_sinr"])
+
+    def test_detection_h1_repetitions_preserve_target_denominator(self) -> None:
+        cfg = apply_preset(Config(), "paper-canonical")
+        cfg.scale.M, cfg.scale.Q = 3, 1
+        cfg.detect.num_h1_per_target = 5
+        cfg.detect.num_false_per_target = 2
+        cfg.dd.use_otfs_bin_validity = False
+        rng = np.random.default_rng(3901)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = ReportingPlan(mode="explicit", f_q=np.array([1]))
+        got = evaluate_detection(
+            cfg,
+            tables,
+            {0: [(0, 1)]},
+            rng_for_detection(cfg, 0),
+            "proposed_c2f_adaptive_pd",
+            plan,
+            base,
+            trial_index=0,
+        )
+        detected, total, _false, total_false, *_rest, per_target = got
+        self.assertEqual(total, 5)
+        self.assertEqual(total_false, 2)
+        self.assertEqual(int(per_target[0]), int(detected))
+        self.assertGreaterEqual(detected, 0)
+        self.assertLessEqual(detected, total)
 
     def test_belief_refinement_deflection_excludes_uncaptured_links(self) -> None:
         cfg = apply_preset(Config(), "paper-canonical")
@@ -535,6 +570,31 @@ class ObjectiveAndMomentTests(unittest.TestCase):
             for _ in range(12_000)
         ])
         self.assertLess(abs(float(np.mean(samples > threshold)) - 0.05), 0.012)
+
+    def test_gaussian_replacement_exact_mixture_threshold_controls_false_alarm(self) -> None:
+        cfg = apply_preset(Config(), "target-local-v1")
+        cfg.scale.M, cfg.scale.Q = 4, 1
+        cfg.dd.use_otfs_bin_validity = False
+        cfg.detect.fused_calibration_samples = 16_384
+        cfg.detect.exact_gaussian_replacement_threshold = True
+        rng = np.random.default_rng(2904)
+        geom = generate_geometry(cfg, rng)
+        base = build_base_gains(cfg, geom, rng)
+        tables = compute_link_tables(cfg, base)
+        plan = ReportingPlan(mode="explicit", f_q=np.array([1]))
+        links = [(0, 1), (2, 1), (0, 3)]
+        weights = compute_weights(cfg, tables, 0, links, plan=plan, base=base)
+        threshold = calibrated_fused_threshold(
+            cfg, tables, 0, links, weights, plan=plan, base=base
+        )
+        weight_vector = np.asarray([weights[link] for link in links])
+        samples = np.asarray([
+            weight_vector @ draw_received_soft_vector(
+                cfg, tables, links, 0, rng, False, plan, base
+            )
+            for _ in range(20_000)
+        ])
+        self.assertLess(abs(float(np.mean(samples > threshold)) - 0.05), 0.008)
 
     def test_singleton_true_erasure_threshold_uses_zero_failure_atom(self) -> None:
         cfg = apply_preset(Config(), "capacitated-target-fusion-v1.1")

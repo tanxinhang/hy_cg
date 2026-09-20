@@ -119,6 +119,121 @@ def test_unprotected_ls_prediction_is_sigma2_times_rank():
     assert estimate == pytest.approx(obs.sigma2 * rank, rel=1e-6)
 
 
+def test_full_arm_prediction_uses_actual_xh_subtraction_operator():
+    """The joint arm subtracts X h, so uncertainty propagates through X."""
+    cfg = make_cfg()
+    obs = make_observation(cfg)
+    full = cx.cancellation_arms(cfg, obs, threshold=0.0)["tp_uic_full"]
+    A_cand = obs.A[:, list(full.candidates)]
+    pv = cfg.cancellation.prior_variance
+    cov_h = cx.joint_interference_covariance(
+        obs.X, A_cand, obs.sigma2, pv, pv or 1.0
+    )
+    expected = float(np.real(np.trace(cov_h @ (obs.X.conj().T @ obs.X))))
+
+    assert full.candidates
+    assert full.i_res_retained == pytest.approx(0.0, abs=1e-18)
+    assert full.i_res_pred_estimate == pytest.approx(expected, rel=1e-10)
+
+
+def test_residual_moments_match_exported_quadratic_descriptors():
+    cfg = make_cfg()
+    obs = make_observation(cfg)
+    result = cx.cancellation_arms(cfg, obs)["tp_uic_full"]
+    gram = np.asarray(result.residual_direct_gram)
+    eigenvalues = np.asarray(result.residual_noise_eigenvalues)
+    mean = float(np.real(np.trace(gram)) + np.sum(eigenvalues))
+    structural_var = float(
+        np.sum(np.abs(gram) ** 2)
+        - np.sum(np.abs(np.diag(gram)) ** 2)
+    )
+    variance = structural_var + float(np.sum(eigenvalues ** 2))
+    assert result.i_res_moment_mean == pytest.approx(mean, rel=1e-10)
+    assert result.i_res_pred_var == pytest.approx(variance, rel=1e-10)
+
+
+def test_prior_residual_quantile_is_deterministic_and_ordered():
+    cfg = make_cfg()
+    obs = make_observation(cfg)
+    result = cx.cancellation_arms(cfg, obs)["tp_uic_full"]
+    q50a = cx.residual_power_prior_quantile(result, 0.50)
+    q50b = cx.residual_power_prior_quantile(result, 0.50)
+    q80 = cx.residual_power_prior_quantile(result, 0.80)
+    assert q50a == q50b
+    assert 0.0 <= q50a <= q80
+
+
+def test_soft_tpuic_zero_weight_is_exactly_ridge_ls():
+    cfg = make_cfg(**{"cancellation.soft_protection_mu": 0.0})
+    obs = make_observation(cfg)
+    arms = cx.cancellation_arms(cfg, obs)
+    assert np.allclose(arms["soft_tpuic"].h_hat, arms["ridge_ls"].h_hat)
+    assert np.allclose(arms["soft_tpuic"].residual, arms["ridge_ls"].residual)
+
+
+def test_soft_weight_monotonically_reduces_target_subspace_removal():
+    cfg = make_cfg()
+    obs = make_observation(cfg)
+    belief = cx.Subspace(obs.basis_belief, obs.basis_belief.shape[1])
+    removed = []
+    for mu in (0.0, 0.1, 1.0, 10.0, 100.0):
+        h, _cov = cx.soft_protected_map(
+            obs.s_target, obs.X, belief, obs.sigma2,
+            cfg.cancellation.prior_variance, mu,
+        )
+        projected = belief.project(obs.X @ h)
+        removed.append(float(np.vdot(projected, projected).real))
+    assert all(b <= a * (1.0 + 1e-10) + 1e-24 for a, b in zip(removed, removed[1:]))
+    assert removed[-1] < removed[0]
+
+
+def test_adaptive_soft_is_belief_pareto_safe_or_exact_hard_fallback():
+    cfg = make_cfg(**{
+        "cancellation.adaptive_soft_enable": True,
+        "cancellation.adaptive_soft_mu_grid": (0.0, 0.1, 1.0, 10.0, 100.0),
+    })
+    obs = make_observation(cfg)
+    arms = cx.cancellation_arms(cfg, obs)
+    hard = arms["tp_uic_full"]
+    adaptive = arms["adaptive_soft_tpuic"]
+
+    assert adaptive.i_res_moment_mean <= hard.i_res_moment_mean * (1.0 + 1e-10)
+    assert adaptive.eta_survive_risk_q + 1e-12 >= hard.eta_survive_risk_q
+    assert cx.residual_power_prior_quantile(
+        adaptive, cfg.cancellation.adaptive_soft_residual_quantile
+    ) <= cx.residual_power_prior_quantile(
+        hard, cfg.cancellation.adaptive_soft_residual_quantile
+    ) * (1.0 + 1e-10)
+    if adaptive.soft_mu is None:
+        assert np.array_equal(adaptive.residual, hard.residual)
+        assert np.array_equal(adaptive.h_hat, hard.h_hat)
+    else:
+        assert adaptive.soft_mu in cfg.cancellation.adaptive_soft_mu_grid
+
+
+def test_adaptive_soft_arm_is_absent_by_default():
+    cfg = make_cfg()
+    obs = make_observation(cfg)
+    assert "adaptive_soft_tpuic" not in cx.cancellation_arms(cfg, obs)
+
+
+def test_targeted_hard_tpuic_spends_rank_only_on_tested_target():
+    cfg = make_cfg()
+    obs = make_observation(cfg)
+    target = int(obs.weak_index)
+    arms = cx.cancellation_arms(cfg, obs, weak_target=target)
+    targeted = arms["targeted_tpuic_stage1"]
+    union = arms["tp_uic_stage1"]
+    ids = np.asarray(obs.A_target_ids)
+    target_block = cx.orthonormalise(obs.A[:, ids == target])
+
+    assert 0 < targeted.protect_dim <= union.protect_dim
+    assert set(ids[list(arms["targeted_tpuic_full"].candidates)]) == {target}
+    projected_before = target_block.project(obs.y)
+    projected_after = target_block.project(targeted.residual)
+    assert np.allclose(projected_after, projected_before, rtol=1e-9, atol=1e-14)
+
+
 def test_prediction_tracks_measurement_for_plain_ls():
     """Measured estimation residual vs eq. (3), on one trial."""
     cfg = make_cfg()
@@ -602,3 +717,53 @@ def test_protected_target_ids_agrees_with_the_protection_basis():
     subset = [s for s in sources if int(s.target) in ids]
     built = cx._protection_basis(cfg, subset, int(obs.y.size))
     assert np.array_equal(built, obs.basis_belief)
+
+
+def test_protect_targets_false_returns_empty_basis():
+    """``protect_targets=False`` must return an empty basis, not fall through.
+
+    Regression: both early exits in ``_protection_basis`` built the zero-column
+    array without returning it, so execution continued into the filtered block
+    list.  The scene sizes used everywhere else never reach these branches, so
+    the bug was invisible to every full-scene test.
+    """
+    cfg = make_cfg(**{"cancellation.protect_targets": False})
+    obs = make_observation(cfg, belief_error=True)
+    sources = obs.targets_belief or obs.targets
+    assert sources, "the fixture must still carry sources"
+    U = cx._protection_basis(cfg, sources, int(obs.y.size))
+    assert U.shape == (int(obs.y.size), 0)
+    assert U.dtype == np.complex128
+    assert cx.protected_target_ids(cfg, sources) == frozenset()
+
+
+def test_empty_protection_sources_returns_empty_basis():
+    """An empty source list must return an empty basis -- never raise downstream.
+
+    This is the shape a caller sees after an active mask filters every source
+    away, or in a unit test with no targets.  Falling through here reaches
+    ``np.concatenate([])``.
+    """
+    cfg = make_cfg()
+    U = cx._protection_basis(cfg, [], 64)
+    # The row count is the observation dimension ``N*L`` -- note the caller's
+    # ``n_bins`` argument is not what decides it, so pin the real authority.
+    assert U.shape == (int(cfg.waveform.N * cfg.waveform.L), 0)
+    assert U.shape[1] == 0
+    assert cx.protected_target_ids(cfg, []) == frozenset()
+
+
+def test_disabled_protection_runs_the_full_arm_pipeline():
+    """The empty basis must survive the whole chain, not just the constructor.
+
+    ``protect_targets=False`` is the switch that turns TP-UIC into a plain
+    canceller; with the missing ``return`` this call raised before the fix.
+    """
+    cfg = make_cfg(**{"cancellation.protect_targets": False})
+    obs = make_observation(cfg, belief_error=True)
+    assert obs.basis_belief.shape[1] == 0
+    arms = cx.cancellation_arms(cfg, obs)
+    full = arms["tp_uic_full"]
+    assert full.i_res > 0.0
+    assert 0.0 <= full.eta_survive <= 1.0
+    assert np.all(np.isfinite(full.residual))

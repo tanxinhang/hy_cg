@@ -14,6 +14,7 @@ direction so every frozen result stays bit-exact.
 
 from __future__ import annotations
 
+from itertools import combinations
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -1005,6 +1006,412 @@ def select_c2f_adaptive(
         ),
     }
     return selected, D_fuse, stats
+
+
+def polish_worst_target_pd(
+    cfg: Config,
+    base: BaseGains,
+    tables: LinkTables,
+    selected: Dict[int, List[Link]],
+    *,
+    plan: "object | None" = None,
+    allowed_tx_mask: np.ndarray | None = None,
+    min_links_per_target: int = 1,
+    max_rounds: int = 8,
+    epsilon: float = 1e-8,
+) -> tuple[Dict[int, List[Link]], list[dict]]:
+    """Fixed-budget 1-swap polish for the belief-side weakest target.
+
+    The ordinary greedy rule stops when no *additive* utility marginal remains.
+    That does not imply that its fixed-size schedule is locally optimal for the
+    weakest target.  This polish removes one selected observation and adds one
+    feasible observation, preserving the exact total link count.  A swap is
+    accepted only when it lexicographically improves
+
+    ``(min_q P_D,q, sum_q min(P_D,q, weak_pd_required))``.
+
+    The first component is the control objective; the capped service sum only
+    breaks ties without sacrificing the weakest target.  All quantities are
+    computed from the supplied belief-side tables, never from truth.
+    """
+    q_count = int(cfg.scale.Q)
+    result = {q: list(selected.get(q, [])) for q in range(q_count)}
+    total_links = sum(len(v) for v in result.values())
+    floor = max(int(min_links_per_target), 0)
+    tx_mask = (
+        np.ones(int(cfg.scale.M), dtype=bool)
+        if allowed_tx_mask is None else np.asarray(allowed_tx_mask, dtype=bool)
+    )
+    if tx_mask.shape != (int(cfg.scale.M),):
+        raise ValueError("allowed_tx_mask has the wrong shape")
+
+    candidates = {
+        q: [
+            link for link in feasible_links_for_target(cfg, base, tables, q, plan)
+            if tx_mask[int(link[0])]
+        ]
+        for q in range(q_count)
+    }
+
+    def pd_vector(schedule: Dict[int, List[Link]]) -> np.ndarray:
+        return np.asarray([
+            predicted_pd_for_links(
+                cfg, tables, q, schedule[q], weight_mode="deflection",
+                plan=plan, base=base,
+            )
+            for q in range(q_count)
+        ], dtype=float)
+
+    weak_req = float(cfg.detect.weak_pd_required)
+
+    def key(pd: np.ndarray) -> tuple[float, float]:
+        return float(np.min(pd)), float(np.sum(np.minimum(pd, weak_req)))
+
+    history: list[dict] = []
+    current_pd = pd_vector(result)
+    current_key = key(current_pd)
+    for round_index in range(max(int(max_rounds), 0)):
+        best = None
+        best_pd = None
+        best_key = current_key
+        for q_out in range(q_count):
+            if len(result[q_out]) <= floor:
+                continue
+            for old_link in tuple(result[q_out]):
+                reduced = {q: list(result[q]) for q in range(q_count)}
+                reduced[q_out].remove(old_link)
+                active_tx = {
+                    int(link[0]) for links in reduced.values() for link in links
+                }
+                for q_in in range(q_count):
+                    if len(reduced[q_in]) >= int(cfg.selector.max_links_per_target):
+                        continue
+                    for new_link in candidates[q_in]:
+                        if new_link in reduced[q_in]:
+                            continue
+                        max_tx = cfg.selector.max_tx_nodes
+                        if (
+                            max_tx is not None
+                            and int(new_link[0]) not in active_tx
+                            and len(active_tx) >= int(max_tx)
+                        ):
+                            continue
+                        if not local_cap_allows(
+                            cfg, reduced[q_in], new_link, q_in, plan
+                        ):
+                            continue
+                        if not remote_cap_allows(
+                            cfg, reduced, new_link, q_in, plan
+                        ):
+                            continue
+                        if not processing_caps_allow(
+                            cfg, reduced, new_link, q_in, plan
+                        ):
+                            continue
+                        trial = {q: list(reduced[q]) for q in range(q_count)}
+                        trial[q_in].append(new_link)
+                        trial_pd = pd_vector(trial)
+                        trial_key = key(trial_pd)
+                        improves = (
+                            trial_key[0] > best_key[0] + float(epsilon)
+                            or (
+                                abs(trial_key[0] - best_key[0]) <= float(epsilon)
+                                and trial_key[1] > best_key[1] + float(epsilon)
+                            )
+                        )
+                        if improves:
+                            best = (q_out, old_link, q_in, new_link, trial)
+                            best_pd = trial_pd
+                            best_key = trial_key
+        if best is None or best_pd is None:
+            break
+        q_out, old_link, q_in, new_link, result = best
+        history.append({
+            "round": int(round_index),
+            "remove_target": int(q_out),
+            "remove_link": tuple(int(v) for v in old_link),
+            "add_target": int(q_in),
+            "add_link": tuple(int(v) for v in new_link),
+            "worst_pd_before": float(current_key[0]),
+            "worst_pd_after": float(best_key[0]),
+            "service_before": float(current_key[1]),
+            "service_after": float(best_key[1]),
+        })
+        current_pd = best_pd
+        current_key = best_key
+
+    if sum(len(v) for v in result.values()) != total_links:
+        raise RuntimeError("worst-target polish changed the total link budget")
+    return result, history
+
+
+def polish_risk_secondary_pd(
+    cfg: Config,
+    base: BaseGains,
+    nominal_tables: LinkTables,
+    risk_tables: LinkTables,
+    selected: Dict[int, List[Link]],
+    *,
+    plan: "object | None" = None,
+    allowed_tx_mask: np.ndarray | None = None,
+    min_links_per_target: int = 1,
+    max_rounds: int = 4,
+    allow_target_pair_exchange: bool = False,
+    epsilon: float = 1e-8,
+) -> tuple[Dict[int, List[Link]], list[dict]]:
+    """Improve risk-side weakest-target PD without degrading nominal service.
+
+    This is a two-table fixed-resource 1-swap.  The nominal table remains the
+    primary contract: its weakest-target PD, capped service sum, and configured
+    selection objective must all be non-decreasing.  Only among those schedules
+    may the risk table improve its own lexicographic weakest-target/service key.
+    An optional target-local 2-for-2 exchange is evaluated only when no safe
+    1-swap exists; its final schedule must satisfy the same contract, so it can
+    cross a one-swap local barrier without accepting an unsafe intermediate.
+    Thus a conservative residual certificate cannot replace nominal link
+    valuation or select a worse nominal mask, which is the failure mode measured
+    for direct risk-table substitution.
+    """
+    q_count = int(cfg.scale.Q)
+    result = {q: list(selected.get(q, [])) for q in range(q_count)}
+    total_links = sum(len(v) for v in result.values())
+    floor = max(int(min_links_per_target), 0)
+    tx_mask = (
+        np.ones(int(cfg.scale.M), dtype=bool)
+        if allowed_tx_mask is None else np.asarray(allowed_tx_mask, dtype=bool)
+    )
+    if tx_mask.shape != (int(cfg.scale.M),):
+        raise ValueError("allowed_tx_mask has the wrong shape")
+    candidates = {
+        q: [
+            link for link in feasible_links_for_target(
+                cfg, base, nominal_tables, q, plan
+            ) if tx_mask[int(link[0])]
+        ] for q in range(q_count)
+    }
+
+    def pd_vector(tables: LinkTables, schedule: Dict[int, List[Link]]) -> np.ndarray:
+        return np.asarray([
+            predicted_pd_for_links(
+                cfg, tables, q, schedule[q], weight_mode="deflection",
+                plan=plan, base=base,
+            ) for q in range(q_count)
+        ], dtype=float)
+
+    weak_req = float(cfg.detect.weak_pd_required)
+
+    def key(pd: np.ndarray) -> tuple[float, float]:
+        return float(np.min(pd)), float(np.sum(np.minimum(pd, weak_req)))
+
+    def configured_objective(
+        tables: LinkTables, schedule: Dict[int, List[Link]]
+    ) -> float:
+        deflection = np.asarray([
+            deflection_for_links(
+                cfg, tables, q, schedule[q], weight_mode="deflection",
+                plan=plan, base=base,
+            ) for q in range(q_count)
+        ], dtype=float)
+        pd = pd_vector(tables, schedule)
+        utility = (
+            selection_utility_from_pd(cfg, deflection, pd)
+            if cfg.selector.score_mode.lower() == "detector_pd"
+            else selection_utility(cfg, deflection)
+        )
+        cost = 0.0
+        if cfg.selector.use_delay_price:
+            cost = sum(
+                float(cfg.selector.lambda_c)
+                * link_cost_ms(cfg, tables, q, link, plan)
+                for q in range(q_count) for link in schedule[q]
+            )
+        return float(utility - cost)
+
+    nominal_pd = pd_vector(nominal_tables, result)
+    risk_pd = pd_vector(risk_tables, result)
+    nominal_key = key(nominal_pd)
+    risk_key = key(risk_pd)
+    nominal_objective = configured_objective(nominal_tables, result)
+    history: list[dict] = []
+    tol = float(epsilon)
+
+    for round_index in range(max(int(max_rounds), 0)):
+        best = None
+        best_nominal_pd = None
+        best_risk_pd = None
+        best_risk_key = risk_key
+        for q_out in range(q_count):
+            if len(result[q_out]) <= floor:
+                continue
+            for old_link in tuple(result[q_out]):
+                reduced = {q: list(result[q]) for q in range(q_count)}
+                reduced[q_out].remove(old_link)
+                active_tx = {
+                    int(link[0]) for links in reduced.values() for link in links
+                }
+                for q_in in range(q_count):
+                    if len(reduced[q_in]) >= int(cfg.selector.max_links_per_target):
+                        continue
+                    for new_link in candidates[q_in]:
+                        if new_link in reduced[q_in]:
+                            continue
+                        max_tx = cfg.selector.max_tx_nodes
+                        if (
+                            max_tx is not None
+                            and int(new_link[0]) not in active_tx
+                            and len(active_tx) >= int(max_tx)
+                        ):
+                            continue
+                        if not local_cap_allows(
+                            cfg, reduced[q_in], new_link, q_in, plan
+                        ):
+                            continue
+                        if not remote_cap_allows(
+                            cfg, reduced, new_link, q_in, plan
+                        ):
+                            continue
+                        if not processing_caps_allow(
+                            cfg, reduced, new_link, q_in, plan
+                        ):
+                            continue
+                        trial = {q: list(reduced[q]) for q in range(q_count)}
+                        trial[q_in].append(new_link)
+                        trial_nominal_pd = pd_vector(nominal_tables, trial)
+                        trial_nominal_key = key(trial_nominal_pd)
+                        if (
+                            trial_nominal_key[0] < nominal_key[0] - tol
+                            or trial_nominal_key[1] < nominal_key[1] - tol
+                        ):
+                            continue
+                        trial_nominal_objective = configured_objective(
+                            nominal_tables, trial
+                        )
+                        if trial_nominal_objective < nominal_objective - tol:
+                            continue
+                        trial_risk_pd = pd_vector(risk_tables, trial)
+                        trial_risk_key = key(trial_risk_pd)
+                        improves = (
+                            trial_risk_key[0] > best_risk_key[0] + tol
+                            or (
+                                abs(trial_risk_key[0] - best_risk_key[0]) <= tol
+                                and trial_risk_key[1] > best_risk_key[1] + tol
+                            )
+                        )
+                        if improves:
+                            best = (
+                                "single", q_out, (old_link,), q_in, (new_link,), trial,
+                                trial_nominal_key, trial_nominal_objective,
+                            )
+                            best_nominal_pd = trial_nominal_pd
+                            best_risk_pd = trial_risk_pd
+                            best_risk_key = trial_risk_key
+        if best is None and allow_target_pair_exchange:
+            # Search a target-local 2-for-2 neighbourhood exactly.  Both links
+            # are removed before either is added, so capacity released by the
+            # pair is represented correctly.  Only the final schedule is judged
+            # against the nominal contract; no intermediate schedule is used.
+            for q in range(q_count):
+                if len(result[q]) < 2:
+                    continue
+                for old_pair in combinations(tuple(result[q]), 2):
+                    reduced = {target: list(result[target]) for target in range(q_count)}
+                    reduced[q].remove(old_pair[0])
+                    reduced[q].remove(old_pair[1])
+                    available = [
+                        link for link in candidates[q]
+                        if link not in reduced[q] and link not in old_pair
+                    ]
+                    for new_pair in combinations(available, 2):
+                        trial = {target: list(reduced[target]) for target in range(q_count)}
+                        feasible = True
+                        for new_link in new_pair:
+                            active_tx = {
+                                int(link[0])
+                                for links in trial.values() for link in links
+                            }
+                            max_tx = cfg.selector.max_tx_nodes
+                            if (
+                                max_tx is not None
+                                and int(new_link[0]) not in active_tx
+                                and len(active_tx) >= int(max_tx)
+                            ):
+                                feasible = False
+                                break
+                            if not local_cap_allows(cfg, trial[q], new_link, q, plan):
+                                feasible = False
+                                break
+                            if not remote_cap_allows(cfg, trial, new_link, q, plan):
+                                feasible = False
+                                break
+                            if not processing_caps_allow(cfg, trial, new_link, q, plan):
+                                feasible = False
+                                break
+                            trial[q].append(new_link)
+                        if not feasible:
+                            continue
+                        trial_nominal_pd = pd_vector(nominal_tables, trial)
+                        trial_nominal_key = key(trial_nominal_pd)
+                        if (
+                            trial_nominal_key[0] < nominal_key[0] - tol
+                            or trial_nominal_key[1] < nominal_key[1] - tol
+                        ):
+                            continue
+                        trial_nominal_objective = configured_objective(
+                            nominal_tables, trial
+                        )
+                        if trial_nominal_objective < nominal_objective - tol:
+                            continue
+                        trial_risk_pd = pd_vector(risk_tables, trial)
+                        trial_risk_key = key(trial_risk_pd)
+                        improves = (
+                            trial_risk_key[0] > best_risk_key[0] + tol
+                            or (
+                                abs(trial_risk_key[0] - best_risk_key[0]) <= tol
+                                and trial_risk_key[1] > best_risk_key[1] + tol
+                            )
+                        )
+                        if improves:
+                            best = (
+                                "target_pair", q, old_pair, q, new_pair, trial,
+                                trial_nominal_key, trial_nominal_objective,
+                            )
+                            best_nominal_pd = trial_nominal_pd
+                            best_risk_pd = trial_risk_pd
+                            best_risk_key = trial_risk_key
+        if best is None or best_nominal_pd is None or best_risk_pd is None:
+            break
+        (
+            exchange_kind, q_out, old_links, q_in, new_links, result,
+            new_nominal_key, new_nominal_objective,
+        ) = best
+        step = {
+            "round": int(round_index),
+            "exchange_kind": str(exchange_kind),
+            "remove_target": int(q_out),
+            "add_target": int(q_in),
+            "nominal_worst_before": float(nominal_key[0]),
+            "nominal_worst_after": float(new_nominal_key[0]),
+            "nominal_objective_before": float(nominal_objective),
+            "nominal_objective_after": float(new_nominal_objective),
+            "risk_worst_before": float(risk_key[0]),
+            "risk_worst_after": float(best_risk_key[0]),
+        }
+        if exchange_kind == "single":
+            step["remove_link"] = tuple(int(v) for v in old_links[0])
+            step["add_link"] = tuple(int(v) for v in new_links[0])
+        else:
+            step["remove_links"] = [tuple(int(v) for v in link) for link in old_links]
+            step["add_links"] = [tuple(int(v) for v in link) for link in new_links]
+        history.append(step)
+        nominal_pd = best_nominal_pd
+        risk_pd = best_risk_pd
+        nominal_key = new_nominal_key
+        nominal_objective = new_nominal_objective
+        risk_key = best_risk_key
+
+    if sum(len(v) for v in result.values()) != total_links:
+        raise RuntimeError("risk-secondary polish changed the total link budget")
+    return result, history
 
 
 # ==========================================================================
