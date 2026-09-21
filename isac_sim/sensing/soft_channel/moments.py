@@ -1,0 +1,131 @@
+"""moments（自 ``isac_sim/sensing/soft_channel.py`` 拆出）。"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+import numpy as np
+from isac_sim.core.config import Config, Link
+from isac_sim.detection.llr import draw_llr, llr_h0_offset, llr_var1
+from isac_sim.cooperation.reporting import report_chi
+
+
+@dataclass(frozen=True)
+class BinaryMoments:
+    """First two moments under H0 and H1."""
+
+    m0: float
+    v0: float
+    m1: float
+    v1: float
+
+    @property
+    def gap(self) -> float:
+        return self.m1 - self.m0
+
+
+def local_moments(cfg: Config, tables, link: Link, q: int) -> BinaryMoments:
+    """Moments before the reporting channel."""
+    i, j = link
+    gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
+    m1 = float(tables.mu_soft[i, j, q])
+    v0 = max(float(tables.var0_q[i, j, q]), 0.0)
+    if cfg.detect.soft_stat_model.lower() == "llr":
+        v1 = float(llr_var1(gamma, cfg.detect.n_looks))
+    else:
+        sigma0 = float(tables.sigma0[i, j])
+        sigma1 = max(cfg.detect.soft_sigma_floor, sigma0 / math.sqrt(1.0 + gamma + 1e-12))
+        v1 = sigma1 * sigma1
+    return BinaryMoments(0.0, v0, m1, max(v1, 0.0))
+
+
+def _mix(chi: float, success_m: float, success_v: float,
+         failure_m: float, failure_v: float) -> tuple[float, float]:
+    mean = chi * success_m + (1.0 - chi) * failure_m
+    var = (
+        chi * (success_v + (success_m - mean) ** 2)
+        + (1.0 - chi) * (failure_v + (failure_m - mean) ** 2)
+    )
+    return float(mean), float(max(var, 0.0))
+
+
+def received_moments(
+    cfg: Config, tables, link: Link, q: int, plan: "object | None" = None
+) -> BinaryMoments:
+    """Exact first two moments after packet success/failure mixing."""
+    local = local_moments(cfg, tables, link, q)
+    if not cfg.detect.enable_comm_error_pollution:
+        return local
+
+    chi = float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
+    d = cfg.detect
+    model = d.comm_error_model
+
+    if model == "erasure":
+        # True packet drop: the fusion input is exactly zero.
+        f0_m = f0_v = f1_m = f1_v = 0.0
+    elif model == "gaussian_replacement":
+        # Released V1 surrogate: a lost report is replaced by zero-mean
+        # uncertainty carrying no target information under either hypothesis.
+        fv = d.soft_error_sigma_scale ** 2 * local.v0
+        f0_m, f0_v, f1_m, f1_v = 0.0, fv, 0.0, fv
+    elif model == "flip":
+        a = float(d.soft_error_flip_scale)
+        f0_m, f0_v = -a * local.m0, a * a * local.v0
+        f1_m, f1_v = -a * local.m1, a * a * local.v1
+    elif model == "biased":
+        f0_m = float(d.h0_error_bias_scale) * math.sqrt(local.v0)
+        f1_m = float(d.soft_error_bias_scale) * local.m1
+        f0_v = f1_v = d.soft_error_sigma_scale ** 2 * local.v0
+    else:
+        raise ValueError(model)
+
+    m0, v0 = _mix(chi, local.m0, local.v0, f0_m, f0_v)
+    m1, v1 = _mix(chi, local.m1, local.v1, f1_m, f1_v)
+    return BinaryMoments(m0, v0, m1, v1)
+
+
+def received_full_llr_moments(
+    cfg: Config, tables, link: Link, q: int, plan: "object | None" = None
+) -> BinaryMoments:
+    """Moments of the exact local LLR after a hypothesis-independent erasure."""
+    if cfg.detect.soft_stat_model.lower() != "llr":
+        raise ValueError("exact LLR fusion requires detect.soft_stat_model='llr'")
+    if cfg.detect.comm_error_model != "erasure":
+        raise ValueError("exact LLR fusion requires a true-erasure report channel")
+    local = local_moments(cfg, tables, link, q)
+    i, j = link
+    gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
+    offset = float(llr_h0_offset(gamma, cfg.detect.n_looks))
+    chi = (
+        float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
+        if cfg.detect.enable_comm_error_pollution else 1.0
+    )
+    m0, v0 = _mix(chi, offset, local.v0, 0.0, 0.0)
+    m1, v1 = _mix(chi, offset + local.m1, local.v1, 0.0, 0.0)
+    return BinaryMoments(m0, v0, m1, v1)
+
+
+def received_h0_third_central(
+    cfg: Config, tables, link: Link, q: int, plan: "object | None" = None
+) -> float:
+    """Third H0 central moment of the received statistic.
+
+    The true-erasure and Gaussian-replacement channels have zero conditional
+    failure means, so the mixture third moment is the packet-success
+    probability times the centred-Gamma LLR moment. Other error models fall
+    back to zero because their third-order calibration is not used by the
+    paper release.
+    """
+    if cfg.detect.soft_stat_model.lower() != "llr":
+        return 0.0
+    if cfg.detect.comm_error_model not in {"erasure", "gaussian_replacement"}:
+        return 0.0
+    i, j = link
+    gamma = max(float(tables.gamma_sense[i, j, q]), 0.0)
+    a = gamma / (1.0 + gamma)
+    local_mu3 = 2.0 * float(max(cfg.detect.n_looks, 1)) * a ** 3
+    if not cfg.detect.enable_comm_error_pollution:
+        return local_mu3
+    chi = float(np.clip(report_chi(tables, plan, link, q), 0.0, 1.0))
+    return chi * local_mu3

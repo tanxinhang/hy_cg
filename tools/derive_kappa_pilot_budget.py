@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Derive the sensing direct-path cancellation depth from a cooperative reference budget.
 
 Motivation
@@ -84,8 +90,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     generate_geometry,

@@ -15,15 +15,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np  # noqa: E402
 
-from isac_sim.config import PRESETS, Config, apply_overrides, apply_preset, iter_leaf_paths  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.core.config import PRESETS, Config, apply_overrides, apply_preset, iter_leaf_paths  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     denominator_guard,
     generate_geometry,
     noise_power,
 )
-from isac_sim.simulate import run_simulation  # noqa: E402
+from experiments.flow.simulate import run_simulation  # noqa: E402
 
 FAILURES: list[str] = []
 
@@ -282,37 +282,20 @@ check("T3c feasibility flips are rare (<2% of edge slots)",
       flip_pairs <= 0.02 * total_pairs, f"{flip_pairs}/{total_pairs}")
 
 # --------------------------------------------------------------------------
-# T4. Detection-side numerics across the whole cancellation sweep.
+# T4. [RETIRED] Detection-side numerics across the cancellation sweep.
+#
+#     This used to sweep ``interference.direct_cancellation_db`` over
+#     0/20/40/80 dB and assert P_D is non-decreasing in it.  That field was
+#     deleted on 2026-09-20: it asserted a fixed cancellation depth with no
+#     receiver implementation behind it while propping up the whole SINR
+#     denominator, so "P_D non-decreasing in kappa" was a tautology about
+#     bookkeeping, not a property of the system.  The check is retired rather
+#     than rewritten -- its replacement is a *measured* residual (TP-UIC), and
+#     a sweep is not how a measured quantity is validated.
 # --------------------------------------------------------------------------
-print("\nT4  numerical health across the cancellation sweep (MC=30)")
 cfg_base = apply_overrides(cfg0, {"interference.coupling": "shared_spectrum",
                                   "radio.eps_mode": "noise_relative",
                                   "comm.interference_model": "active_set"})
-bad: list[str] = []
-prev = None
-monotone_ok = True
-for db in (0.0, 20.0, 40.0, 80.0):
-    cfg = apply_overrides(cfg_base, {"interference.direct_cancellation_db": db})
-    cfg.run.num_mc = 30
-    cfg.run.verbose = False
-    summary = run_simulation(cfg)
-    p = summary["proposed_lagrangian"]
-    for key in ("P_D", "P_FA", "P_FA_overall", "D_mean", "T_mean_ms", "B_mean_bits",
-                "worst_target_satisfied_prob", "actual_worst_target_P_D"):
-        v = p.get(key)
-        if v is None or not np.isfinite(v):
-            bad.append(f"kappa={db}dB {key}={v}")
-    if not (0.0 <= p["P_D"] <= 1.0):
-        bad.append(f"kappa={db}dB P_D out of range: {p['P_D']}")
-    if p["P_D_ci95"][0] > p["P_D"] or p["P_D_ci95"][1] < p["P_D"]:
-        bad.append(f"kappa={db}dB CI does not bracket P_D")
-    if prev is not None and p["P_D"] < prev - 0.05:
-        monotone_ok = False
-    prev = p["P_D"]
-    print(f"    kappa={db:5.1f} dB  P_D={p['P_D']:.4f}  D={p['D_mean']:.3f}  "
-          f"T={p['T_mean_ms']:.2f} ms  links={p['selected_links_mean']:.1f}")
-check("T4 all summary metrics finite and in range", not bad, "; ".join(bad[:4]))
-check("T4b P_D non-decreasing in cancellation (tol 0.05)", monotone_ok)
 
 # --------------------------------------------------------------------------
 # T5. Config machinery: presets must not mutate the default config, and every
@@ -393,7 +376,7 @@ for tag, model in (("full_concurrent", "full_concurrent"), ("active_set", "activ
 print(f"    => the two operating points differ by {abs(vals['active_set'] - vals['full_concurrent']):.4f} "
       f"in P_D, so every experiment MUST be run at the paper's active_set point")
 
-from isac_sim.experiments import interference_consistency  # noqa: E402
+from experiments.flow.sweeps import interference_consistency  # noqa: E402
 
 probe_cfg = apply_overrides(cfg_base, {"run.num_mc": 2})
 probe_cfg.run.verbose = False
@@ -432,7 +415,7 @@ cfg_base_overrides = {"interference.coupling": "shared_spectrum",
 def bookkeeping_gammas(cfg: Config) -> Dict[str, float]:
     contaminated = apply_overrides(apply_overrides(cfg, cfg_base_overrides), {"run.num_mc": 8})
     contaminated.run.verbose = False
-    rows = interference_consistency(contaminated, [40.0])
+    rows = interference_consistency(contaminated)
     out: Dict[str, float] = {}
     for r in rows:
         if r.get("group") == "bookkeeping" and r.get("method") == "proposed_lagrangian":

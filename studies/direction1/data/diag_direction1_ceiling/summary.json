@@ -1,0 +1,84 @@
+{
+  "F1_required_vs_measured": {
+    "delta_p_d": 0.2833333333333334,
+    "pass": true
+  },
+  "F2_perfect_vs_measured": {
+    "delta_p_d": 0.4166666666666666,
+    "pass": true
+  },
+  "F3_saturation_kappa_db": 60.0,
+  "F4_honesty_p_fa_spread": {
+    "max": 0.04722222222222222,
+    "min": 0.0,
+    "pass": false
+  },
+  "config": {
+    "area": 600.0,
+    "arm": "tp_uic_full",
+    "kappa_measured_db": 36.5,
+    "kappa_required_db": 52.25,
+    "preset": "paper-canonical",
+    "rcs": 0.1,
+    "seed": 2026,
+    "trials": 20
+  },
+  "levels": {
+    "0.00": {
+      "delta_p_d_vs_measured": -0.4666666666666666,
+      "n_selected": 0.0,
+      "p_d": 0.0,
+      "p_fa": 0.0,
+      "rinr_db_median": 43.285476262572
+    },
+    "20.00": {
+      "delta_p_d_vs_measured": -0.39999999999999997,
+      "n_selected": 3.2,
+      "p_d": 0.06666666666666667,
+      "p_fa": 0.035,
+      "rinr_db_median": 23.29076034076251
+    },
+    "36.50": {
+      "delta_p_d_vs_measured": 0.0,
+      "n_selected": 11.5,
+      "p_d": 0.4666666666666666,
+      "p_fa": 0.04222222222222223,
+      "rinr_db_median": 7.017610240399079
+    },
+    "45.00": {
+      "delta_p_d_vs_measured": 0.24999999999999994,
+      "n_selected": 9.35,
+      "p_d": 0.7166666666666666,
+      "p_fa": 0.04722222222222222,
+      "rinr_db_median": -0.28952308104323077
+    },
+    "52.25": {
+      "delta_p_d_vs_measured": 0.2833333333333334,
+      "n_selected": 8.25,
+      "p_d": 0.75,
+      "p_fa": 0.046666666666666676,
+      "rinr_db_median": -4.101646983107742
+    },
+    "60.00": {
+      "delta_p_d_vs_measured": 0.38333333333333336,
+      "n_selected": 7.9,
+      "p_d": 0.85,
+      "p_fa": 0.04333333333333332,
+      "rinr_db_median": -5.489662643343417
+    },
+    "68.00": {
+      "delta_p_d_vs_measured": 0.39999999999999997,
+      "n_selected": 7.8,
+      "p_d": 0.8666666666666666,
+      "p_fa": 0.04388888888888888,
+      "rinr_db_median": -5.780212506498018
+    },
+    "perfect": {
+      "delta_p_d_vs_measured": 0.4166666666666666,
+      "n_selected": 7.75,
+      "p_d": 0.8833333333333332,
+      "p_fa": 0.044444444444444446,
+      "rinr_db_median": -5.837353061828696
+    }
+  }
+}

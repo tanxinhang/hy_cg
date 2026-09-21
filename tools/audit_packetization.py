@@ -13,9 +13,9 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import Config, apply_preset
-from isac_sim.packetization import packetization_audit, summarize_packetization
-from isac_sim.simulate import run_one_trial
+from isac_sim.core.config import Config, apply_preset
+from audits.packetization import packetization_audit, summarize_packetization
+from experiments.flow.simulate import run_one_trial
 
 
 def _trial(job: tuple[Config, int, str]) -> dict[str, float]:

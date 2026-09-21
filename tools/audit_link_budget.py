@@ -18,8 +18,8 @@ os.chdir(_ROOT)
 
 import numpy as np
 
-from isac_sim.config import Config, apply_overrides
-from isac_sim.model import (
+from isac_sim.core.config import Config, apply_overrides
+from isac_sim.sensing.model import (
     build_base_gains,
     bandwidth,
     compute_link_tables,

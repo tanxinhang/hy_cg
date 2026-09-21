@@ -49,11 +49,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 
-from isac_sim import cancellation as cx
-from isac_sim import cancellation_glrt as gl
-from isac_sim.config import Config, apply_overrides, apply_preset
-from isac_sim.model import build_base_gains, generate_geometry
-from isac_sim.prior import perturbed_geometry
+from isac_sim.receiver import cancellation as cx
+from isac_sim.receiver import cancellation_glrt as gl
+from isac_sim.core.config import Config, apply_overrides, apply_preset
+from isac_sim.sensing.model import build_base_gains, generate_geometry
+from isac_sim.scenario.prior import perturbed_geometry
 
 PASS_GAIN = 0.05
 FAIL_GAIN = 0.02

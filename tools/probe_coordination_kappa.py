@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Is inter-UAV coordination a SUBSTITUTE for direct-path cancellation depth?
 
 Claim under test — ``COORDINATION_INTERFERENCE_ROUTE.md`` §2.C, status row
@@ -137,15 +143,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
-from isac_sim.config import apply_overrides, validate_config  # noqa: E402
-from isac_sim.coordination import illuminator_mask, select_with_coordination  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.core.config import apply_overrides, validate_config  # noqa: E402
+from experiments.coordination import illuminator_mask, select_with_coordination
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     generate_geometry,
 )
-from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
-from isac_sim.selection import select_c2f_adaptive  # noqa: E402
+from isac_sim.cooperation.reporting import assign_fusion_nodes  # noqa: E402
+from experiments.selection import select_c2f_adaptive
 
 # The formal experiment's own machinery -- reused, not re-implemented.  Only the
 # bookkeeping below is local; the physics, the arms and the pairing are theirs.

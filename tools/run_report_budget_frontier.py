@@ -12,8 +12,8 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from isac_sim.config import Config, apply_overrides, apply_preset, validate_config  # noqa: E402
-from isac_sim.simulate import run_simulation  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset, validate_config  # noqa: E402
+from experiments.flow.simulate import run_simulation  # noqa: E402
 
 
 METHOD = "proposed_c2f_adaptive_pd"

@@ -1,0 +1,79 @@
+{
+  "G1_model_delta0": {
+    "delta_p_d": 0.36666666666666664,
+    "n_pairs": 20,
+    "pass": true,
+    "se": 0.04775669329409192
+  },
+  "G2_real_delta": {
+    "delta_p_d": 0.2666666666666667,
+    "n_pairs": 20,
+    "pass": true,
+    "se": 0.057226338351930146
+  },
+  "G3_honesty": {
+    "p_fa_spread": 0.005555555555555557,
+    "pass": true
+  },
+  "G4_ceiling_crosscheck": {
+    "ceiling_perfect_p_d": 0.8833,
+    "note": "structural_delta0 \u7684 P_D \u5e94\u4e0e diag_direction1_ceiling.py \u4e2d kappa\u2248\u8be5\u81c2\u4e2d\u4f4d\u6570\u90a3\u4e00\u6863\u63a5\u8fd1",
+    "structural_delta0_p_d": 0.8833333333333332
+  },
+  "arms": {
+    "measured": {
+      "delta_p_d": 0.0,
+      "kappa_db": 37.17109811280543,
+      "n_selected": 12.45,
+      "p_d": 0.5166666666666665,
+      "p_fa": 0.04333333333333333,
+      "rinr_db": 6.992708903336107
+    },
+    "structural_delta": {
+      "delta_p_d": 0.2666666666666667,
+      "kappa_db": 46.42142961480123,
+      "n_selected": 8.8,
+      "p_d": 0.7833333333333332,
+      "p_fa": 0.048888888888888885,
+      "rinr_db": -0.8148607599005724
+    },
+    "structural_delta0": {
+      "delta_p_d": 0.3666666666666667,
+      "kappa_db": 68.23524308353318,
+      "n_selected": 7.75,
+      "p_d": 0.8833333333333332,
+      "p_fa": 0.045,
+      "rinr_db": -5.7890473597700005
+    }
+  },
+  "config": {
+    "area": 600.0,
+    "delta_bins": 0.003,
+    "preset": "paper-canonical",
+    "rcs": 0.1,
+    "seed": 2026,
+    "trials": 20
+  },
+  "path2_reference_budget_prediction": {
+    "1": {
+      "kappa_db": 37.94972540045165,
+      "note": "estimation \u6309 1/n_cpi \u4e0b\u964d\uff1bstructural \u4e0d\u53d8"
+    },
+    "16": {
+      "kappa_db": 49.95505869263573,
+      "note": "estimation \u6309 1/n_cpi \u4e0b\u964d\uff1bstructural \u4e0d\u53d8"
+    },
+    "256": {
+      "kappa_db": 61.459355757400154,
+      "note": "estimation \u6309 1/n_cpi \u4e0b\u964d\uff1bstructural \u4e0d\u53d8"
+    },
+    "4": {
+      "kappa_db": 43.9631282711947,
+      "note": "estimation \u6309 1/n_cpi \u4e0b\u964d\uff1bstructural \u4e0d\u53d8"
+    },
+    "64": {
+      "kappa_db": 55.862836556103034,
+      "note": "estimation \u6309 1/n_cpi \u4e0b\u964d\uff1bstructural \u4e0d\u53d8"
+    }
+  }
+}

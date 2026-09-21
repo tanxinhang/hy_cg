@@ -1,0 +1,60 @@
+{
+  "gamma_req_db": 52.25,
+  "rows": [
+    {
+      "eps": 0.0,
+      "kappa_structural_db_p10": 62.110273328218284,
+      "kappa_structural_db_p50": 66.48292305348437,
+      "kappa_structural_db_p90": 72.36721502789803,
+      "meets_gamma_req_p10": true,
+      "offgrid_energy_fraction": 0.0
+    },
+    {
+      "eps": 0.001,
+      "kappa_structural_db_p10": 57.92672609747052,
+      "kappa_structural_db_p50": 59.04674216773348,
+      "kappa_structural_db_p90": 59.75090889856996,
+      "meets_gamma_req_p10": true,
+      "offgrid_energy_fraction": 1e-06
+    },
+    {
+      "eps": 0.003,
+      "kappa_structural_db_p10": 50.17650327548889,
+      "kappa_structural_db_p50": 50.33620324316697,
+      "kappa_structural_db_p90": 50.428643432384604,
+      "meets_gamma_req_p10": false,
+      "offgrid_energy_fraction": 9e-06
+    },
+    {
+      "eps": 0.01,
+      "kappa_structural_db_p10": 39.975977258060084,
+      "kappa_structural_db_p50": 39.98828255964489,
+      "kappa_structural_db_p90": 39.9976291691158,
+      "meets_gamma_req_p10": false,
+      "offgrid_energy_fraction": 0.0001
+    },
+    {
+      "eps": 0.03,
+      "kappa_structural_db_p10": 30.458723597806454,
+      "kappa_structural_db_p50": 30.46008170376598,
+      "kappa_structural_db_p90": 30.461099444384168,
+      "meets_gamma_req_p10": false,
+      "offgrid_energy_fraction": 0.0009
+    },
+    {
+      "eps": 0.1,
+      "kappa_structural_db_p10": 20.04270202003815,
+      "kappa_structural_db_p50": 20.043053247399154,
+      "kappa_structural_db_p90": 20.043146229676594,
+      "meets_gamma_req_p10": false,
+      "offgrid_energy_fraction": 0.010000000000000002
+    }
+  ],
+  "verdict": {
+    "O1_kappa_structural_at_zero_db": 66.48292305348437,
+    "O1_reproduces_identity_probe": true,
+    "O2_energy_fraction_max": 1e-06,
+    "O2_eps_max_meeting_req": 0.001,
+    "O3_assumption_is_fragile": true
+  }
+}

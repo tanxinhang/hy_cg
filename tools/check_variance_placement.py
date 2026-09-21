@@ -25,7 +25,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from isac_sim.soft_channel import _mix  # noqa: E402
+from isac_sim.sensing.soft_channel import _mix  # noqa: E402
 
 rng = np.random.default_rng(7)
 

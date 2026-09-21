@@ -16,8 +16,8 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from isac_sim.config import Config, PRESETS, apply_preset  # noqa: E402
-from isac_sim.model import noise_power, radar_hardware_gain, wavelength  # noqa: E402
+from isac_sim.core.config import Config, PRESETS, apply_preset  # noqa: E402
+from isac_sim.sensing.model import noise_power, radar_hardware_gain, wavelength  # noqa: E402
 
 
 def required_net_gain_db(cfg: Config, rcs_m2: float, range_m: float,

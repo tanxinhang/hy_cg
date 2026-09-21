@@ -47,15 +47,16 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import (  # noqa: E402
+from isac_sim.core.config import (  # noqa: E402
     apply_overrides,
     apply_preset,
     default_config,
     validate_config,
 )
-from isac_sim.fusion import predicted_pd_for_links, received_moments  # noqa: E402
-from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
-from isac_sim.model import compute_link_tables, build_base_gains, generate_geometry  # noqa: E402
+from isac_sim.detection.fusion import predicted_pd_for_links  # noqa: E402
+from isac_sim.sensing.soft_channel import received_moments  # noqa: E402
+from isac_sim.cooperation.reporting import assign_fusion_nodes  # noqa: E402
+from isac_sim.sensing.model import compute_link_tables, build_base_gains, generate_geometry  # noqa: E402
 
 SEED = 20260916
 PD_REQ = 0.95

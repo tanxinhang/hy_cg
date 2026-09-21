@@ -4,8 +4,8 @@ from pathlib import Path
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from tools.audit_v1_exact_budget import config,interval
-from isac_sim.config import apply_overrides
-from isac_sim.model import generate_geometry
+from isac_sim.core.config import apply_overrides
+from isac_sim.sensing.model import generate_geometry
 
 METHODS=['v1','joint','balanced','robust']
 FIELDS=['pd','pfa','reports','observations','active_targets','capture','bits','delay_ms']

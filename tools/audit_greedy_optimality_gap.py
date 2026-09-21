@@ -35,34 +35,26 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import (  # noqa: E402
+from isac_sim.core.config import (  # noqa: E402
     apply_overrides,
     apply_preset,
     default_config,
     validate_config,
 )
-from isac_sim.fusion import (  # noqa: E402
+from isac_sim.detection.fusion import (  # noqa: E402
     deflection_for_links,
     predicted_pd_for_links,
     selection_utility,
     selection_utility_from_pd,
 )
-from isac_sim.model import (  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     generate_geometry,
 )
-from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
-from isac_sim.selection import (  # noqa: E402
-    feasible_links_for_target,
-    link_cost_ms,
-    local_cap_allows,
-    processing_caps_allow,
-    remote_cap_allows,
-    select_c2f_adaptive,
-    select_lagrangian,
-)
-from isac_sim.theory import same_objective_oracle, task_objective  # noqa: E402
+from isac_sim.cooperation.reporting import assign_fusion_nodes  # noqa: E402
+from experiments.selection import feasible_links_for_target, link_cost_ms, local_cap_allows, processing_caps_allow, remote_cap_allows, select_c2f_adaptive, select_lagrangian
+from audits.theory import same_objective_oracle, task_objective  # noqa: E402
 
 Link = tuple[int, int]
 

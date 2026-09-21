@@ -72,7 +72,7 @@ def assert_preset_semantics() -> None:
     Fail loudly here rather than 40 minutes later.
     """
     sys.path.insert(0, str(ROOT))
-    from isac_sim.config import Config, apply_preset  # noqa: E402
+    from isac_sim.core.config import Config, apply_preset  # noqa: E402
 
     cfg = apply_preset(Config(), "target-local-v1")
     expected = "gaussian_replacement"

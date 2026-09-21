@@ -1,0 +1,73 @@
+{
+  "config": {
+    "preset": "paper-canonical",
+    "area": 600.0,
+    "rcs": 0.1,
+    "seed": 10917,
+    "trials": 12,
+    "method": "proposed_c2f",
+    "path": "run_one_trial (production, belief two-world + C2F)",
+    "production_wire": true,
+    "tpuic_accounting": "structural",
+    "tpuic_delta_delay_bins": 0.003,
+    "tpuic_delta_doppler_bins": 0.0
+  },
+  "arms": {
+    "baseline": {
+      "p_d": 0.6666666666666666,
+      "p_fa": 0.047530864197530866,
+      "delta_p_fa": 0.0,
+      "links": 30.916666666666668,
+      "overhead_kbit": 11.093333333333334,
+      "weak_detected": 0.5,
+      "kappa_median_db": 49.30408577453554,
+      "delta_p_d": 0.0,
+      "se": 0.0,
+      "z": NaN,
+      "resolvable": true,
+      "pd_per_mbit": 74.05927264281394
+    },
+    "robust": {
+      "p_d": 0.8250000000000001,
+      "p_fa": 0.05410493827160493,
+      "delta_p_fa": 0.0065740740740740655,
+      "links": 56.916666666666664,
+      "overhead_kbit": 22.293333333333333,
+      "weak_detected": 0.5833333333333334,
+      "kappa_median_db": 49.30408577453554,
+      "delta_p_d": 0.15833333333333344,
+      "se": 0.039806983804301976,
+      "z": 3.9775265092107333,
+      "resolvable": true,
+      "pd_per_mbit": 45.540797353413446
+    },
+    "links12": {
+      "p_d": 0.6666666666666666,
+      "p_fa": 0.04728395061728396,
+      "delta_p_fa": -0.00024691358024690746,
+      "links": 44.75,
+      "overhead_kbit": 17.28,
+      "weak_detected": 0.5,
+      "kappa_median_db": 49.30408577453554,
+      "delta_p_d": 0.0,
+      "se": 0.012309149097933271,
+      "z": 0.0,
+      "resolvable": false,
+      "pd_per_mbit": 49.45132997033715
+    },
+    "robust_links12": {
+      "p_d": 0.8083333333333335,
+      "p_fa": 0.054166666666666675,
+      "delta_p_fa": 0.00663580246913581,
+      "links": 60.0,
+      "overhead_kbit": 24.85333333333333,
+      "weak_detected": 0.5,
+      "kappa_median_db": 49.30408577453554,
+      "delta_p_d": 0.14166666666666683,
+      "se": 0.03128154973039785,
+      "z": 4.528761135162118,
+      "resolvable": true,
+      "pd_per_mbit": 42.504942842102075
+    }
+  }
+}

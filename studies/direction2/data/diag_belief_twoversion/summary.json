@@ -1,0 +1,87 @@
+{
+  "arms": {
+    "baseline": {
+      "belief_capture_rate": 0.9556058320764205,
+      "delta_p_d": 0.0,
+      "delta_p_fa": 0.0,
+      "kappa_db_median": 37.17109811280543,
+      "n_captured": 14.25,
+      "n_selected": 14.7,
+      "p_d": 0.39999999999999997,
+      "p_fa": 0.04861111111111112,
+      "resolvable": false,
+      "se": 0.0
+    },
+    "links12_delta3e3": {
+      "belief_capture_rate": 0.9796224120082815,
+      "delta_p_d": 0.15000000000000008,
+      "delta_p_fa": -0.0025000000000000022,
+      "kappa_db_median": 46.39863485801368,
+      "n_captured": 17.75,
+      "n_selected": 18.15,
+      "p_d": 0.55,
+      "p_fa": 0.04611111111111112,
+      "resolvable": true,
+      "se": 0.08541265501918846
+    },
+    "links12_measured": {
+      "belief_capture_rate": 0.9656796536796538,
+      "delta_p_d": 0.050000000000000044,
+      "delta_p_fa": -0.00027777777777779344,
+      "kappa_db_median": 37.17109811280543,
+      "n_captured": 19.9,
+      "n_selected": 20.35,
+      "p_d": 0.45,
+      "p_fa": 0.048333333333333325,
+      "resolvable": false,
+      "se": 0.02730593406363751
+    },
+    "links12_model": {
+      "belief_capture_rate": 0.9676810966810965,
+      "delta_p_d": 0.2166666666666665,
+      "delta_p_fa": -6.938893903907228e-18,
+      "kappa_db_median": 68.23524308353257,
+      "n_captured": 16.1,
+      "n_selected": 16.6,
+      "p_d": 0.6166666666666665,
+      "p_fa": 0.04861111111111111,
+      "resolvable": true,
+      "se": 0.07751626880742235
+    },
+    "robust_delta3e3": {
+      "belief_capture_rate": 0.9444444444444444,
+      "delta_p_d": 0.25000000000000006,
+      "delta_p_fa": 0.008055555555555545,
+      "kappa_db_median": 46.39863485801368,
+      "n_captured": 16.6,
+      "n_selected": 17.6,
+      "p_d": 0.65,
+      "p_fa": 0.056666666666666664,
+      "resolvable": true,
+      "se": 0.07204206048921813
+    },
+    "robust_model": {
+      "belief_capture_rate": 0.9487254901960785,
+      "delta_p_d": 0.3333333333333332,
+      "delta_p_fa": 0.0002777777777777657,
+      "kappa_db_median": 68.23524308353257,
+      "n_captured": 16.45,
+      "n_selected": 17.25,
+      "p_d": 0.7333333333333332,
+      "p_fa": 0.048888888888888885,
+      "resolvable": true,
+      "se": 0.07254762501100116
+    }
+  },
+  "config": {
+    "area": 600.0,
+    "preset": "paper-canonical",
+    "rcs": 0.1,
+    "seed": 2026,
+    "trials": 20
+  },
+  "honesty": {
+    "p_fa_spread": 0.010555555555555547,
+    "pass": false
+  }
+}

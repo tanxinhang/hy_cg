@@ -1,0 +1,65 @@
+{
+  "config": {
+    "preset": "paper-canonical",
+    "area": 600.0,
+    "rcs": 0.1,
+    "seed": 10917,
+    "trials": 120,
+    "method": "proposed_c2f",
+    "path": "run_one_trial (production, belief two-world + C2F)"
+  },
+  "arms": {
+    "baseline": {
+      "p_d": 0.3941666666666667,
+      "p_fa": 0.049943672839506174,
+      "delta_p_fa": 0.0,
+      "links": 46.575,
+      "overhead_kbit": 19.024,
+      "weak_detected": 0.1,
+      "delta_p_d": 0.0,
+      "se": 0.0,
+      "z": NaN,
+      "resolvable": true,
+      "pd_per_mbit": 23.998884219324363
+    },
+    "robust": {
+      "p_d": 0.40916666666666673,
+      "p_fa": 0.049450617283950615,
+      "delta_p_fa": -0.0004930555555555591,
+      "links": 59.825,
+      "overhead_kbit": 11.242666666666667,
+      "weak_detected": 0.058333333333333334,
+      "delta_p_d": 0.015000000000000013,
+      "se": 0.011513601747936395,
+      "z": 1.3028069172783827,
+      "resolvable": false,
+      "pd_per_mbit": 4166666722.0134044
+    },
+    "links12": {
+      "p_d": 0.4091666666666666,
+      "p_fa": 0.0505,
+      "delta_p_fa": 0.0005563271604938289,
+      "links": 59.458333333333336,
+      "overhead_kbit": 24.64,
+      "weak_detected": 0.125,
+      "delta_p_d": 0.014999999999999902,
+      "se": 0.006444114418929702,
+      "z": 2.327705410682519,
+      "resolvable": true,
+      "pd_per_mbit": 18.97624450248177
+    },
+    "robust_links12": {
+      "p_d": 0.42250000000000004,
+      "p_fa": 0.04985802469135803,
+      "delta_p_fa": -8.56481481481472e-05,
+      "links": 60.0,
+      "overhead_kbit": 13.376,
+      "weak_detected": 0.05,
+      "delta_p_d": 0.02833333333333332,
+      "se": 0.011963022704632773,
+      "z": 2.3684092250665896,
+      "resolvable": true,
+      "pd_per_mbit": 3333333382.466147
+    }
+  }
+}

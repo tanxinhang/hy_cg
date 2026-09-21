@@ -15,9 +15,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.report import scalar_summary_row, write_rows_csv  # noqa: E402
-from isac_sim.simulate import run_simulation  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from experiments.app.report import scalar_summary_row, write_rows_csv  # noqa: E402
+from experiments.flow.simulate import run_simulation  # noqa: E402
 
 
 METHOD = "proposed_c2f_adaptive_pd"

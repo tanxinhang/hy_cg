@@ -24,7 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ARM_DIR = ROOT / "results_kappa_ablation"
-COORD_DIR = ROOT / "results_coordwire"
+COORD_DIR = ROOT / "results/coordwire"
 
 # kappa -> (coord arm tag or None, external dir or None)
 ARM_LABEL = {

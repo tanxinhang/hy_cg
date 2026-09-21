@@ -36,11 +36,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 
-from isac_sim import cancellation as cx
-from isac_sim import cancellation_glrt as gl
-from isac_sim.config import Config, apply_preset
-from isac_sim.model import build_base_gains, generate_geometry
-from isac_sim.prior import perturbed_geometry
+from isac_sim.receiver import cancellation as cx
+from isac_sim.receiver import cancellation_glrt as gl
+from isac_sim.core.config import Config, apply_preset
+from isac_sim.sensing.model import build_base_gains, generate_geometry
+from isac_sim.scenario.prior import perturbed_geometry
 
 ARMS = ("perfect_channel", "tp_uic_stage1", "tp_uic_full")
 
@@ -115,7 +115,7 @@ def main(argv=None) -> int:
     ap.add_argument("--trials", type=int, default=60)
     ap.add_argument("--area", type=float, default=600.0)
     ap.add_argument("--rcs", type=float, default=0.1)
-    ap.add_argument("--out", default="results_belief_cres")
+    ap.add_argument("--out", default="results/belief_cres")
     args = ap.parse_args(argv)
 
     cfg = apply_preset(Config(), "paper-canonical")

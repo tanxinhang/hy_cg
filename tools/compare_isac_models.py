@@ -25,8 +25,8 @@ from typing import Any, Dict, List
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from isac_sim.config import PRESETS, Config, apply_overrides  # noqa: E402
-from isac_sim.simulate import run_simulation  # noqa: E402
+from isac_sim.core.config import PRESETS, Config, apply_overrides  # noqa: E402
+from experiments.flow.simulate import run_simulation  # noqa: E402
 
 # The paper's operating point (mirrors tools/rerun_paper.py PAPER_SET).  Every
 # model below is evaluated on top of this set, so the comparison isolates the

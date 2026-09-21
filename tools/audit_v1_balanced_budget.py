@@ -12,13 +12,12 @@ from dataclasses import asdict
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from tools.audit_v1_exact_budget import config,interval
-from isac_sim.config import apply_overrides
-from isac_sim.belief import BeliefState,belief_dd_std_bins
-from isac_sim.model import generate_geometry,build_base_gains,compute_link_tables
-from isac_sim.reporting import assign_fusion_nodes
-from isac_sim.selection import (select_c2f_adaptive,select_budget_ranked_baseline,
-    feasible_links_for_target,remote_cap_allows,local_cap_allows,processing_caps_allow)
-from isac_sim.simulate import run_method_on_trial,remote_report_count
+from isac_sim.core.config import apply_overrides
+from isac_sim.scenario.belief import BeliefState,belief_dd_std_bins
+from isac_sim.sensing.model import generate_geometry,build_base_gains,compute_link_tables
+from isac_sim.cooperation.reporting import assign_fusion_nodes
+from experiments.selection import select_c2f_adaptive, select_budget_ranked_baseline, feasible_links_for_target, remote_cap_allows, local_cap_allows, processing_caps_allow
+from experiments.flow.simulate import run_method_on_trial,remote_report_count
 
 NAMES=['proposed_c2f_adaptive_pd','sense_sinr_budgeted','balanced_sinr']
 

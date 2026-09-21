@@ -57,11 +57,11 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from isac_sim import cancellation as cx  # noqa: E402
-from isac_sim import cancellation_glrt as gl  # noqa: E402
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.model import build_base_gains, generate_geometry  # noqa: E402
-from isac_sim.prior import perturbed_geometry  # noqa: E402
+from isac_sim.receiver import cancellation as cx  # noqa: E402
+from isac_sim.receiver import cancellation_glrt as gl  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from isac_sim.sensing.model import build_base_gains, generate_geometry  # noqa: E402
+from isac_sim.scenario.prior import perturbed_geometry  # noqa: E402
 
 ARM = "tp_uic_full"
 

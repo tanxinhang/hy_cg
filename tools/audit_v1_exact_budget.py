@@ -15,14 +15,14 @@ from scipy.special import logsumexp
 from scipy.stats import t as student_t
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from isac_sim.config import Config, apply_overrides, apply_preset, validate_config
-from isac_sim.belief import BeliefState
-from isac_sim.model import generate_geometry, build_base_gains, compute_link_tables
-from isac_sim.reporting import ReportingPlan, assign_fusion_nodes
-from isac_sim.selection import feasible_links_for_target, select_c2f_adaptive
-from isac_sim.fusion import predicted_pd_for_links, selection_utility_from_pd
-from isac_sim.simulate import run_one_trial, remote_report_count
-from isac_sim.fbl import blocklength_latency_s
+from isac_sim.core.config import Config, apply_overrides, apply_preset, validate_config
+from isac_sim.scenario.belief import BeliefState
+from isac_sim.sensing.model import generate_geometry, build_base_gains, compute_link_tables
+from isac_sim.cooperation.reporting import ReportingPlan, assign_fusion_nodes
+from experiments.selection import feasible_links_for_target, select_c2f_adaptive
+from isac_sim.detection.fusion import predicted_pd_for_links, selection_utility_from_pd
+from experiments.flow.simulate import run_one_trial, remote_report_count
+from isac_sim.sensing.fbl import blocklength_latency_s
 
 METHODS = ['proposed_c2f_adaptive_pd', 'sense_sinr_budgeted']
 

@@ -27,7 +27,7 @@ import numpy as np  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 
 RUNS = {
-    40: ROOT / "results_lowrcs_500_800_main" / "main" / "main.csv",
+    40: ROOT / "results/lowrcs_500_800_main" / "main" / "main.csv",
     60: ROOT / "results_lowrcs_main_kappa60" / "main" / "main.csv",
     80: ROOT / "results_lowrcs_main_kappa80" / "main" / "main.csv",
 }
@@ -35,7 +35,7 @@ RUNS = {
 # Negative control: tx_penalty=0.2 with the gate OFF.  Same kappa as the k=40
 # baseline, so it is drawn as a hollow marker at kappa=40.  See
 # HARDWARE_FREE_CLOSURE.md sec. 7.3 -- it is strictly harmful.
-NEG_CONTROL = ROOT / "results_lowrcs_main_sparse" / "main" / "main.csv"
+NEG_CONTROL = ROOT / "results/lowrcs_main_sparse" / "main" / "main.csv"
 
 KAPPAS = (40, 60, 80)
 

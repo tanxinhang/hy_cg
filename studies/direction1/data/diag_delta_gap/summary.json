@@ -1,0 +1,122 @@
+{
+  "H1_gap_explained_by_kappa": {
+    "max_abs_residual": 0.07426590922851262,
+    "max_se": 0.05339360629309895,
+    "note": "\u6b8b\u5dee = P_D \u5b9e\u6d4b - \u5929\u82b1\u677f\u66f2\u7ebf\u63d2\u503c\uff1bpass \u8868\u793a\u65e0 unexplained gap",
+    "pass": true
+  },
+  "H2_kappa_of_delta_law": {
+    "A": 2.213895834785622,
+    "delta_meeting_gamma_req_bins": 0.001615277737405095,
+    "floor": 1.8029673299043575e-07,
+    "max_fit_err_db": 0.12465433054131836,
+    "pass": true
+  },
+  "H3_delta_hurts_numerator": {
+    "note": "pass = \u5206\u5b50\u56fa\u5b9a\u4e0e\u5206\u5b50\u968f\u81c2\u65e0\u663e\u8457\u5dee\u5f02\uff0cdelta \u53ea\u52a8\u5206\u6bcd",
+    "pass": true
+  },
+  "ceiling_curve": {
+    "kappa_db": [
+      0.0,
+      20.0,
+      36.5,
+      45.0,
+      52.25,
+      60.0,
+      68.0
+    ],
+    "p_d": [
+      0.0,
+      0.0667,
+      0.4667,
+      0.7167,
+      0.75,
+      0.85,
+      0.8667
+    ],
+    "perfect_p_d": 0.8833,
+    "source": "tools/diag_direction1_ceiling.py (n=20)"
+  },
+  "config": {
+    "area": 600.0,
+    "deltas": [
+      0.0,
+      0.001,
+      0.00189,
+      0.003
+    ],
+    "preset": "paper-canonical",
+    "rcs": 0.1,
+    "seed": 2026,
+    "trials": 20
+  },
+  "table1": [
+    {
+      "delta_bins": 0.0,
+      "eta_median": 0.9994768309550048,
+      "kappa_db": 67.4401214270123,
+      "p_d": 0.8666666666666666,
+      "p_d_ceiling": 0.8655312534788882,
+      "residual": 0.0011354131877784335,
+      "se": 0.04459040360399591
+    },
+    {
+      "delta_bins": 0.001,
+      "eta_median": 0.9994768309550048,
+      "kappa_db": 56.33306354753511,
+      "p_d": 0.85,
+      "p_d_ceiling": 0.8026846909359369,
+      "residual": 0.047315309064063116,
+      "se": 0.0450795268685249
+    },
+    {
+      "delta_bins": 0.00189,
+      "eta_median": 0.9994768309550048,
+      "kappa_db": 50.84208332761166,
+      "p_d": 0.7499999999999999,
+      "p_d_ceiling": 0.7435332930771681,
+      "residual": 0.0064667069228318,
+      "se": 0.05339360629309895
+    },
+    {
+      "delta_bins": 0.003,
+      "eta_median": 0.9994768309550048,
+      "kappa_db": 46.96688162442291,
+      "p_d": 0.7999999999999999,
+      "p_d_ceiling": 0.7257340907714873,
+      "residual": 0.07426590922851262,
+      "se": 0.03746343246326777
+    }
+  ],
+  "table2": [
+    {
+      "delta_bins": 0.0,
+      "diff": 0.016666666666666607,
+      "p_d_fixed": 0.8666666666666666,
+      "p_d_own": 0.8833333333333332,
+      "se": 0.016666666666666666
+    },
+    {
+      "delta_bins": 0.001,
+      "diff": 0.0,
+      "p_d_fixed": 0.85,
+      "p_d_own": 0.85,
+      "se": 0.0
+    },
+    {
+      "delta_bins": 0.00189,
+      "diff": 0.0,
+      "p_d_fixed": 0.7499999999999999,
+      "p_d_own": 0.7499999999999999,
+      "se": 0.0
+    },
+    {
+      "delta_bins": 0.003,
+      "diff": 0.0,
+      "p_d_fixed": 0.7999999999999999,
+      "p_d_own": 0.7999999999999999,
+      "se": 0.0
+    }
+  ]
+}

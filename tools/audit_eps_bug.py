@@ -20,15 +20,15 @@ os.chdir(_ROOT)
 
 import numpy as np
 
-import isac_sim.model as M
-from isac_sim.config import Config, apply_overrides
-from isac_sim.model import (
+import isac_sim.sensing.model as M
+from isac_sim.core.config import Config, apply_overrides
+from isac_sim.sensing.model import (
     build_base_gains,
     compute_link_tables,
     generate_geometry,
     noise_power,
 )
-from isac_sim.simulate import run_simulation
+from experiments.flow.simulate import run_simulation
 
 PAPER = {
     "geometry.uav_speed_min": 30,

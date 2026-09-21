@@ -59,8 +59,8 @@ MODES: List[Tuple[str, List[str], str]] = [
     ("robustness", ["--axis", "comm_model"], "robustness_comm_model"),
     ("robustness", ["--axis", "error_sigma"], "robustness_error_sigma"),
     ("robustness", ["--axis", "residual_direct"], "robustness_residual_direct"),
-    # Direct-path cancellation budget (ISAC feasibility threshold).
-    ("robustness", ["--axis", "direct_cancellation"], "robustness_direct_cancellation"),
+    # (``--axis direct_cancellation`` was removed together with the
+    #  ``interference.direct_cancellation_db`` field it swept.)
     # Model-refinement experiments (§V).
     ("interference-consistency", [], "interference-consistency"),
     ("belief-mismatch", [], "belief-mismatch"),

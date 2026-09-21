@@ -24,7 +24,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ARM_DIR = ROOT / "results_coordwire"
+ARM_DIR = ROOT / "results/coordwire"
 
 ARM_LABEL = {
     "A_off": "baseline (release, no gate)",
@@ -224,12 +224,12 @@ def main() -> None:
                 f"{r['P_D'] / (r['bits'] / 1000.0):8.4f} {ds:>20s}"
             )
 
-    gate_dir = ARM_DIR.parent / "results_coordwire_B_gate"
+    gate_dir = ARM_DIR.parent / "coordwire_B_gate"
     if gate_dir.exists():
         # Read A_off explicitly: ``base_rows`` is the *last* baseline bound in
         # the loop above, which is the seed-7777 one.
         compared, diffs = bit_exact(
-            read_trials(ARM_DIR.parent / "results_coordwire_A_off"),
+            read_trials(ARM_DIR.parent / "results/coordwire_A_off"),
             read_trials(gate_dir),
         )
         print()

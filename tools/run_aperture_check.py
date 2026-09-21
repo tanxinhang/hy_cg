@@ -33,10 +33,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 
-from isac_sim.config import Config, apply_overrides, apply_preset
-from isac_sim.model import (build_base_gains, compute_link_tables,
+from isac_sim.core.config import Config, apply_overrides, apply_preset
+from isac_sim.sensing.model import (build_base_gains, compute_link_tables,
                             generate_geometry)
-from isac_sim.simulate import evaluate_detection
+from experiments.flow.simulate import evaluate_detection
 
 M_LIST = (1, 4, 8, 16)
 
@@ -56,7 +56,7 @@ def build_cfg(area: float, rcs: float, seed: int, m_rx: int) -> Config:
 
 
 def _select(cfg, base, tables):
-    from isac_sim.selection import select_lagrangian
+    from experiments.selection import select_lagrangian
     return select_lagrangian(cfg, base, tables, plan=None)[0]
 
 

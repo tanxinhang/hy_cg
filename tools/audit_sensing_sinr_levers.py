@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Which lever actually buys sensing performance, and how much?
 
 Two parts, both at the paper operating point:
@@ -19,15 +25,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np  # noqa: E402
 
-from isac_sim.config import Config, apply_overrides  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     denominator_guard,
     generate_geometry,
     noise_power,
 )
-from isac_sim.simulate import run_simulation  # noqa: E402
+from experiments.flow.simulate import run_simulation  # noqa: E402
 
 PAPER = {
     "geometry.uav_speed_min": 30,

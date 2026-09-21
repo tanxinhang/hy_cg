@@ -39,9 +39,9 @@ def main():
     parser.add_argument("--released", type=Path,
                         default=Path("results_target_local_v1/main/main.csv"))
     parser.add_argument("--new", type=Path,
-                        default=Path("results_lowrcs_500_800_main/main/main.csv"))
+                        default=Path("results/lowrcs_500_800_main/main/main.csv"))
     parser.add_argument("--out", type=Path,
-                        default=Path("results_lowrcs_500_800_main/main_comparison.png"))
+                        default=Path("results/lowrcs_500_800_main/main_comparison.png"))
     args = parser.parse_args()
 
     tables = {"released\n4 km / 50 m$^2$": load(args.released),

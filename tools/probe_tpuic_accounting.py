@@ -5,10 +5,10 @@ import numpy as np
 
 sys.path.insert(0, "D:/Desktop/conference")
 
-from isac_sim import cancellation as cx
-from isac_sim.config import Config, apply_overrides, apply_preset
-from isac_sim.model import build_base_gains, generate_geometry
-from isac_sim.prior import perturbed_geometry
+from isac_sim.receiver import cancellation as cx
+from isac_sim.core.config import Config, apply_overrides, apply_preset
+from isac_sim.sensing.model import build_base_gains, generate_geometry
+from isac_sim.scenario.prior import perturbed_geometry
 from tools.run_tp_uic_v1 import pick_receiver  # noqa: E402
 
 cfg = apply_overrides(

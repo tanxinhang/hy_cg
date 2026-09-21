@@ -86,11 +86,11 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from isac_sim import aperture as ap  # noqa: E402
-from isac_sim import cancellation as cx  # noqa: E402
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.model import build_base_gains, generate_geometry  # noqa: E402
-from isac_sim.prior import perturbed_geometry  # noqa: E402
+from isac_sim.sensing import aperture as ap  # noqa: E402
+from isac_sim.receiver import cancellation as cx  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from isac_sim.sensing.model import build_base_gains, generate_geometry  # noqa: E402
+from isac_sim.scenario.prior import perturbed_geometry  # noqa: E402
 from tools.run_tp_uic_v1 import pick_receiver  # noqa: E402
 
 # --------------------------------------------------------------------------
@@ -110,7 +110,7 @@ COLLOCATED_BINS = 0.5
 def beamwidth_u(m_rx: int) -> float:
     """3 dB beamwidth of a half-wavelength ULA, in ``u = sin(phi)`` units.
 
-    Delegated to :mod:`isac_sim.aperture` on purpose.  The array model started
+    Delegated to :mod:`isac_sim.sensing.aperture` on purpose.  The array model started
     life here and is now also read by the production collision penalty, and two
     copies of a coherence formula is exactly how a probe's verdict and a model's
     behaviour drift apart while both still look self-consistent.
@@ -350,7 +350,7 @@ def anchor_check(cfg: Config, geom, geom_belief, base, receiver: int, rng) -> Di
     is meaningful -- and it is what certifies the shortcut used for ``M >= 4``,
     where ``rho`` is 0.4-0.8 and no floor is involved.
     """
-    from isac_sim import cancellation_glrt as gl
+    from isac_sim.receiver import cancellation_glrt as gl
 
     m = cfg.scale.M
     sense = np.full(m, cfg.radio.rho * cfg.radio.P_default)

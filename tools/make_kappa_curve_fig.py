@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Plot the direct-path-cancellation (kappa_dc) curve at 600 m / RCS 0.1.
 
 Question the figure answers: "can we buy proposed's performance with an

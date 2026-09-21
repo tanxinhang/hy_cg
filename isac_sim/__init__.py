@@ -1,247 +1,49 @@
-"""Simplified Lagrangian-guided DOTFS-ISAC cooperative-sensing simulator.
+"""``isac_sim`` —— 积木库。
 
-The package replaces the former single-file prototype
-(``lagrangian_dotfs_isac_simplified_v10_paper_plots.py``) with a small set of
-single-responsibility modules:
+这个包**只放可自由组合的原子件**，不放链路流程：
 
-    config       configuration groups and dotted-path overrides
-    model        geometry, channel gains and per-link quantity tables
-    dd           DD-domain leakage kernels and the C2F (coarse-to-fine)
-                 eta^c / eta^loc / eta^f gain model
-    waveform     physical OTFS PSF kernel for end-to-end validation
-    prior        target-state prior-uncertainty utilities
-    fusion       soft-information fusion, deflection and target priority
-    selection    the proposed Lagrangian rule, C2F and the baselines
-    simulate     Monte-Carlo execution and metric aggregation
-    experiments  sweep / ablation definitions (data, not flags)
-    report       console summary, CSV and LaTeX tables
-    plotting     figures
-    evidence_acquisition
-                 detector-consistent active observation generation and
-                 fleet-wide resource scheduling
-    cli          the unified command-line interface
-    naming       display order and human-readable labels
+======================  ==================================================
+``core``                配置数据类、校验、预设与覆盖；展示命名
+``scenario``            目标状态先验与调度器的 belief 视图
+``sensing``             几何 / 信道 / 干扰 / DD 核 / 链路质量
+``receiver``            接收端干扰消除与检测统计量（Module A / C）
+``cooperation``         观测选择的原子约束、代价与回报预算
+``detection``           软融合、LLR、相关与 oracle
+``types``               层间数据对象契约
+======================  ==================================================
 
-Typical use::
+设计约束（每次改动都要守住）
+----------------------------
+* **本包不依赖** ``experiments/`` / ``audits/`` / ``tools/`` —— 依赖方向只能从外向内。
+* **本包不 import 任何 IO**（文件读写、绘图、argparse）。这些属于 ``experiments/app``。
+* **层内模块之间只用绝对导入**，层边界在每一条 import 上可见。
+* 本包**跑不动任何链路**：链路（MC trial、sweep、baseline 对照）在
+  ``experiments/flow`` 里被拼装。
 
-    from isac_sim import Config, run_simulation
-    summary = run_simulation(Config())
+用法::
 
-or from the shell::
+    from isac_sim.core.config import Config, apply_preset
+    from isac_sim.sensing.model import build_base_gains, compute_link_tables
+    from isac_sim.receiver.cancellation import CancellationResult
 
-    python -m isac_sim --mode ablation --mc 100 --out runs/
-    python -m isac_sim --mode c2f --mc 200
-    python -m isac_sim --mode prior-sweep --mc 50
-    python -m isac_sim --mode waveform-check
+运行整条链路请用仓库根的 ``run_isac_sim.py``（薄入口，逻辑在
+``experiments/app/cli.py``）::
+
+    python run_isac_sim.py --help
 """
 
 from __future__ import annotations
 
-from .config import (
-    PRESETS,
-    Config,
-    apply_overrides,
-    apply_preset,
-    default_config,
-    iter_leaf_paths,
-)
-from .experiments import ABLATION_VARIANTS, DD_VARIANTS, EXPERIMENTS
-from .model import (
-    BaseGains,
-    LinkTables,
-    build_base_gains,
-    compute_link_tables,
-    denominator_guard,
-    generate_geometry,
-    rescale_sensing_tables_for_rcs,
-)
-from .oracle import greedy_objective, oracle_exhaustive
-from .prior import perturbed_geometry, predicted_geometry
-from .reporting import ReportingPlan, assign_fusion_nodes
-from .selection import C2F_METHODS, METHODS
-from .bundle_master import (
-    BundleMasterResult,
-    ObservationBundle,
-    generate_restricted_bundles,
-    joint_bundle_column_generation,
-    joint_bundle_restricted_master,
-    rcs_robust_bundle_column_generation,
-    solve_restricted_bundle_master,
-    bundle_cpu_cycles,
-)
-from .fusion_headroom import FusionHeadroom, fusion_headroom_diagnostic
-from .simulate import run_one_trial, run_simulation, summarize
-from .theory import (
-    curvature_reference_bound,
-    empirical_curvature,
-    greedy_guarantee,
-    same_objective_oracle,
-    submodularity_audit,
-    task_objective,
-)
-from .waveform import psf_local_capture, psf_main_bin, sweep_compare_analytic_vs_psf
-from .active_system import (
-    ActiveColumn,
-    ActiveTransportHeadroom,
-    GlobalActiveMasterResult,
-    active_column_cpu_cycles,
-    active_fusion_cpu_cycles,
-    active_local_aggregation_cpu_cycles,
-    active_observation_cpu_cycles,
-    active_receiver_cpu_cycles,
-    evaluate_active_transport_headroom,
-    generate_active_columns,
-    screen_fusion_candidates,
-    solve_global_active_master,
-)
-from .low_rcs_rescue import (
-    DetectableRcsBracket,
-    RcsOperatingPoint,
-    bracket_minimum_detectable_rcs,
-)
-from .active_statistics import paired_cluster_summary
-from .coherent_oracle import (
-    CoherentOracleInformation,
-    coherent_group_gamma,
-    coherent_oracle_information,
-    evaluate_coherent_tx_detection_oracle,
-)
-from .scientific_gates import (
-    CoherentPowerOracle,
-    CommonLatentLlr,
-    LocalLlrAggregation,
-    PhysicalHeadroomDashboard,
-    ReliabilityProtectionPlan,
-    SymmetricComplementarityResult,
-    aggregate_partitioned_llrs,
-    allocate_reliability_protection,
-    aggregation_reliability_threshold,
-    coherent_power_oracle,
-    common_latent_gaussian_llrs,
-    erasure_received_kl,
-    evidence_delivery_variance,
-    gaussian_phase_coherence,
-    hypothesis_dependent_erasure_kl,
-    lower_tail_detection_summary,
-    swerling_information,
-    symmetric_complementarity_oracle,
-)
-from .evidence_acquisition import (
-    EvidenceAcquisitionResult,
-    EvidenceAcquisitionScope,
-    solve_active_evidence_acquisition,
-)
-from .active_information import (
-    ActiveDetectionResult,
-    ActiveObservation,
-    InformationPricingResult,
-    SensingMode,
-    aspect_scenario_factors,
-    active_candidate_links,
-    configured_sensing_modes,
-    evaluate_active_detection,
-    price_active_information_bundle,
-    received_information,
+#: 积木库的物理/算法层，由内向外。后一层可以依赖前一层，反向依赖即违规。
+LAYERS: tuple[str, ...] = (
+    "core",
+    "scenario",
+    "sensing",
+    "receiver",
+    "detection",
+    "cooperation",
 )
 
-__all__ = [
-    "Config",
-    "default_config",
-    "apply_overrides",
-    "apply_preset",
-    "PRESETS",
-    "iter_leaf_paths",
-    "run_simulation",
-    "run_one_trial",
-    "summarize",
-    "generate_geometry",
-    "build_base_gains",
-    "compute_link_tables",
-    "denominator_guard",
-    "rescale_sensing_tables_for_rcs",
-    "BaseGains",
-    "LinkTables",
-    "METHODS",
-    "C2F_METHODS",
-    "ObservationBundle",
-    "BundleMasterResult",
-    "generate_restricted_bundles",
-    "joint_bundle_column_generation",
-    "rcs_robust_bundle_column_generation",
-    "solve_restricted_bundle_master",
-    "joint_bundle_restricted_master",
-    "bundle_cpu_cycles",
-    "FusionHeadroom",
-    "fusion_headroom_diagnostic",
-    "EXPERIMENTS",
-    "ABLATION_VARIANTS",
-    "DD_VARIANTS",
-    "oracle_exhaustive",
-    "greedy_objective",
-    "same_objective_oracle",
-    "task_objective",
-    "submodularity_audit",
-    "empirical_curvature",
-    "greedy_guarantee",
-    "curvature_reference_bound",
-    "perturbed_geometry",
-    "predicted_geometry",
-    "ReportingPlan",
-    "assign_fusion_nodes",
-    "psf_main_bin",
-    "psf_local_capture",
-    "sweep_compare_analytic_vs_psf",
-    "ActiveObservation",
-    "ActiveDetectionResult",
-    "InformationPricingResult",
-    "SensingMode",
-    "aspect_scenario_factors",
-    "active_candidate_links",
-    "configured_sensing_modes",
-    "evaluate_active_detection",
-    "price_active_information_bundle",
-    "received_information",
-    "ActiveColumn",
-    "ActiveTransportHeadroom",
-    "GlobalActiveMasterResult",
-    "active_column_cpu_cycles",
-    "active_fusion_cpu_cycles",
-    "active_local_aggregation_cpu_cycles",
-    "active_observation_cpu_cycles",
-    "active_receiver_cpu_cycles",
-    "evaluate_active_transport_headroom",
-    "generate_active_columns",
-    "screen_fusion_candidates",
-    "solve_global_active_master",
-    "DetectableRcsBracket",
-    "RcsOperatingPoint",
-    "bracket_minimum_detectable_rcs",
-    "paired_cluster_summary",
-    "CoherentOracleInformation",
-    "coherent_group_gamma",
-    "coherent_oracle_information",
-    "evaluate_coherent_tx_detection_oracle",
-    "CoherentPowerOracle",
-    "CommonLatentLlr",
-    "LocalLlrAggregation",
-    "PhysicalHeadroomDashboard",
-    "ReliabilityProtectionPlan",
-    "SymmetricComplementarityResult",
-    "aggregate_partitioned_llrs",
-    "allocate_reliability_protection",
-    "aggregation_reliability_threshold",
-    "coherent_power_oracle",
-    "common_latent_gaussian_llrs",
-    "erasure_received_kl",
-    "evidence_delivery_variance",
-    "gaussian_phase_coherence",
-    "hypothesis_dependent_erasure_kl",
-    "lower_tail_detection_summary",
-    "swerling_information",
-    "symmetric_complementarity_oracle",
-    "EvidenceAcquisitionResult",
-    "EvidenceAcquisitionScope",
-    "solve_active_evidence_acquisition",
-]
+__version__ = "1.7.0"
 
-__version__ = "1.6.0"
+__all__ = ["LAYERS", "__version__"]

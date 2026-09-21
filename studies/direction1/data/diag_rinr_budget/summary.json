@@ -1,0 +1,78 @@
+{
+  "rows": [
+    {
+      "arm": "open_loop",
+      "floor_share_p50": 1.082766813801235e-05,
+      "n0": 3.8309036447402614e-14,
+      "residual_direct_over_n0_p50": 24162.787502246654,
+      "residual_self_over_n0_p50": 0.26103501751420344,
+      "residual_total_over_n0_p50": 24163.04853726417,
+      "rinr_db_p50_from_parts": 43.826577805795004,
+      "rinr_db_p50_from_tables": 43.82223703100182,
+      "trial": 0
+    },
+    {
+      "arm": "measured",
+      "floor_share_p50": 0.04106137975161102,
+      "n0": 3.8309036447402614e-14,
+      "residual_direct_over_n0_p50": 6.232875969299818,
+      "residual_self_over_n0_p50": 0.26103501751420344,
+      "residual_total_over_n0_p50": 6.493910986814022,
+      "rinr_db_p50_from_parts": 8.078857820788237,
+      "rinr_db_p50_from_tables": 8.074517045995051,
+      "trial": 0
+    },
+    {
+      "arm": "structural_only",
+      "floor_share_p50": 0.9859367309808005,
+      "n0": 3.8309036447402614e-14,
+      "residual_direct_over_n0_p50": 0.003723392258218616,
+      "residual_self_over_n0_p50": 0.26103501751420344,
+      "residual_total_over_n0_p50": 0.26475840977242204,
+      "rinr_db_p50_from_parts": -5.7715025565661,
+      "rinr_db_p50_from_tables": -5.775843331359286,
+      "trial": 0
+    },
+    {
+      "arm": "open_loop",
+      "floor_share_p50": 6.5702065894409885e-06,
+      "n0": 3.8309036447402614e-14,
+      "residual_direct_over_n0_p50": 40395.04715446788,
+      "residual_self_over_n0_p50": 0.26103501751420344,
+      "residual_total_over_n0_p50": 40395.3081894854,
+      "rinr_db_p50_from_parts": 46.02725335849556,
+      "rinr_db_p50_from_tables": 46.022912583702364,
+      "trial": 1
+    },
+    {
+      "arm": "measured",
+      "floor_share_p50": 0.061797848090818605,
+      "n0": 3.8309036447402614e-14,
+      "residual_direct_over_n0_p50": 3.976530229859531,
+      "residual_self_over_n0_p50": 0.26103501751420344,
+      "residual_total_over_n0_p50": 4.237565247373735,
+      "rinr_db_p50_from_parts": 6.264209085474082,
+      "rinr_db_p50_from_tables": 6.259868310680895,
+      "trial": 1
+    },
+    {
+      "arm": "structural_only",
+      "floor_share_p50": 0.9965978567659455,
+      "n0": 3.8309036447402614e-14,
+      "residual_direct_over_n0_p50": 0.0008911130713136345,
+      "residual_self_over_n0_p50": 0.26103501751420344,
+      "residual_total_over_n0_p50": 0.2619261305855171,
+      "rinr_db_p50_from_parts": -5.818211751896117,
+      "rinr_db_p50_from_tables": -5.822552526689304,
+      "trial": 1
+    }
+  ],
+  "verdict": {
+    "D1_discrepancy_is_unit_error": true,
+    "D1_floor_share_structural_only": 0.991267293873373,
+    "D2_direct_over_floor_structural_only": 0.00883886264278923,
+    "D2_no_headroom_left": true,
+    "direct_over_n0_structural_only": 0.002307252664766125,
+    "floor_over_n0": 0.26103501751420344
+  }
+}

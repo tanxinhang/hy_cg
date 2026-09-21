@@ -16,8 +16,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from isac_sim import model as md
-from isac_sim.config import Config
+from isac_sim.sensing import model as md
+from isac_sim.core.config import Config
 
 C = 3e8
 

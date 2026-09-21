@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Which knobs are physically able to close the low-RCS sensing gap?
 
 Motivation
@@ -71,11 +77,11 @@ from scipy.stats import norm
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from isac_sim.belief import BeliefState  # noqa: E402
-from isac_sim.cli import parse_overrides  # noqa: E402
-from isac_sim.config import apply_overrides, validate_config  # noqa: E402
-from isac_sim.llr import llr_delta, llr_var0, llr_var1  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.scenario.belief import BeliefState  # noqa: E402
+from experiments.app.cli import parse_overrides  # noqa: E402
+from isac_sim.core.config import apply_overrides, validate_config  # noqa: E402
+from isac_sim.detection.llr import llr_delta, llr_var0, llr_var1  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     generate_geometry,
@@ -83,8 +89,8 @@ from isac_sim.model import (  # noqa: E402
     denominator_guard,
     radar_hardware_gain,
 )
-from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
-from isac_sim.selection import select_c2f_adaptive  # noqa: E402
+from isac_sim.cooperation.reporting import assign_fusion_nodes  # noqa: E402
+from experiments.selection import select_c2f_adaptive
 from tools.audit_v1_exact_budget import config  # noqa: E402
 from tools.audit_v1_lowrcs_sweep import (  # noqa: E402
     REPORT_CAP,

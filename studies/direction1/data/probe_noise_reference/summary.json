@@ -1,0 +1,70 @@
+{
+  "reference": {
+    "bandwidth_hz": 1920000.0,
+    "delta_f": 30000.0,
+    "g_proc": 4096.0,
+    "m_rx": 4,
+    "n0_link_table": 3.8309036447402614e-14,
+    "n0_over_sigma2": 1.0,
+    "sigma2_per_bin": 3.8309036447402614e-14,
+    "waveform_L": 64,
+    "waveform_N": 64
+  },
+  "rows": [
+    {
+      "label": "measured",
+      "residual_over_n0_p50": 6.487423563250772,
+      "rinr_db_p10": 6.09762839088067,
+      "rinr_db_p50": 8.074517045995051,
+      "rinr_db_p90": 9.465961354729611,
+      "trial": 0
+    },
+    {
+      "label": "structural_only",
+      "residual_over_n0_p50": 0.26449391585656556,
+      "rinr_db_p10": -5.8086247740696955,
+      "rinr_db_p50": -5.775843331359286,
+      "rinr_db_p90": -5.581624062420969,
+      "trial": 0
+    },
+    {
+      "label": "kappa_db",
+      "residual_over_n0_p50": NaN,
+      "rinr_db_p10": NaN,
+      "rinr_db_p50": 34.72062442712779,
+      "rinr_db_p90": NaN,
+      "trial": 0
+    },
+    {
+      "label": "measured",
+      "residual_over_n0_p50": 4.233331915458276,
+      "rinr_db_p10": 3.9544436818835464,
+      "rinr_db_p50": 6.259868310680895,
+      "rinr_db_p90": 8.118124224484486,
+      "trial": 1
+    },
+    {
+      "label": "structural_only",
+      "residual_over_n0_p50": 0.2616644661193977,
+      "rinr_db_p10": -5.825777710205273,
+      "rinr_db_p50": -5.822552526689304,
+      "rinr_db_p90": -5.816742101138131,
+      "trial": 1
+    },
+    {
+      "label": "kappa_db",
+      "residual_over_n0_p50": NaN,
+      "rinr_db_p10": NaN,
+      "rinr_db_p50": 39.62166741176911,
+      "rinr_db_p90": NaN,
+      "trial": 1
+    }
+  ],
+  "verdict": {
+    "R2_rinr_db_median_measured": 7.167192678337973,
+    "R3_correction_gain_db": 12.966390607362268,
+    "R3_rinr_db_median_structural_only": -5.799197929024295,
+    "V1_residual_below_floor": false,
+    "V2_residual_is_bottleneck": true
+  }
+}

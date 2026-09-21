@@ -26,15 +26,15 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from isac_sim import config as cfgmod  # noqa: E402
-from isac_sim.config import (  # noqa: E402
+from isac_sim.core import config as cfgmod  # noqa: E402
+from isac_sim.core.config import (  # noqa: E402
     PRESETS,
     apply_overrides,
     apply_preset,
     default_config,
     validate_config,
 )
-from isac_sim.model import (  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     bandwidth,
     build_base_gains,
     compute_link_tables,
@@ -325,7 +325,7 @@ def check_selector_blindness(cid: str) -> None:
     """
     import inspect
 
-    from isac_sim.selection import select_c2f_adaptive
+    from experiments.selection import select_c2f_adaptive
 
     params = inspect.signature(select_c2f_adaptive).parameters
     has_param = "active_tx_mask" in params
@@ -439,7 +439,7 @@ def check_hardcoded_rounds(cid: str) -> None:
 # G. Theory invariants (these must hold bit-exactly, not statistically)
 # ---------------------------------------------------------------------------
 def check_llr_identities(cid: str) -> None:
-    from isac_sim import llr as L
+    from isac_sim.detection import llr as L
 
     gamma = 0.37
     n_looks = 16
@@ -469,7 +469,7 @@ def check_llr_identities(cid: str) -> None:
 
 
 def check_fbl(cid: str) -> None:
-    from isac_sim import fbl as F
+    from isac_sim.sensing import fbl as F
 
     gamma = 3.0
     V = F.channel_dispersion(gamma)
@@ -500,7 +500,7 @@ def check_bandwidth_consistency(cid: str) -> None:
 # H. Variant-label honesty
 # ---------------------------------------------------------------------------
 def check_label_honesty(cid: str) -> None:
-    from isac_sim import experiments as EX
+    from experiments.flow import sweeps as EX
 
     empties = []
     for attr in ("ABLATION_VARIANTS", "DD_VARIANTS"):

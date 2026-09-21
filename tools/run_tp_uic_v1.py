@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """TP-UIC V1: does an executable canceller reproduce the constant ``kappa``?
 
 Motivation
@@ -7,7 +13,7 @@ aggregated direct field at every sensing receiver.  ``KAPPA_DERIVATION.md``
 shows *what value the scenario requires*; this tool asks the complementary
 question: *what value does a receiver actually deliver*, and what does it cost.
 
-It runs :mod:`isac_sim.cancellation` -- a sample-level (4096-bin DD-domain)
+It runs :mod:`isac_sim.receiver.cancellation` -- a sample-level (4096-bin DD-domain)
 target-preserving interference canceller -- on the release geometry and reports
 four numbers per arm, none of which is "cancellation dB" alone::
 
@@ -31,7 +37,7 @@ Design of the measurement
   hypotheses different illumination, and every detection number collapses.
 * All arms are linear maps on the observation, so every reported residual is a
   component transfer, not a difference of totals (see
-  :class:`isac_sim.cancellation.CancellationResult`).  A plain ``||r||^2``
+  :class:`isac_sim.receiver.cancellation.CancellationResult`).  A plain ``||r||^2``
   would credit an estimator for the interference it removed while silently
   charging it for the target it ate.
 * The predicted residual ``i_res_pred`` still sets the *level* the joint stage
@@ -72,10 +78,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from isac_sim import cancellation as cx  # noqa: E402
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.model import build_base_gains, generate_geometry  # noqa: E402
-from isac_sim.prior import perturbed_geometry  # noqa: E402
+from isac_sim.receiver import cancellation as cx  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from isac_sim.sensing.model import build_base_gains, generate_geometry  # noqa: E402
+from isac_sim.scenario.prior import perturbed_geometry  # noqa: E402
 
 SEED = 2026
 
@@ -128,7 +134,7 @@ def pick_receiver(cfg: Config, base, rule: str = "worst") -> tuple[int, int]:
     rule for ``P_D`` sitting at the CFAR floor.  That was wrong.  The real cause
     was that H0 was built by a second, independent ``build_observation`` call,
     so the two hypotheses had *different direct fields*; see
-    :func:`isac_sim.cancellation.build_observation_pair`.  With the pair fixed,
+    :func:`isac_sim.receiver.cancellation.build_observation_pair`.  With the pair fixed,
     both rules separate the arms (measured H1/H0: 2.1 dB for the untouched
     arms, 4.6--4.9 dB for the cancelling ones).
     """

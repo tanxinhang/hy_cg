@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Quantify what kappa_dc (direct-path cancellation) actually buys.
 
 The question this answers: is ``interference.direct_cancellation_db = 40`` a
@@ -35,8 +41,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     denominator_guard,
     generate_geometry,
@@ -130,7 +136,7 @@ def cross_check(cfg, base) -> float | None:
     cheap to sweep.  Before any of its numbers are quoted, they must be checked
     against the real ``compute_link_tables`` path that the simulator uses.
     """
-    from isac_sim.model import compute_link_tables
+    from isac_sim.sensing.model import compute_link_tables
 
     tb = compute_link_tables(cfg, base, dd_gain=base.eta_fine)
     keep = valid_mask(cfg, base)

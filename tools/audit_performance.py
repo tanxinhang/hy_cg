@@ -18,8 +18,8 @@ if _ROOT not in sys.path:
 
 import numpy as np
 
-from isac_sim.config import Config, apply_overrides
-from isac_sim.model import (
+from isac_sim.core.config import Config, apply_overrides
+from isac_sim.sensing.model import (
     build_base_gains,
     compute_link_tables,
     generate_geometry,
@@ -54,7 +54,7 @@ def collect(cfg, n_trials=20):
         g_chi.append(tb.chi_comm[eye])
         g_rinr.append(tb.rinr[eye])
         # fused D on all valid single links (upper bound per target)
-        from isac_sim.fusion import deflection_for_links
+        from isac_sim.detection.fusion import deflection_for_links
         Dq = np.zeros(Q)
         for q in range(Q):
             links = [(i, j) for i in range(M) for j in range(M)

@@ -1,0 +1,61 @@
+{
+  "G1_model_delta0": {
+    "delta_p_d": 0.35,
+    "n_pairs": 20,
+    "pass": true,
+    "se": 0.05115622214674854
+  },
+  "G2_real_delta": {
+    "delta_p_d": 0.20000000000000004,
+    "n_pairs": 20,
+    "pass": true,
+    "se": 0.06117752903214979
+  },
+  "G3_honesty": {
+    "p_fa_spread": 0.003333333333333334,
+    "pass": true
+  },
+  "G5a_gate_equals_definition": {
+    "note": "\u95e8\u63a7 fraction == i_res_structural/i_in\uff1b\u7531 tests/test_residual_accounting_mode.py \u5728\u81c2\u7ea7\u9489\u4f4f\uff08\u805a\u5408\u5bf9\u8c61 ReceiverMeasurement \u4e0d\u66b4\u9732 i_res_structural\uff09"
+  },
+  "G5b_hand_computation_distortion": {
+    "gated_kappa_db_median": 67.4401214270123,
+    "hand_kappa_db_median": 68.23524308353318,
+    "max_abs_error_over_i_in": 4.064336004645388e-06,
+    "note": "(i_res - i_est) \u662f\u707e\u96be\u6027\u62b5\u6d88\uff08estimation \u5360 99.8%\uff09\uff0c\u624b\u5de5\u53e3\u5f84\u5728\u6d6e\u70b9\u4e0a\u4e0d\u53ef\u9760 \u21d2 \u4e0a\u4e00\u8f6e\u7684\u6570\u5b57\u53ea\u80fd\u4f5c\u91cf\u7ea7\u53c2\u8003"
+  },
+  "arms": {
+    "measured": {
+      "delta_p_d": 0.0,
+      "kappa_db": 37.17109811280543,
+      "n_selected": 12.45,
+      "p_d": 0.5166666666666665,
+      "p_fa": 0.04333333333333333,
+      "rinr_db": 6.992708903336107
+    },
+    "structural_delta": {
+      "delta_p_d": 0.20000000000000007,
+      "kappa_db": 46.95939569663635,
+      "n_selected": 8.5,
+      "p_d": 0.7166666666666666,
+      "p_fa": 0.04666666666666666,
+      "rinr_db": -1.4444967077772786
+    },
+    "structural_delta0": {
+      "delta_p_d": 0.3500000000000001,
+      "kappa_db": 67.4401214270123,
+      "n_selected": 7.75,
+      "p_d": 0.8666666666666666,
+      "p_fa": 0.04611111111111111,
+      "rinr_db": -5.7822324154711495
+    }
+  },
+  "config": {
+    "area": 600.0,
+    "delta_bins": 0.003,
+    "preset": "paper-canonical",
+    "rcs": 0.1,
+    "seed": 2026,
+    "trials": 20
+  }
+}

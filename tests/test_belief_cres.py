@@ -20,9 +20,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from isac_sim import cancellation as cx
-from isac_sim import cancellation_glrt as gl
-from isac_sim.config import Config, apply_preset
+from isac_sim.receiver import cancellation as cx
+from isac_sim.receiver import cancellation_glrt as gl
+from isac_sim.core.config import Config, apply_preset
 
 
 def scene(trial: int = 3, receiver: int = 7):
@@ -31,8 +31,8 @@ def scene(trial: int = 3, receiver: int = 7):
     cfg.detect.target_rcs = 0.1
     cfg.cancellation.enable = True
     rng = np.random.default_rng([cfg.run.seed, trial])
-    from isac_sim.model import build_base_gains, generate_geometry
-    from isac_sim.prior import perturbed_geometry
+    from isac_sim.sensing.model import build_base_gains, generate_geometry
+    from isac_sim.scenario.prior import perturbed_geometry
     geom = generate_geometry(cfg, rng)
     base = build_base_gains(cfg, geom, rng)
     belief = perturbed_geometry(

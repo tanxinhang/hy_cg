@@ -4,7 +4,7 @@ Written before the resolution axis of the identifiability question is swept, for
 the same reason the angular probe was: a sweep is only interpretable if the thing
 it changes is known.  Reads ``isac_sim`` only, writes a CSV.
 
-The mappings under test (``isac_sim/model.py``)::
+The mappings under test (``isac_sim/sensing/model.py``)::
 
     delay_bin   = round(tau * L * delta_f)      valid when 0 <= l < L
     doppler_bin = round(nu  * N * T)            valid when -N/2 <= k < N/2
@@ -48,8 +48,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 
-from isac_sim import model as md
-from isac_sim.config import Config
+from isac_sim.sensing import model as md
+from isac_sim.core.config import Config
 
 C = 3e8
 LAM = 3e8 / 5.9e9

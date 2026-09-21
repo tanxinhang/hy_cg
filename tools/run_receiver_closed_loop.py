@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """One trial, one receiver: truth/belief -> TP-UIC -> link tables -> C2F -> detection.
 
 Why this file exists
@@ -61,11 +67,11 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from isac_sim import cancellation as cx  # noqa: E402
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry  # noqa: E402
-from isac_sim.selection import select_c2f_adaptive  # noqa: E402
-from isac_sim.simulate import _build_plan, evaluate_detection, rng_for_detection  # noqa: E402
+from isac_sim.receiver import cancellation as cx  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from isac_sim.sensing.model import build_base_gains, compute_link_tables, generate_geometry  # noqa: E402
+from experiments.selection import select_c2f_adaptive
+from experiments.flow.simulate import _build_plan, evaluate_detection, rng_for_detection  # noqa: E402
 
 METHOD = "proposed_c2f_adaptive_pd"
 
@@ -98,7 +104,7 @@ def build_config(args) -> Config:
 
 def _belief_state(cfg: Config, geom, rng):
     """The belief the production scheduler sees -- the receiver gets the same one."""
-    from isac_sim.belief import BeliefState
+    from isac_sim.scenario.belief import BeliefState
 
     return BeliefState.from_truth(cfg, geom, rng)
 
@@ -109,7 +115,7 @@ def run_trial(cfg: Config, args, index: int) -> List[dict]:
     base_truth = build_base_gains(cfg, geom, rng)
 
     # ---- One belief, two consumers -------------------------------------
-    from isac_sim.belief import belief_dd_std_bins, truth_captured_links
+    from isac_sim.scenario.belief import belief_dd_std_bins, truth_captured_links
 
     belief = _belief_state(cfg, geom, rng)
     geom_belief = belief.as_geometry(geom)
@@ -300,7 +306,7 @@ def main(argv=None) -> int:
     ap.add_argument("--trials", type=int, default=20)
     ap.add_argument("--max-receivers", type=int, default=0,
                     help="measure only the first N receivers (0 = all)")
-    ap.add_argument("--out", default="results_receiver_closed_loop")
+    ap.add_argument("--out", default="results/receiver_closed_loop")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args(argv)
 

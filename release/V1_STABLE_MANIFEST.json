@@ -39,7 +39,6 @@
     "comm.comm_direct_leakage_factor": 0.0,
     "comm.K_candidates": 4,
     "interference.coupling": "shared_spectrum",
-    "interference.direct_cancellation_db": 40.0,
     "interference.sense_gate_by_active_tx": false,
     "coordination.enable": false,
     "coordination.rounds": 6,

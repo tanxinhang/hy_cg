@@ -1,17 +1,18 @@
-"""Paired experiment for serial versus jointly updated TP-UIC/coordination.
+"""Semantic-reset experiment for TP-UIC / cooperation coupling.
 
 This is the first executable slice of ``JOINT_TPUIC_COORDINATION_V1.md``.  It
 tests the load-bearing coupling claim without pretending that the complete soft
 receiver already exists:
 
-For each receiver it retains the naive serial/joint pair as a failure control,
-then adds a robust pair whose scheduler (i) discounts DD evidence by a
-belief-only Bonferroni capture-probability lower bound and (ii) reserves at
-least ``--min-links`` independently selected observations per target.
+Planning consumes belief-only absolute residual-power and target-retention
+certificates by default; truth-conditioned measurements are gated as explicit
+oracle diagnostics.  Capture discount and link redundancy are separate 2x2
+factors, so their effects can be attributed instead of hidden in one "robust"
+arm.  Receiver evaluation is held out by default.
 
-The experiment uses genuine per-(receiver,target) survival and separate truth /
-belief target-gain views.  It is a V1-A coupling experiment, not yet a test of
-the proposed soft-protection receiver or independent multi-CPI reference path.
+The executable joint action is still only the illumination mask.  Accordingly,
+the output calls this an illumination-feedback experiment, not full joint
+optimization over links, fusion, power, protection and reference CPI.
 """
 
 from __future__ import annotations
@@ -32,40 +33,34 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from isac_sim import cancellation as cx  # noqa: E402
-from isac_sim.belief import (  # noqa: E402
+from isac_sim.receiver import cancellation as cx  # noqa: E402
+from isac_sim.scenario.belief import (  # noqa: E402
     BeliefState,
     belief_capture_probability_lower_bound,
     belief_capture_sigma_points,
     belief_dd_std_bins,
     truth_captured_links,
 )
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.coordination import illuminator_mask  # noqa: E402
-from isac_sim.fusion import predicted_pd_for_links  # noqa: E402
-from isac_sim.fusion_polish import maximize_fixed_set_pd  # noqa: E402
-from isac_sim.bundle_master import rcs_robust_bundle_column_generation  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from experiments.coordination import illuminator_mask
+from isac_sim.detection.fusion import predicted_pd_for_links  # noqa: E402
+from experiments.exploratory.fusion_polish import maximize_fixed_set_pd  # noqa: E402
+from experiments.exploratory.bundle_master import rcs_robust_bundle_column_generation  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     generate_geometry,
     radar_hardware_gain,
     rescale_sensing_tables_for_rcs,
 )
-from isac_sim.selection import (  # noqa: E402
-    feasible_links_for_target,
-    local_cap_allows,
-    processing_caps_allow,
-    polish_risk_secondary_pd,
-    polish_worst_target_pd,
-    remote_cap_allows,
-    select_c2f_adaptive,
-)
-from isac_sim.simulate import _build_plan, evaluate_detection, rng_for_detection  # noqa: E402
-from isac_sim.theory import task_objective  # noqa: E402
+from experiments.selection import feasible_links_for_target, local_cap_allows, processing_caps_allow, polish_risk_secondary_pd, polish_worst_target_pd, remote_cap_allows, select_c2f_adaptive
+from experiments.flow.simulate import _build_plan, evaluate_detection, rng_for_detection  # noqa: E402
+from audits.theory import task_objective  # noqa: E402
 
 
 METHOD = "proposed_c2f_adaptive_pd"
+FORMAL_CAPABILITY_SOURCE = "predicted"
+FORMAL_RETENTION_SOURCE = "predicted_risk"
 
 
 @dataclass
@@ -89,10 +84,56 @@ class StateEvaluation:
     eval_kappa_db: np.ndarray | None
     measure_seconds: float
     capture_aware: bool
+    redundancy_aware: bool
     risk_polish_history: List[dict]
     risk_secondary_history: List[dict]
     fusion_pd_polish: dict
     power_policy: str
+    receiver_arm: str
+    control_mu: np.ndarray | None
+
+
+class _ControlledMeasurement:
+    """Cell-wise view assembled from a belief-selected soft-TP-UIC bank."""
+
+    def __init__(self, bank, choice: np.ndarray):
+        self.bank = tuple(bank)
+        self.choice = np.asarray(choice, dtype=int)
+        self.i_in_pred = np.asarray(self.bank[0].i_in_pred, dtype=float)
+
+    def _pick(self, values) -> np.ndarray:
+        stack = np.stack([np.asarray(value, dtype=float) for value in values])
+        return np.take_along_axis(stack, self.choice[None, :, :], axis=0)[0]
+
+    def as_predicted_residual_power(self, *, per_target: bool = False):
+        if not per_target:
+            raise ValueError("controlled TP-UIC requires per-target residuals")
+        return self._pick([
+            item.as_predicted_residual_power(per_target=True)
+            for item in self.bank
+        ])
+
+    def as_residual_power(self, *, per_target: bool = False):
+        if not per_target:
+            raise ValueError("controlled TP-UIC requires per-target residuals")
+        return self._pick([
+            item.as_residual_power(per_target=True) for item in self.bank
+        ])
+
+    def as_predicted_retention(self, *, clamp: bool = True, risk: bool = False):
+        return self._pick([
+            item.as_predicted_retention(clamp=clamp, risk=risk)
+            for item in self.bank
+        ])
+
+    def as_retention(self, per_target=None, clamp=True, source="field"):
+        if source != "per_target":
+            raise ValueError("controlled TP-UIC requires per-target retention")
+        return self._pick([
+            item.as_retention(
+                per_target=per_target, clamp=clamp, source="per_target"
+            ) for item in self.bank
+        ])
 
 
 def build_config(args) -> Config:
@@ -126,7 +167,22 @@ def build_config(args) -> Config:
         "aperture.enable": bool(args.m_rx > 1),
         "aperture.m_rx": int(args.m_rx),
         "fusion.rule": str(args.fusion_rule),
+        "selector.max_links_per_target": int(args.max_links_per_target),
+        "selector.max_total_links": int(args.max_total_links),
     }
+    if float(args.processing_gain_multiplier) != 1.0:
+        overrides["detect.sensing_processing_gain"] = float(
+            cfg.waveform.N * cfg.waveform.L
+        ) * float(args.processing_gain_multiplier)
+    if getattr(args, "constraint_maxmin", False):
+        # Greedy ranking needs a leximin refinement because pure min has zero
+        # marginal until the weakest target changes.  Resources remain hard
+        # constraints; the exact Phi=min_q P_D,q is enforced on acceptance.
+        overrides.update({
+            "selector.maxmin_objective": True,
+            "selector.use_delay_price": False,
+            "selector.lambda_c": 0.0,
+        })
     if int(args.max_tx_nodes) > 0:
         overrides["selector.max_tx_nodes"] = int(args.max_tx_nodes)
     return apply_overrides(
@@ -149,6 +205,15 @@ def _finite_median(values: np.ndarray) -> float:
     return float(np.median(finite)) if finite.size else float("inf")
 
 
+def select_receiver_control(candidates, weak_req: float):
+    """Choose a TP-UIC control by exact belief-side max-min service."""
+    return max(candidates, key=lambda state: (
+        float(np.min(state.belief_pd)),
+        float(np.sum(np.minimum(state.belief_pd, float(weak_req)))),
+        -float(state.cfg.cancellation.soft_protection_mu),
+    ))
+
+
 def evaluate_state(
     cfg: Config,
     *,
@@ -163,6 +228,7 @@ def evaluate_state(
     mask: np.ndarray,
     receiver: str,
     capture_aware: bool = False,
+    redundancy_aware: bool = False,
     min_links: int = 1,
     redundancy_policy: str = "diversity_first",
     capture_coverage_required: float = 0.95,
@@ -170,8 +236,8 @@ def evaluate_state(
     selector_strategy: str = "c2f",
     capability_reps: int = 1,
     capability_quantile: float = 0.20,
-    capability_source: str = "measured",
-    capability_retention_source: str = "measured",
+    capability_source: str = FORMAL_CAPABILITY_SOURCE,
+    capability_retention_source: str = FORMAL_RETENTION_SOURCE,
     risk_swap_rounds: int = 0,
     risk_secondary_rounds: int = 0,
     risk_secondary_pair_exchange: bool = False,
@@ -183,6 +249,7 @@ def evaluate_state(
     capability_cache: dict | None = None,
     tpuic_arm: str = "tp_uic_full",
     evaluation_tpuic_arm: str | None = None,
+    cell_soft_mu_grid: tuple[float, ...] = (),
 ) -> StateEvaluation:
     """Measure one receiver state, select on belief, and evaluate on truth."""
     mask = np.asarray(mask, dtype=bool)
@@ -203,23 +270,29 @@ def evaluate_state(
         dtype=float,
     )
 
-    fraction = retention = kappa = secondary_fraction = None
-    eval_fraction = eval_retention = eval_kappa = None
+    fraction = retention = kappa = secondary_power = None
+    residual_power = None
+    eval_fraction = eval_retention = eval_kappa = eval_residual_power = None
     measure_seconds = 0.0
+    control_mu = None
     if receiver == "tpuic":
         cache_key = (
             receiver, str(tpuic_arm), str(evaluation_tpuic_arm), _mask_code(mask),
+            float(cfg.cancellation.soft_protection_mu),
             int(capability_reps), float(capability_quantile),
             str(capability_source), str(capability_retention_source),
             bool(heldout_capability), bool(int(risk_secondary_rounds) > 0),
+            tuple(float(value) for value in cell_soft_mu_grid),
             tuple(float(v) for v in rho_vector),
         )
         cached = None if capability_cache is None else capability_cache.get(cache_key)
         if cached is not None:
             (
-                fraction, retention, kappa,
-                eval_fraction, eval_retention, eval_kappa, secondary_fraction,
+                fraction, residual_power, retention, kappa,
+                eval_fraction, eval_residual_power, eval_retention, eval_kappa,
+                secondary_power, cached_control_mu,
             ) = (value.copy() for value in cached)
+            control_mu = None if cached_control_mu.size == 0 else cached_control_mu
         else:
             sense = rho_vector * float(cfg.radio.P_default)
             processing_gain = (
@@ -281,53 +354,168 @@ def evaluate_state(
                         ) else None
                     ),
                 )
+            if cell_soft_mu_grid:
+                plan_bank = []
+                eval_bank = []
+                for mu in cell_soft_mu_grid:
+                    cfg_mu = apply_overrides(cfg, {
+                        "cancellation.soft_protection_mu": float(mu),
+                    })
+                    ctx_mu = replace(ctx, cfg=cfg_mu, arm="soft_tpuic")
+                    reps_mu = []
+                    for rep in range(int(capability_reps)):
+                        seed = [
+                            cfg.run.seed, 2_000_000 + int(trial),
+                            _mask_code(mask),
+                        ]
+                        if int(capability_reps) > 1:
+                            seed.append(int(rep))
+                        reps_mu.append(cx.measure_receiver_context(
+                            ctx_mu,
+                            rng=np.random.default_rng(seed),
+                            all_targets=True,
+                        ))
+                    plan_bank.append(reps_mu)
+                    eval_bank.append(cx.measure_receiver_context(
+                        replace(ctx_mu, arm="soft_tpuic"),
+                        rng=np.random.default_rng([
+                            cfg.run.seed, 2_500_000 + int(trial),
+                            _mask_code(mask),
+                        ]),
+                        all_targets=True,
+                    ))
+                predicted_power = np.stack([
+                    np.quantile(np.stack([
+                        item.as_predicted_residual_power(per_target=True)
+                        for item in reps
+                    ]), 1.0 - float(capability_quantile), axis=0)
+                    for reps in plan_bank
+                ])
+                predicted_eta = np.stack([
+                    np.quantile(np.stack([
+                        item.as_predicted_retention(risk=True) for item in reps
+                    ]), float(capability_quantile), axis=0)
+                    for reps in plan_bank
+                ])
+                input_power = np.asarray(
+                    plan_bank[0][0].i_in_pred, dtype=float
+                )[None, :, None]
+                residual_fraction = np.ones_like(predicted_power)
+                np.divide(
+                    predicted_power, input_power, out=residual_fraction,
+                    where=input_power > 0.0,
+                )
+                score = np.log(np.clip(predicted_eta, cx.EPS, None)) - np.log(
+                    np.clip(residual_fraction, cx.EPS, None)
+                )
+                choice = np.argmax(score, axis=0)
+                mu_values = np.asarray(cell_soft_mu_grid, dtype=float)
+                control_mu = mu_values[choice]
+                measurements = [
+                    _ControlledMeasurement(
+                        [plan_bank[k][rep] for k in range(len(plan_bank))],
+                        choice,
+                    )
+                    for rep in range(int(capability_reps))
+                ]
+                evaluated = _ControlledMeasurement(eval_bank, choice)
+                tpuic_arm = eval_arm = "controlled_soft_tpuic"
             measure_seconds = time.perf_counter() - t0
             target_conditioned = (
                 str(tpuic_arm).startswith("targeted_")
-                or str(tpuic_arm) == "adaptive_soft_tpuic"
+                or str(tpuic_arm) in (
+                    "soft_tpuic", "adaptive_soft_tpuic", "controlled_soft_tpuic",
+                )
             )
             eval_target_conditioned = (
                 eval_arm.startswith("targeted_")
-                or eval_arm == "adaptive_soft_tpuic"
+                or eval_arm in (
+                    "soft_tpuic", "adaptive_soft_tpuic", "controlled_soft_tpuic",
+                )
             )
-            if capability_source == "measured":
-                fractions = np.stack([
-                    (
-                        item.as_target_fraction()
-                        if target_conditioned else item.as_fraction()
-                    ) for item in measurements
+            if capability_source == "none":
+                # Certificate-free planning: the scheduler sees only geometry,
+                # waveform, communication state and hard budgets.  TP-UIC still
+                # runs for the independent evaluation below, but its certificate
+                # must not leak into the planning tables.
+                template = evaluated.as_residual_power(
+                    per_target=eval_target_conditioned
+                )
+                residual_powers = np.stack([
+                    np.zeros_like(template, dtype=float)
                 ])
-            elif capability_source == "measured_model":
-                fractions = np.stack([
-                    item.as_model_fraction(per_target=target_conditioned)
+            elif capability_source == "target_feedback":
+                # One conservative state per target, with receiver identity
+                # removed before selection.  This can steer target service but
+                # cannot rank individual (i,j,q) links like a certificate.
+                raw = np.stack([
+                    item.as_predicted_residual_power(per_target=True)
+                    for item in measurements
+                ])
+                target_level = np.quantile(
+                    raw, 1.0 - float(capability_quantile), axis=(0, 1)
+                )
+                residual_powers = np.stack([
+                    np.broadcast_to(target_level, (m, q)).copy()
+                ])
+            elif capability_source == "controlled_state":
+                residual_powers = np.stack([
+                    item.as_predicted_residual_power(per_target=True)
+                    for item in measurements
+                ])
+            elif capability_source in ("measured", "measured_model"):
+                residual_powers = np.stack([
+                    item.as_residual_power(per_target=target_conditioned)
                     for item in measurements
                 ])
             elif capability_source == "risk_moment":
-                fractions = np.stack([
-                    item.as_risk_fraction(
+                residual_powers = np.stack([
+                    item.as_risk_residual_power(
                         tail_probability=float(capability_quantile),
                         per_target=target_conditioned,
                     ) for item in measurements
                 ])
             elif capability_source == "prior_quantile":
-                fractions = np.stack([
-                    item.as_prior_quantile_fraction(
+                residual_powers = np.stack([
+                    item.as_prior_quantile_residual_power(
                         per_target=target_conditioned
                     ) for item in measurements
                 ])
             elif capability_source == "predicted":
-                fractions = np.stack([
-                    (
-                        item.as_target_fraction(predicted=True)
-                        if target_conditioned else item.predicted_fraction
+                residual_powers = np.stack([
+                    item.as_predicted_residual_power(
+                        per_target=target_conditioned
                     ) for item in measurements
                 ])
             else:
                 raise ValueError(
-                    "capability_source must be 'measured', 'measured_model', "
-                    "'risk_moment', 'prior_quantile' or 'predicted'"
+                    "capability_source must be 'none', 'target_feedback', "
+                    "'controlled_state', "
+                    "'measured', "
+                    "'measured_model', 'risk_moment', 'prior_quantile' or "
+                    "'predicted'"
                 )
-            if capability_retention_source == "measured":
+            if capability_retention_source == "none":
+                retentions = np.stack([
+                    np.ones_like(residual_powers[0], dtype=float)
+                ])
+            elif capability_retention_source == "target_feedback":
+                raw = np.stack([
+                    item.as_predicted_retention(risk=True)
+                    for item in measurements
+                ])
+                target_level = np.quantile(
+                    raw, float(capability_quantile), axis=(0, 1)
+                )
+                retentions = np.stack([
+                    np.broadcast_to(target_level, (m, q)).copy()
+                ])
+            elif capability_retention_source == "controlled_state":
+                retentions = np.stack([
+                    item.as_predicted_retention(risk=True)
+                    for item in measurements
+                ])
+            elif capability_retention_source == "measured":
                 retentions = np.stack([
                     item.as_retention(source="per_target", per_target=q)
                     for item in measurements
@@ -340,16 +528,25 @@ def evaluate_state(
                 ])
             else:
                 raise ValueError(
-                    "capability_retention_source must be 'measured', "
+                    "capability_retention_source must be 'none', "
+                    "'target_feedback', 'controlled_state', 'measured', "
                     "'predicted' or 'predicted_risk'"
                 )
-            fraction = np.quantile(
-                fractions, 1.0 - float(capability_quantile), axis=0
+            residual_power = np.quantile(
+                residual_powers, 1.0 - float(capability_quantile), axis=0
+            )
+            model_input = np.asarray(measurements[0].i_in_pred, dtype=float)
+            denominator = (
+                model_input[:, None] if target_conditioned else model_input
+            )
+            fraction = np.ones_like(residual_power, dtype=float)
+            np.divide(
+                residual_power, denominator, out=fraction, where=denominator > 0.0
             )
             if int(risk_secondary_rounds) > 0:
-                secondary_fraction = np.quantile(
+                secondary_power = np.quantile(
                     np.stack([
-                        item.as_prior_quantile_fraction(
+                        item.as_prior_quantile_residual_power(
                             per_target=target_conditioned
                         ) for item in measurements
                     ]),
@@ -360,47 +557,50 @@ def evaluate_state(
             )
             with np.errstate(divide="ignore"):
                 kappa = -10.0 * np.log10(np.clip(fraction, cx.EPS, None))
-            if capability_source in (
-                "measured_model", "risk_moment", "prior_quantile"
-            ):
-                eval_fraction = evaluated.as_model_fraction(
-                    per_target=eval_target_conditioned
-                ).copy()
-                with np.errstate(divide="ignore"):
-                    eval_kappa = -10.0 * np.log10(
-                        np.clip(eval_fraction, cx.EPS, None)
-                    )
-            else:
-                eval_fraction = (
-                    evaluated.as_target_fraction()
-                    if eval_target_conditioned else evaluated.as_fraction()
-                ).copy()
-                with np.errstate(divide="ignore"):
-                    eval_kappa = -10.0 * np.log10(
-                        np.clip(eval_fraction, cx.EPS, None)
-                    )
+            eval_residual_power = evaluated.as_residual_power(
+                per_target=eval_target_conditioned
+            ).copy()
+            eval_input = np.asarray(evaluated.i_in_pred, dtype=float)
+            eval_denominator = (
+                eval_input[:, None] if eval_target_conditioned else eval_input
+            )
+            eval_fraction = np.ones_like(eval_residual_power, dtype=float)
+            np.divide(
+                eval_residual_power,
+                eval_denominator,
+                out=eval_fraction,
+                where=eval_denominator > 0.0,
+            )
+            with np.errstate(divide="ignore"):
+                eval_kappa = -10.0 * np.log10(
+                    np.clip(eval_fraction, cx.EPS, None)
+                )
             eval_retention = evaluated.as_retention(
                 source="per_target", per_target=q
             ).copy()
             if capability_cache is not None:
                 capability_cache[cache_key] = (
-                    fraction.copy(), retention.copy(), kappa.copy(),
-                    eval_fraction.copy(), eval_retention.copy(), eval_kappa.copy(),
-                    secondary_fraction.copy() if secondary_fraction is not None
+                    fraction.copy(), residual_power.copy(), retention.copy(),
+                    kappa.copy(), eval_fraction.copy(),
+                    eval_residual_power.copy(), eval_retention.copy(),
+                    eval_kappa.copy(),
+                    secondary_power.copy() if secondary_power is not None
+                    else np.asarray([], dtype=float),
+                    control_mu.copy() if control_mu is not None
                     else np.asarray([], dtype=float),
                 )
     elif receiver != "constant":
         raise ValueError("receiver must be 'constant' or 'tpuic'")
 
     def build_tables(base, *, dd_gain=None, evaluation: bool = False):
-        used_fraction = eval_fraction if evaluation else fraction
+        used_power = eval_residual_power if evaluation else residual_power
         used_retention = eval_retention if evaluation else retention
         return compute_link_tables(
             cfg,
             base,
             dd_gain=dd_gain,
             active_tx_mask=mask,
-            residual_fraction_by_receiver=used_fraction,
+            residual_power_by_receiver_target=used_power,
             target_retention_by_receiver=used_retention,
         )
 
@@ -427,7 +627,7 @@ def evaluate_state(
             base_,
             dd_gain=robust_gain,
             active_tx_mask=mask,
-            residual_fraction_by_receiver=fraction,
+            residual_power_by_receiver_target=residual_power,
             target_retention_by_receiver=retention,
         )
         return (
@@ -444,14 +644,14 @@ def evaluate_state(
     tables_belief = build_tables(base_belief, dd_gain=belief_fine_gain)
     tables_risk = None
     if int(risk_secondary_rounds) > 0 and receiver == "tpuic":
-        if secondary_fraction is None or not np.size(secondary_fraction):
+        if secondary_power is None or not np.size(secondary_power):
             raise RuntimeError("risk-secondary polish requires a prior quantile table")
         tables_risk = compute_link_tables(
             cfg,
             base_belief,
             dd_gain=belief_fine_gain,
             active_tx_mask=mask,
-            residual_fraction_by_receiver=secondary_fraction,
+            residual_power_by_receiver_target=secondary_power,
             target_retention_by_receiver=retention,
         )
         if float(selection_rcs_factor) != 1.0:
@@ -519,7 +719,7 @@ def evaluate_state(
     # single brittle observation.  The robust arm explicitly reserves a small
     # target-level redundancy floor, while still honoring all configured hard
     # resource caps.  This is an experiment-layer mechanism until promotion.
-    if capture_aware and (
+    if redundancy_aware and (
         min_links > 1
         or redundancy_policy in ("sigma_required", "sigma_singleton")
     ):
@@ -691,7 +891,7 @@ def evaluate_state(
             selected,
             plan=plan,
             allowed_tx_mask=mask,
-            min_links_per_target=(int(min_links) if capture_aware else 1),
+            min_links_per_target=(int(min_links) if redundancy_aware else 1),
             max_rounds=int(risk_swap_rounds),
         )
 
@@ -705,7 +905,7 @@ def evaluate_state(
             selected,
             plan=plan,
             allowed_tx_mask=mask,
-            min_links_per_target=(int(min_links) if capture_aware else 1),
+            min_links_per_target=(int(min_links) if redundancy_aware else 1),
             max_rounds=int(risk_secondary_rounds),
             allow_target_pair_exchange=bool(risk_secondary_pair_exchange),
         )
@@ -783,10 +983,13 @@ def evaluate_state(
         eval_kappa_db=eval_kappa,
         measure_seconds=float(measure_seconds),
         capture_aware=bool(capture_aware),
+        redundancy_aware=bool(redundancy_aware),
         risk_polish_history=risk_polish_history,
         risk_secondary_history=risk_secondary_history,
         fusion_pd_polish=fusion_pd_certificate,
         power_policy=str(power_policy),
+        receiver_arm=str(tpuic_arm if receiver == "tpuic" else receiver),
+        control_mu=None if control_mu is None else control_mu.copy(),
     )
 
 
@@ -798,17 +1001,27 @@ def strict_joint_update(
     rounds: int,
     epsilon: float,
 ) -> tuple[StateEvaluation, List[dict], str]:
-    """Monotone illumination feedback; return the best accepted state."""
+    """Monotone illumination feedback; return the best accepted state.
+
+    With ``selector.maxmin_objective`` enabled, leximin proposes candidates but
+    the exact ``Phi=min_q P_D,q`` decides acceptance.  This keeps the proposal
+    mechanism separate from the formal max-min control objective.
+    """
     state = initial
     history: List[dict] = []
     termination = "round_budget"
     for r in range(max(int(rounds), 0)):
         candidate_mask = illuminator_mask(state.selected, int(cfg.scale.M))
+        objective_before = (
+            float(np.min(state.belief_pd))
+            if cfg.selector.maxmin_objective
+            else float(state.belief_objective)
+        )
         record = {
             "round": int(r),
             "mask_before": np.flatnonzero(state.mask).tolist(),
             "mask_candidate": np.flatnonzero(candidate_mask).tolist(),
-            "objective_before": float(state.belief_objective),
+            "objective_before": objective_before,
         }
         if np.array_equal(candidate_mask, state.mask):
             record.update(accepted=False, reason="fixed_point")
@@ -816,9 +1029,14 @@ def strict_joint_update(
             termination = "fixed_point"
             break
         candidate = evaluate(candidate_mask)
-        gain = float(candidate.belief_objective - state.belief_objective)
+        objective_candidate = (
+            float(np.min(candidate.belief_pd))
+            if cfg.selector.maxmin_objective
+            else float(candidate.belief_objective)
+        )
+        gain = float(objective_candidate - objective_before)
         record.update(
-            objective_candidate=float(candidate.belief_objective),
+            objective_candidate=objective_candidate,
             gain=gain,
             accepted=bool(gain >= float(epsilon)),
             measure_seconds=float(candidate.measure_seconds),
@@ -903,13 +1121,19 @@ def _row(
         "belief_worst_pd": float(np.min(state.belief_pd)),
         "truth_worst_pd": float(np.min(state.truth_pd)),
         "truth_mean_pd": float(np.mean(state.truth_pd)),
+        "belief_pd_json": json.dumps(
+            np.asarray(state.belief_pd, dtype=float).tolist(), separators=(",", ":")
+        ),
+        "truth_pd_json": json.dumps(
+            np.asarray(state.truth_pd, dtype=float).tolist(), separators=(",", ":")
+        ),
         "n_tx": int(np.sum(state.mask)),
         "n_links": int(sum(len(v) for v in state.selected.values())),
         "n_captured": int(sum(len(v) for v in state.selected_eval.values())),
         "kappa_db_median": (
             _finite_median(state.kappa_db)
             if state.kappa_db is not None
-            else float(state.cfg.interference.direct_cancellation_db)
+            else 0.0  # 未接线 = 没有对消（direct_cancellation_db 已删除）
         ),
         "eta_median": (
             float(np.median(state.retention))
@@ -918,7 +1142,7 @@ def _row(
         "eval_kappa_db_median": (
             _finite_median(state.eval_kappa_db)
             if state.eval_kappa_db is not None
-            else float(state.cfg.interference.direct_cancellation_db)
+            else 0.0  # 未接线 = 没有对消
         ),
         "eval_eta_median": (
             float(np.median(state.eval_retention))
@@ -950,6 +1174,7 @@ def _row(
             + sum(float(h.get("measure_seconds", 0.0)) for h in history)
         ),
         "capture_aware": bool(state.capture_aware),
+        "redundancy_aware": bool(state.redundancy_aware),
         "selection_rcs_factor": float(selection_rcs_factor),
         "selector_strategy": str(selector_strategy),
         "fusion_rule": str(state.cfg.fusion.rule),
@@ -979,6 +1204,16 @@ def _row(
             separators=(",", ":"),
         ),
         "power_policy": str(state.power_policy),
+        "soft_mu": (
+            float(state.cfg.cancellation.soft_protection_mu)
+            if state.receiver_arm == "soft_tpuic"
+            else float("nan")
+        ),
+        "control_mu_json": json.dumps(
+            None if state.control_mu is None
+            else np.asarray(state.control_mu, dtype=float).tolist(),
+            separators=(",", ":"),
+        ),
         "history_json": json.dumps(history, separators=(",", ":")),
         "selected_json": json.dumps(state.selected, separators=(",", ":")),
         "selected_eval_json": json.dumps(state.selected_eval, separators=(",", ":")),
@@ -1004,49 +1239,85 @@ def run_trial(cfg: Config, args, trial: int) -> List[dict]:
     belief_std = belief_dd_std_bins(cfg, geom_belief, belief)
     capture_probability = belief_capture_probability_lower_bound(cfg, belief_std)
     capture_sigma = belief_capture_sigma_points(cfg, geom_belief, belief)
+    if args.oracle_geometry_planning:
+        geom_belief = geom_true
+        base_belief = base_truth
+        belief_std = np.zeros_like(belief_std, dtype=float)
+        capture_probability = np.ones_like(capture_probability, dtype=float)
     all_on = np.ones(int(cfg.scale.M), dtype=bool)
     capability_cache = {}
 
-    def evaluator(receiver: str, capture_aware: bool):
-        return lambda mask: evaluate_state(
-            cfg,
-            trial=trial,
-            geom_true=geom_true,
-            geom_belief=geom_belief,
-            base_truth=base_truth,
-            base_belief=base_belief,
-            belief_dd_std=belief_std,
-            capture_probability=capture_probability,
-            capture_sigma_points=capture_sigma,
-            mask=mask,
-            receiver=receiver,
-            capture_aware=capture_aware,
-            min_links=args.min_links,
-            redundancy_policy=args.redundancy_policy,
-            capture_coverage_required=args.capture_coverage_required,
-            selection_rcs_factor=args.selection_rcs_factor,
-            selector_strategy=args.selector_strategy,
-            capability_reps=args.capability_reps,
-            capability_quantile=args.capability_quantile,
-            capability_source=args.capability_source,
-            capability_retention_source=args.capability_retention_source,
-            risk_swap_rounds=args.risk_swap_rounds,
-            risk_secondary_rounds=args.risk_secondary_rounds,
-            risk_secondary_pair_exchange=args.risk_secondary_pair_exchange,
-            fusion_pd_polish=args.fusion_pd_polish,
-            power_policy=args.power_policy,
-            active_rho=args.active_rho,
-            inactive_rho=args.inactive_rho,
-            heldout_capability=args.heldout_capability,
-            capability_cache=capability_cache,
-            tpuic_arm=args.tpuic_arm,
-            evaluation_tpuic_arm=(args.evaluation_tpuic_arm or None),
-        )
+    soft_mu_grid = tuple(float(v) for v in args.soft_mu_grid.split(",") if v.strip())
+
+    def evaluator(
+        receiver: str, capture_aware: bool, redundancy_aware: bool
+    ):
+        def evaluate_one(mask, control_cfg, arm):
+            state = evaluate_state(
+                control_cfg,
+                trial=trial,
+                geom_true=geom_true,
+                geom_belief=geom_belief,
+                base_truth=base_truth,
+                base_belief=base_belief,
+                belief_dd_std=belief_std,
+                capture_probability=capture_probability,
+                capture_sigma_points=capture_sigma,
+                mask=mask,
+                receiver=receiver,
+                capture_aware=capture_aware,
+                redundancy_aware=redundancy_aware,
+                min_links=args.min_links,
+                redundancy_policy=args.redundancy_policy,
+                capture_coverage_required=args.capture_coverage_required,
+                selection_rcs_factor=args.selection_rcs_factor,
+                selector_strategy=args.selector_strategy,
+                capability_reps=args.capability_reps,
+                capability_quantile=args.capability_quantile,
+                capability_source=args.capability_source,
+                capability_retention_source=args.capability_retention_source,
+                risk_swap_rounds=args.risk_swap_rounds,
+                risk_secondary_rounds=args.risk_secondary_rounds,
+                risk_secondary_pair_exchange=args.risk_secondary_pair_exchange,
+                fusion_pd_polish=args.fusion_pd_polish,
+                power_policy=args.power_policy,
+                active_rho=args.active_rho,
+                inactive_rho=args.inactive_rho,
+                heldout_capability=args.heldout_capability,
+                capability_cache=capability_cache,
+                tpuic_arm=arm,
+                evaluation_tpuic_arm=(args.evaluation_tpuic_arm or arm),
+                cell_soft_mu_grid=tuple(
+                    float(value) for value in args.cell_soft_mu_grid.split(",")
+                    if value.strip()
+                ),
+            )
+            return state
+
+        def evaluate(mask):
+            if receiver != "tpuic" or not soft_mu_grid:
+                return evaluate_one(mask, cfg, args.tpuic_arm)
+            candidates = []
+            for mu in soft_mu_grid:
+                control_cfg = apply_overrides(cfg, {
+                    "cancellation.soft_protection_mu": float(mu),
+                })
+                candidates.append(evaluate_one(mask, control_cfg, "soft_tpuic"))
+            return select_receiver_control(
+                candidates, float(cfg.detect.weak_pd_required)
+            )
+        return evaluate
 
     rows = []
+    variants = (
+        ("baseline", False, False),
+        ("capture", True, False),
+        ("redundancy", False, True),
+        ("combined", True, True),
+    )
     for receiver in ("constant", "tpuic"):
-        for variant, aware in (("naive", False), ("robust", True)):
-            evaluate = evaluator(receiver, aware)
+        for variant, capture_aware, redundancy_aware in variants:
+            evaluate = evaluator(receiver, capture_aware, redundancy_aware)
             serial = evaluate(all_on)
             joint_initial = serial
             if cfg.selector.max_tx_nodes is not None:
@@ -1094,8 +1365,66 @@ def _paired(rows: List[dict], a: str, b: str, key: str) -> tuple[float, float, i
     return float(np.mean(delta)), se, int(delta.size)
 
 
+def capability_protocol_error(args) -> str | None:
+    """Return a semantic-protocol violation, independent of argparse.
+
+    Keeping this rule in an importable function makes truth/belief isolation a
+    system invariant that tests can pin, rather than a convention in a README.
+    """
+    if (args.capability_source == "none") != (
+        args.capability_retention_source == "none"
+    ):
+        return (
+            "certificate-free planning requires both capability sources to "
+            "be 'none'"
+        )
+    if (args.capability_source == "target_feedback") != (
+        args.capability_retention_source == "target_feedback"
+    ):
+        return (
+            "target-level feedback requires both capability sources to be "
+            "'target_feedback'"
+        )
+    if (args.capability_source == "controlled_state") != (
+        args.capability_retention_source == "controlled_state"
+    ):
+        return (
+            "receiver-target control requires both capability sources to be "
+            "'controlled_state'"
+        )
+    if args.capability_source == "controlled_state" and not args.cell_soft_mu_grid:
+        return "controlled_state requires --cell-soft-mu-grid"
+    if args.capability_source == "none" and args.risk_secondary_rounds:
+        return (
+            "certificate-free planning cannot use prior-quantile secondary "
+            "swaps"
+        )
+    oracle_sources = (
+        args.capability_source in ("measured", "measured_model")
+        or args.capability_retention_source == "measured"
+    )
+    if oracle_sources and not args.allow_oracle_planning:
+        return (
+            "measured planning capability is truth-conditioned; use predicted "
+            "sources for formal experiments or pass --allow-oracle-planning "
+            "for a labelled oracle diagnostic"
+        )
+    if oracle_sources and args.capability_reps < 2:
+        return (
+            "stochastic measured planning certificates require at least two "
+            "--capability-reps; a one-sample quantile is not a certificate"
+        )
+    if not args.heldout_capability:
+        return (
+            "planning and evaluation capability must be independent; use "
+            "--no-heldout-capability only in legacy reproduction, not this "
+            "formal experiment"
+        )
+    return None
+
+
 def report(rows: List[dict], args) -> None:
-    print("\n=== Joint TP-UIC / cooperation V1-B pilot ===")
+    print("\n=== TP-UIC / cooperation semantic-reset pilot ===")
     print("  M=%d Q=%d trials=%d rounds=%d epsilon=%g n_cpi=1" % (
         args.m, args.q, args.trials, args.rounds, args.epsilon
     ))
@@ -1105,7 +1434,7 @@ def report(rows: List[dict], args) -> None:
     arms = [
         receiver + "_" + mode + "_" + variant
         for receiver in ("constant", "tpuic")
-        for variant in ("naive", "robust")
+        for variant in ("baseline", "capture", "redundancy", "combined")
         for mode in ("serial", "joint")
     ]
     for arm in arms:
@@ -1117,9 +1446,10 @@ def report(rows: List[dict], args) -> None:
             st.median(float(r["eta_median"]) for r in sub),
             mean("p_d"), mean("p_fa"), mean("n_tx"), mean("truth_worst_pd"),
         ))
-    print("\n  paired deltas, joint - serial (mean +/- 1 s.e.):")
+    print("\n  paired deltas, illumination feedback - serial "
+          "(mean +/- 1 s.e.):")
     for receiver in ("constant", "tpuic"):
-        for variant in ("naive", "robust"):
+        for variant in ("baseline", "capture", "redundancy", "combined"):
             for key in ("p_d", "truth_worst_pd", "truth_objective"):
                 d, se, n = _paired(
                     rows,
@@ -1132,7 +1462,8 @@ def report(rows: List[dict], args) -> None:
                     "%.5f" % se if math.isfinite(se) else "NA", n,
                 ))
     print("\n  This run is a pilot unless its paired sample size and promotion gates")
-    print("  are sufficient; it does not validate soft TP-UIC or N_ref scaling.")
+    print("  are sufficient; it does not establish full joint optimization,")
+    print("  soft TP-UIC benefit, or N_ref scaling.")
 
 
 def main(argv=None) -> int:
@@ -1143,6 +1474,7 @@ def main(argv=None) -> int:
     ap.add_argument("--m", type=int, default=6)
     ap.add_argument("--q", type=int, default=3)
     ap.add_argument("--m-rx", type=int, default=1)
+    ap.add_argument("--processing-gain-multiplier", type=float, default=1.0)
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--trials", type=int, default=3)
     ap.add_argument("--trial-start", type=int, default=0)
@@ -1155,20 +1487,39 @@ def main(argv=None) -> int:
     ap.add_argument(
         "--tpuic-arm", default="tp_uic_full",
         choices=(
-            "tp_uic_full", "targeted_tpuic_full", "adaptive_soft_tpuic",
+            "tp_uic_full", "targeted_tpuic_full", "soft_tpuic",
+            "adaptive_soft_tpuic", "perfect_channel",
         ),
+    )
+    ap.add_argument(
+        "--soft-mu-grid", default="",
+        help=("optional comma-separated soft-protection controls; when set, "
+              "each TP-UIC state jointly selects mu and its link schedule by "
+              "the belief-side max-min objective"),
+    )
+    ap.add_argument(
+        "--cell-soft-mu-grid", default="",
+        help=("optional comma-separated soft controls selected independently "
+              "for every receiver-target cell; use with controlled_state"),
     )
     ap.add_argument("--adaptive-risk-slack", type=float, default=0.001)
     ap.add_argument("--belief-error-in-cres", action="store_true")
     ap.add_argument(
+        "--oracle-geometry-planning", action="store_true",
+        help="audit only: expose truth geometry/base gains to the planner",
+    )
+    ap.add_argument(
         "--evaluation-tpuic-arm",
         choices=(
-            "", "tp_uic_full", "targeted_tpuic_full", "adaptive_soft_tpuic",
+            "", "tp_uic_full", "targeted_tpuic_full", "soft_tpuic",
+            "adaptive_soft_tpuic", "perfect_channel",
         ),
         default="",
         help="optional held-out arm; planning remains controlled by --tpuic-arm",
     )
     ap.add_argument("--min-links", type=int, default=2)
+    ap.add_argument("--max-links-per-target", type=int, default=6)
+    ap.add_argument("--max-total-links", type=int, default=60)
     ap.add_argument(
         "--redundancy-policy",
         choices=(
@@ -1208,17 +1559,20 @@ def main(argv=None) -> int:
     ap.add_argument(
         "--capability-source",
         choices=(
-            "measured", "measured_model", "risk_moment",
-            "prior_quantile", "predicted",
+            "none", "target_feedback", "controlled_state", "measured",
+            "measured_model", "risk_moment", "prior_quantile", "predicted",
         ),
-        default="measured",
-        help=("planning residual certificate; held-out evaluation always uses "
-              "an independent realized residual"),
+        default=FORMAL_CAPABILITY_SOURCE,
+        help=("belief-side planning residual certificate; measured variants "
+              "are oracle diagnostics and require --allow-oracle-planning"),
     )
     ap.add_argument(
         "--capability-retention-source",
-        choices=("measured", "predicted", "predicted_risk"),
-        default="measured",
+        choices=(
+            "none", "target_feedback", "controlled_state", "measured",
+            "predicted", "predicted_risk",
+        ),
+        default=FORMAL_RETENTION_SOURCE,
         help=("planning target-survival certificate; predicted is formed only "
               "from the belief dictionary and cancellation operator"),
     )
@@ -1226,6 +1580,12 @@ def main(argv=None) -> int:
         "--risk-swap-rounds", type=int, default=0,
         help=("fixed-link-count 1-swap rounds that lexicographically improve "
               "belief-side worst-target predicted P_D"),
+    )
+    ap.add_argument(
+        "--constraint-maxmin", action="store_true",
+        help=("use leximin proposals without scalar communication price and "
+              "accept illumination updates only when exact worst-target "
+              "predicted P_D improves"),
     )
     ap.add_argument(
         "--risk-secondary-rounds", type=int, default=0,
@@ -1248,7 +1608,18 @@ def main(argv=None) -> int:
     )
     ap.add_argument("--active-rho", type=float, default=0.95)
     ap.add_argument("--inactive-rho", type=float, default=0.20)
-    ap.add_argument("--heldout-capability", action="store_true")
+    ap.add_argument(
+        "--heldout-capability",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=("evaluate receiver capability on an independent realization; "
+              "enabled by default"),
+    )
+    ap.add_argument(
+        "--allow-oracle-planning", action="store_true",
+        help=("explicitly label and allow truth-conditioned measured "
+              "capabilities for post-hoc oracle diagnostics"),
+    )
     ap.add_argument(
         "--exact-gaussian-threshold", action="store_true",
         help="use deterministic exact-mixture calibration only for final detection",
@@ -1267,6 +1638,10 @@ def main(argv=None) -> int:
 
     if not 0.0 < args.capture_coverage_required <= 1.0:
         ap.error("--capture-coverage-required must lie in (0, 1]")
+    if not math.isfinite(args.processing_gain_multiplier) or (
+        args.processing_gain_multiplier <= 0.0
+    ):
+        ap.error("--processing-gain-multiplier must be finite and positive")
 
     if not math.isfinite(args.selection_rcs_factor) or not (
         0.0 < args.selection_rcs_factor <= 1.0
@@ -1280,6 +1655,32 @@ def main(argv=None) -> int:
         ap.error("--h1-per-target must be positive")
     if args.capability_reps < 1:
         ap.error("--capability-reps must be positive")
+    if args.max_links_per_target < args.min_links:
+        ap.error("--max-links-per-target must be at least --min-links")
+    if args.max_total_links < args.min_links * args.q:
+        ap.error("--max-total-links is too small for the per-target minimum")
+    try:
+        soft_mu_grid = [
+            float(value) for value in args.soft_mu_grid.split(",") if value.strip()
+        ]
+    except ValueError:
+        ap.error("--soft-mu-grid must be a comma-separated list of numbers")
+    if any(not math.isfinite(value) or value < 0.0 for value in soft_mu_grid):
+        ap.error("--soft-mu-grid values must be finite and non-negative")
+    try:
+        cell_soft_mu_grid = [
+            float(value) for value in args.cell_soft_mu_grid.split(",")
+            if value.strip()
+        ]
+    except ValueError:
+        ap.error("--cell-soft-mu-grid must be a comma-separated list of numbers")
+    if any(not math.isfinite(value) or value < 0.0 for value in cell_soft_mu_grid):
+        ap.error("--cell-soft-mu-grid values must be finite and non-negative")
+    protocol_error = capability_protocol_error(args)
+    if protocol_error is not None:
+        ap.error(protocol_error)
+    if args.oracle_geometry_planning and not args.allow_oracle_planning:
+        ap.error("--oracle-geometry-planning requires --allow-oracle-planning")
     if args.risk_swap_rounds < 0:
         ap.error("--risk-swap-rounds must be non-negative")
     if args.risk_secondary_rounds < 0:

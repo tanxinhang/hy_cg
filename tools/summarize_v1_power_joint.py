@@ -103,8 +103,8 @@ def main():
         lines.append(f"| {rcs:g} | {np.median(secs):.2f} | {d['table_builds']:.1f} | {d['accepted_power_moves']:.1f} | {d['predicted_objective_gain']:.5f} |")
     lines += ['', '这些时间来自12进程并发实验，覆盖新增功率搜索及其重选，不包含原V1/原联合初值、共享几何和最终检测。当前实现是离线候选，不宣称满足毫秒级在线调度，也不能沿用旧C2F的92.9%计算下降结论。', '',
         '## 实现、验证与复现', '',
-        '- `isac_sim/config.py` 新增radio.rho_by_uav；None保持旧统一ρ行为。',
-        '- `isac_sim/model.py` 将逐节点分配同时用于感知和报告信号/干扰，启用功率比例向量时关闭潜在过期的感知表复用。',
+        '- `isac_sim/core/config.py` 新增radio.rho_by_uav；None保持旧统一ρ行为。',
+        '- `isac_sim/sensing/model.py` 将逐节点分配同时用于感知和报告信号/干扰，启用功率比例向量时关闭潜在过期的感知表复用。',
         '- `isac_sim/power_joint.py` 实现有界交替搜索；默认算法列表未自动替换。',
         '- `tests/test_power_joint.py` 检查旧模型逐字段一致、感知/通信交叉干扰、非法分配、预算、预测目标单调性，以及truth检测确实使用新功率。',
         '- 全量测试172 passed、6 subtests passed；新增固定集阶段不改变观测集合/融合位置的断言也通过。',

@@ -1,0 +1,88 @@
+{
+  "arms": {
+    "baseline": {
+      "delta_p_d": 0.0,
+      "n_selected": 12.45,
+      "p_d": 0.5166666666666665,
+      "p_fa": 0.04333333333333333,
+      "resolvable": false,
+      "se": 0.0
+    },
+    "corr_on": {
+      "delta_p_d": -0.016666666666666385,
+      "n_selected": 9.55,
+      "p_d": 0.5000000000000001,
+      "p_fa": 0.04611111111111112,
+      "resolvable": false,
+      "se": 0.07039986044643265
+    },
+    "links12": {
+      "delta_p_d": 1.1102230246251565e-16,
+      "n_selected": 17.6,
+      "p_d": 0.5166666666666666,
+      "p_fa": 0.04666666666666667,
+      "resolvable": false,
+      "se": 0.024182541670333724
+    },
+    "links12_stop_off": {
+      "delta_p_d": 1.1102230246251565e-16,
+      "n_selected": 17.6,
+      "p_d": 0.5166666666666666,
+      "p_fa": 0.04666666666666667,
+      "resolvable": false,
+      "se": 0.024182541670333724
+    },
+    "llr_erasure": {
+      "delta_p_d": 0.0,
+      "n_selected": 12.5,
+      "p_d": 0.5166666666666665,
+      "p_fa": 0.04333333333333333,
+      "resolvable": false,
+      "se": 0.0
+    },
+    "llr_gauss_exact": {
+      "delta_p_d": 0.0,
+      "n_selected": 12.45,
+      "p_d": 0.5166666666666665,
+      "p_fa": 0.041666666666666664,
+      "resolvable": false,
+      "se": 0.0
+    },
+    "pd_robust": {
+      "delta_p_d": 0.0,
+      "n_selected": 12.45,
+      "p_d": 0.5166666666666665,
+      "p_fa": 0.04333333333333333,
+      "resolvable": false,
+      "se": 0.0
+    },
+    "score_exact": {
+      "delta_p_d": 0.0,
+      "n_selected": 12.45,
+      "p_d": 0.5166666666666665,
+      "p_fa": 0.04333333333333333,
+      "resolvable": false,
+      "se": 0.0
+    },
+    "stop_off": {
+      "delta_p_d": 0.0,
+      "n_selected": 12.45,
+      "p_d": 0.5166666666666665,
+      "p_fa": 0.04333333333333333,
+      "resolvable": false,
+      "se": 0.0
+    }
+  },
+  "config": {
+    "area": 600.0,
+    "arm": "tp_uic_full",
+    "preset": "paper-canonical",
+    "rcs": 0.1,
+    "seed": 2026,
+    "trials": 20
+  },
+  "honesty": {
+    "p_fa_spread": 0.0050000000000000044,
+    "pass": true
+  }
+}

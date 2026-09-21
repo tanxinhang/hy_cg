@@ -56,10 +56,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 
 import probe_angular_identifiability as pa
-from isac_sim import cancellation as cx
-from isac_sim.config import Config, apply_preset
-from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry
-from isac_sim.prior import perturbed_geometry
+from isac_sim.receiver import cancellation as cx
+from isac_sim.core.config import Config, apply_preset
+from isac_sim.sensing.model import build_base_gains, compute_link_tables, generate_geometry
+from isac_sim.scenario.prior import perturbed_geometry
 
 # --------------------------------------------------------------------------
 # Pre-registered constants
@@ -306,7 +306,7 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--dump-links", default="8",
                     help="comma list of M for which per-link rows are dumped")
-    ap.add_argument("--out", default="results_perlink_rho")
+    ap.add_argument("--out", default="results/perlink_rho")
     args = ap.parse_args(argv)
 
     # Same construction as the angular probe -- ``paper-canonical`` plus the two

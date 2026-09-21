@@ -12,8 +12,8 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from isac_sim.config import Config, apply_preset, apply_overrides
-from isac_sim.simulate import run_one_trial
+from isac_sim.core.config import Config, apply_preset, apply_overrides
+from experiments.flow.simulate import run_one_trial
 
 METHOD = "proposed_c2f_adaptive_pd_fusion_polish"
 

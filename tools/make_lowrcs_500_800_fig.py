@@ -22,9 +22,9 @@ MARKERS = {"base": "o", "software": "s", "gain15": "^"}
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--map", type=Path,
-                        default=Path("results_v1_lowrcs_500_800/map.json"))
+                        default=Path("results/v1_lowrcs_500_800/map.json"))
     parser.add_argument("--out", type=Path,
-                        default=Path("results_v1_lowrcs_500_800/map.png"))
+                        default=Path("results/v1_lowrcs_500_800/map.png"))
     args = parser.parse_args()
     entries = json.loads(args.map.read_text(encoding="utf8"))
 

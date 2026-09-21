@@ -5,9 +5,9 @@ import numpy as np
 
 sys.path.insert(0, "D:/Desktop/conference")
 
-from isac_sim.config import Config, apply_overrides, apply_preset
-from isac_sim.model import build_base_gains, generate_geometry, noise_power
-from isac_sim import cancellation as cx
+from isac_sim.core.config import Config, apply_overrides, apply_preset
+from isac_sim.sensing.model import build_base_gains, generate_geometry, noise_power
+from isac_sim.receiver import cancellation as cx
 
 cfg = apply_overrides(
     apply_preset(Config(), "small-uav-compact-800m"),

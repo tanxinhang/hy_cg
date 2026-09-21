@@ -40,7 +40,7 @@ Two fixes landed on 2026-09-19 and both change the numbers, so results from
 before that date are not comparable to results from after it:
 
 * the generated echo now carries its true coefficients on the **centre column
-  only** (``isac_sim.cancellation.build_observation``); before the fix every
+  only** (``isac_sim.receiver.cancellation.build_observation``); before the fix every
   fractional-DD tangent column also carried a unit-modulus scatterer, i.e. the
   generator wrote three echoes per target while the detector modelled one;
 * the stage-2 joint support is now the *declared* protection set instead of the
@@ -68,11 +68,11 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from isac_sim import cancellation as cx  # noqa: E402
-from isac_sim import cancellation_glrt as gl  # noqa: E402
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.model import build_base_gains, generate_geometry  # noqa: E402
-from isac_sim.prior import perturbed_geometry  # noqa: E402
+from isac_sim.receiver import cancellation as cx  # noqa: E402
+from isac_sim.receiver import cancellation_glrt as gl  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from isac_sim.sensing.model import build_base_gains, generate_geometry  # noqa: E402
+from isac_sim.scenario.prior import perturbed_geometry  # noqa: E402
 from tools.run_tp_uic_v1 import pick_receiver  # noqa: E402
 
 AUDIT_ARMS = ("no_ic", "plain_ls", "tp_uic_full", "perfect_channel")
@@ -144,7 +144,7 @@ def arms_with_gate(cfg: Config, obs, weak: int, policy: str = "protected_only"):
     degenerating: with ``threshold = 0`` every target column clears the gate and
     the joint stage collapses onto plain LS.
 
-    ``policy`` is forwarded to :func:`isac_sim.cancellation.cancellation_arms`
+    ``policy`` is forwarded to :func:`isac_sim.receiver.cancellation.cancellation_arms`
     in both passes.  It must be the same in both: the level is read out of pass
     1's stage-1 residual, and a pass 2 with a different support would be
     calibrating one arm and scoring another.

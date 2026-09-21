@@ -13,10 +13,10 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from isac_sim import cancellation as cx  # noqa: E402
-from isac_sim.belief import BeliefState  # noqa: E402
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.model import build_base_gains, generate_geometry, radar_hardware_gain  # noqa: E402
+from isac_sim.receiver import cancellation as cx  # noqa: E402
+from isac_sim.scenario.belief import BeliefState  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from isac_sim.sensing.model import build_base_gains, generate_geometry, radar_hardware_gain  # noqa: E402
 
 
 def config(args, mu: float, *, adaptive: bool = False) -> Config:

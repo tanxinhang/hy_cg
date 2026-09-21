@@ -15,8 +15,8 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 os.chdir(_ROOT)
 
-from isac_sim.config import Config, apply_overrides
-from isac_sim.simulate import run_simulation
+from isac_sim.core.config import Config, apply_overrides
+from experiments.flow.simulate import run_simulation
 
 PAPER = {
     "geometry.uav_speed_min": 30,
@@ -43,7 +43,7 @@ CASES = [
 def main():
     mc = int(os.environ.get("AUDIT_MC", "200"))
     eps = float(os.environ.get("AUDIT_EPS", "1e-12"))
-    import isac_sim.model as M
+    import isac_sim.sensing.model as M
     M.EPS = eps
     print("=" * 78)
     print(f"COUNTERFACTUAL AUDIT (proposed_lagrangian, MC={mc}, active_set, EPS={eps:g})")

@@ -129,7 +129,7 @@ def map_table(directory, rcs_values, areas):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir", type=Path,
-                        default=Path("results_v1_lowrcs_500_800"))
+                        default=Path("results/v1_lowrcs_500_800"))
     parser.add_argument("--ref", type=Path, default=Path("results_v1_rcs_600m"))
     parser.add_argument("--areas", type=float, nargs="+",
                         default=[500.0, 600.0, 700.0, 800.0])

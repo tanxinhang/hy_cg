@@ -51,7 +51,7 @@ PD_REQ = 0.95
 # existed; keyed by the output directory name.  Keeping these lets an old run be
 # pooled with a new one instead of silently dropping its rows.
 LEGACY_CELLS = {
-    "results_coordination_600m_rcs0.1": (0.0, 40.0),
+    "results/coordination_600m_rcs0.1": (0.0, 40.0),
     "results_coordination_800m_rcs0.05": (0.0, 40.0),
 }
 

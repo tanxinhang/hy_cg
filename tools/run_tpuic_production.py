@@ -54,10 +54,10 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from isac_sim import cancellation as cx  # noqa: E402
-from isac_sim.config import Config, apply_overrides, apply_preset  # noqa: E402
-from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry  # noqa: E402
-from isac_sim.simulate import evaluate_detection  # noqa: E402
+from isac_sim.receiver import cancellation as cx  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides, apply_preset  # noqa: E402
+from isac_sim.sensing.model import build_base_gains, compute_link_tables, generate_geometry  # noqa: E402
+from experiments.flow.simulate import evaluate_detection  # noqa: E402
 
 
 def build_config(args) -> Config:
@@ -80,7 +80,7 @@ def build_config(args) -> Config:
 
 def _selector(cfg: Config, base, tables):
     """The production selector, imported lazily so the tool states its dependency."""
-    from isac_sim.selection import select_lagrangian
+    from experiments.selection import select_lagrangian
 
     return select_lagrangian(cfg, base, tables, plan=None)[0]
 
@@ -112,7 +112,10 @@ def run_trial(cfg: Config, args, index: int) -> List[dict]:
 
     rows: List[dict] = []
     for label, frac, const_db in (
-        ("constant", None, float(cfg.interference.direct_cancellation_db)),
+        # 删除 ``interference.direct_cancellation_db`` 之后，"不接线"就是**没有
+        # 对消**（0 dB）。它是开放环路下界，不再是"假设 40 dB"的参照臂 ——
+        # 那个数字没有接收机实现支撑，却撑着整个分母。
+        ("open_loop", None, 0.0),
         ("measured", fraction, None),
     ):
         tables = compute_link_tables(
@@ -179,7 +182,7 @@ def main(argv=None) -> int:
     ap.add_argument("--arm", default="tp_uic_full",
                     help="canceller arm whose residual defines the fraction")
     ap.add_argument("--trials", type=int, default=20)
-    ap.add_argument("--out", default="results_tp_uic_production")
+    ap.add_argument("--out", default="results/tp_uic_production")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args(argv)
 

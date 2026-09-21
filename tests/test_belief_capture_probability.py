@@ -1,13 +1,22 @@
+"""belief 捕获概率（capture probability）的口径契约。
+
+钉三件事：① 下界是**概率**（落在 [0,1]、随标准差单调下降），不是增益；
+② 它只吃 belief 侧的散布，不吃真值几何（§15 belief-only）；
+③ 联合 sigma 点在同一目标状态下跨链路共享（自链路恒为零、ij 与 ji 对称）。
+
+这里不钉数字（137/83 这类计数会随 M/Q 与 seed 变），只钉**形状与对称性**。
+"""
+
 import numpy as np
 import pytest
 
-from isac_sim.belief import (
+from isac_sim.scenario.belief import (
     BeliefState,
     belief_capture_probability_lower_bound,
     belief_capture_sigma_points,
 )
-from isac_sim.config import Config, apply_overrides, apply_preset
-from isac_sim.model import build_base_gains, generate_geometry
+from isac_sim.core.config import Config, apply_overrides, apply_preset
+from isac_sim.sensing.model import build_base_gains, generate_geometry
 
 
 def test_capture_lower_bound_is_belief_only_probability():

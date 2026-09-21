@@ -18,13 +18,13 @@ import time
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from isac_sim.belief import BeliefState
-from isac_sim.config import Config, apply_preset, apply_overrides
-from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry
-from isac_sim.reporting import assign_fusion_nodes
-from isac_sim.selection import select_c2f, select_c2f_adaptive
-from isac_sim.waveform import sweep_compare_analytic_vs_psf, waveform_llr_detection_check
-from isac_sim.dd import leakage_1d
+from isac_sim.scenario.belief import BeliefState
+from isac_sim.core.config import Config, apply_preset, apply_overrides
+from isac_sim.sensing.model import build_base_gains, compute_link_tables, generate_geometry
+from isac_sim.cooperation.reporting import assign_fusion_nodes
+from experiments.selection import select_c2f, select_c2f_adaptive
+from isac_sim.sensing.waveform import sweep_compare_analytic_vs_psf, waveform_llr_detection_check
+from isac_sim.sensing.dd import leakage_1d
 
 
 def save_csv(path, rows):

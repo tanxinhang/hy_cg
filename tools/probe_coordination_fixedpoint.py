@@ -24,14 +24,14 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import (  # noqa: E402
+from isac_sim.core.config import (  # noqa: E402
     apply_overrides,
     apply_preset,
     default_config,
     validate_config,
 )
-from isac_sim.coordination import select_with_coordination  # noqa: E402
-from isac_sim.model import generate_geometry  # noqa: E402
+from experiments.coordination import select_with_coordination
+from isac_sim.sensing.model import generate_geometry  # noqa: E402
 
 AREA = 500.0
 RCS = 0.2
@@ -84,11 +84,11 @@ def grouped_tradeoff(cfg_on, geom, groups_list=(1, 2, 5, 10)) -> None:
     The link choice is held fixed at the un-coordinated selection so that only the
     interference and the look budget vary (stated so the ablation stays honest).
     """
-    from isac_sim.fusion import predicted_pd_for_links
-    from isac_sim.coordination import illuminator_mask
-    from isac_sim.model import compute_link_tables, build_base_gains
-    from isac_sim.reporting import assign_fusion_nodes
-    from isac_sim.selection import select_lagrangian
+    from isac_sim.detection.fusion import predicted_pd_for_links
+    from experiments.coordination import illuminator_mask
+    from isac_sim.sensing.model import compute_link_tables, build_base_gains
+    from isac_sim.cooperation.reporting import assign_fusion_nodes
+    from experiments.selection import select_lagrangian
 
     n_uav = cfg_on.scale.M
     n_tgt = cfg_on.scale.Q
@@ -109,7 +109,7 @@ def grouped_tradeoff(cfg_on, geom, groups_list=(1, 2, 5, 10)) -> None:
     print("=" * 92)
     print(f"  baseline: all {n_uav} radiators, L=16, worst P_D = {min(pd_base):.4f}")
 
-    from isac_sim.config import apply_overrides
+    from isac_sim.core.config import apply_overrides
 
     for n_groups in groups_list:
         looks = max(int(round(16 / n_groups)), 1)

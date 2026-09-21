@@ -17,9 +17,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from isac_sim import aperture as ap
-from isac_sim.config import Config, apply_preset
-from isac_sim.model import build_base_gains, compute_link_tables, generate_geometry
+from isac_sim.sensing import aperture as ap
+from isac_sim.core.config import Config, apply_preset
+from isac_sim.sensing.model import build_base_gains, compute_link_tables, generate_geometry
 
 TRIAL = 5
 

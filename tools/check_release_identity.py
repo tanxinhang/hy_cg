@@ -44,17 +44,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import isac_sim  # noqa: E402
-from isac_sim.config import (  # noqa: E402
+from isac_sim.core.config import (  # noqa: E402
     HEADLINE_RELEASE_PRESET,
     PRESETS,
     Config,
     apply_preset,
 )
-from isac_sim.selection import (  # noqa: E402
-    DEFAULT_METHODS,
-    EXPERIMENTAL_METHODS,
-    METHOD_RNG_OFFSETS,
-)
+from experiments.methods import DEFAULT_METHODS, EXPERIMENTAL_METHODS, METHOD_RNG_OFFSETS
 
 MANIFEST_PATH = ROOT / "release" / "V1_STABLE_MANIFEST.json"
 # The V1 main-result tree was archived on 2026-09-18 (see
@@ -122,7 +118,12 @@ FROZEN_PATHS: tuple[str, ...] = (
     "comm.comm_direct_leakage_factor",
     "comm.K_candidates",
     "interference.coupling",
-    "interference.direct_cancellation_db",
+    # ``interference.direct_cancellation_db`` was REMOVED from this list (and
+    # from the config) on 2026-09-20.  It asserted a fixed 40 dB direct-path
+    # cancellation with no receiver implementation behind it, while propping up
+    # the entire SINR denominator -- at 0 dB, P_D collapses to P_FA.  Any gain
+    # booked on it was therefore bookkeeping, not performance.  Direct-path
+    # cancellation is now only ever a *measured* receiver output (TP-UIC).
     "interference.sense_gate_by_active_tx",
     # -- inter-UAV radiation coordination (release path) -------------------
     # ``enable`` is the structural switch: with it on, the release selector runs

@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Audit the coordination strategy itself, before building more on top of it.
 
 Three questions, in decreasing order of how badly a wrong answer would hurt:
@@ -29,27 +35,21 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import (  # noqa: E402
+from isac_sim.core.config import (  # noqa: E402
     apply_overrides,
     apply_preset,
     default_config,
     validate_config,
 )
-from isac_sim.coordination import illuminator_mask, select_with_coordination  # noqa: E402
-from isac_sim.fusion import predicted_pd_for_links  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from experiments.coordination import illuminator_mask, select_with_coordination
+from isac_sim.detection.fusion import predicted_pd_for_links  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     generate_geometry,
 )
-from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
-from isac_sim.selection import (  # noqa: E402
-    _greedy_lagrangian,
-    feasible_links_for_target,
-    select_lagrangian,
-    target_alpha,
-    topk_links_by_marginal,
-)
+from isac_sim.cooperation.reporting import assign_fusion_nodes  # noqa: E402
+from experiments.selection import _greedy_lagrangian, feasible_links_for_target, select_lagrangian, target_alpha, topk_links_by_marginal
 
 AREA = 500.0
 RCS = 0.2

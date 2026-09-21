@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Audit the *uncommitted* coordination change: the model gate口径 fix and the
 selector's ``tx_penalty`` / ``max_tx_nodes``.
 
@@ -29,26 +35,20 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import (  # noqa: E402
+from isac_sim.core.config import (  # noqa: E402
     apply_overrides,
     apply_preset,
     default_config,
     validate_config,
 )
-from isac_sim.fusion import predicted_pd_for_links  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.detection.fusion import predicted_pd_for_links  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     generate_geometry,
 )
-from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
-from isac_sim.selection import (  # noqa: E402
-    _greedy_lagrangian,
-    feasible_links_for_target,
-    select_lagrangian,
-    target_alpha,
-    topk_links_by_marginal,
-)
+from isac_sim.cooperation.reporting import assign_fusion_nodes  # noqa: E402
+from experiments.selection import _greedy_lagrangian, feasible_links_for_target, select_lagrangian, target_alpha, topk_links_by_marginal
 
 AREA = 500.0
 RCS = 0.2
@@ -171,7 +171,7 @@ def audit_gate(head_model) -> None:
     direct_old = kappa * (((P_sense + P_comm) * mask) @ G)
     resid_self = cfg_on.radio.residual_self_factor * p.P_default
     n0 = head_model.noise_power(cfg_on) if hasattr(head_model, "noise_power") else None
-    from isac_sim.model import noise_power, denominator_guard  # noqa: E402
+    from isac_sim.sensing.model import noise_power, denominator_guard  # noqa: E402
 
     n0 = noise_power(cfg_on)
     eps_den = denominator_guard(cfg_on, n0)
@@ -214,9 +214,9 @@ def audit_gate(head_model) -> None:
     # its interference while keeping its echo, and any mask that omits an
     # illuminator the schedule still uses is over-credited. The invariant is
     # sharpest with everything muted: no observation may survive.
-    from isac_sim.selection import select_lagrangian  # noqa: E402
-    from isac_sim.fusion import predicted_pd_for_links  # noqa: E402
-    from isac_sim.reporting import is_local_observation  # noqa: E402
+    from experiments.selection import select_lagrangian
+    from isac_sim.detection.fusion import predicted_pd_for_links  # noqa: E402
+    from isac_sim.cooperation.reporting import is_local_observation  # noqa: E402
 
     plan = assign_fusion_nodes(cfg_on, base, t_new, geom=geom)
     sel, _ = select_lagrangian(cfg_on, base, t_new, plan)
@@ -245,11 +245,7 @@ def audit_gate(head_model) -> None:
     # the released active_set path builds is a different set, and feeding it to a
     # gated build used to be silently credited (measured +0.0744 phantom on worst
     # P_D). Semantics are now enforced instead of documented.
-    from isac_sim.coordination import (  # noqa: E402
-        gated_tables,
-        illuminator_mask,
-        require_mask_covers_schedule,
-    )
+    from experiments.coordination import gated_tables, illuminator_mask, require_mask_covers_schedule
 
     ill = illuminator_mask(sel, M)
     _, t_ill = tables_of(cfg_on, geom, ill)
@@ -328,7 +324,7 @@ def audit_gate(head_model) -> None:
                     n_branch_fires += 1
     # Repeat on an independent deployment with the coordination fixed point, so
     # the claim is not a single-schedule coincidence.
-    from isac_sim.coordination import select_with_coordination  # noqa: E402
+    from experiments.coordination import select_with_coordination
 
     geom2 = generate_geometry(cfg_on, np.random.default_rng(4242))
     res2 = select_with_coordination(cfg_on, geom2, rounds=4, seed=4242)
@@ -356,8 +352,8 @@ def audit_coordination_aware_selection() -> None:
     print("=" * 92)
     print("D. F1: the selector must consume the mask in BOTH of its stages")
     print("=" * 92)
-    from isac_sim.coordination import gated_tables, illuminator_mask  # noqa: E402
-    from isac_sim.selection import select_c2f_adaptive  # noqa: E402
+    from experiments.coordination import gated_tables, illuminator_mask
+    from experiments.selection import select_c2f_adaptive
 
     cfg = make_cfg(True)
     cfg_off = make_cfg(False)
@@ -632,8 +628,8 @@ def audit_coverage() -> None:
 
 def main() -> int:
     print(f"coordination-gate audit | {AREA:.0f} m | RCS {RCS} m^2 | git HEAD snapshot as reference\n")
-    head_model = load_head_module("isac_sim/model.py", "_head_model_snapshot")
-    head_selection = load_head_module("isac_sim/selection.py", "_head_selection_snapshot")
+    head_model = load_head_module("isac_sim/sensing/model.py", "_head_model_snapshot")
+    head_selection = load_head_module("isac_sim/cooperation/selection.py", "_head_selection_snapshot")
     audit_gate(head_model)
     audit_selector(head_selection)
     audit_coverage()

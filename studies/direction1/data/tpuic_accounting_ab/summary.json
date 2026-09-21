@@ -1,0 +1,41 @@
+{
+  "A1": {
+    "delta_p_d_mean": 0.36666666666666664,
+    "delta_p_d_se": 0.04775669329409192,
+    "n_pairs": 20,
+    "pass": true
+  },
+  "A2": {
+    "measured_p_fa": 0.04333333333333333,
+    "open_loop_p_fa": 0.0,
+    "pass": false,
+    "structural_only_p_fa": 0.045
+  },
+  "A4_caveat": "structural_only \u4f9d\u8d56 x_direct = X @ h_true \u843d\u5728\u5b57\u5178\u5f20\u6210\u7a7a\u95f4\u5185\uff08\u5b57\u5178\u5b8c\u5907\u5047\u8bbe\uff09\u3002off-grid \u654f\u611f\u6027\u5b9e\u9a8c\u672a\u8dd1\u4e4b\u524d\u4e0d\u5f97\u8fdb\u8bba\u6587\u3002",
+  "config": {
+    "area": 600.0,
+    "arm": "tp_uic_full",
+    "preset": "paper-canonical",
+    "rcs": 0.1,
+    "seed": 2026,
+    "trials": 20
+  },
+  "measured": {
+    "n_selected_mean": 12.45,
+    "p_d_mean": 0.5166666666666665,
+    "p_fa_mean": 0.04333333333333333,
+    "rinr_db_median": 6.992708903336107
+  },
+  "open_loop": {
+    "n_selected_mean": 0.0,
+    "p_d_mean": 0.0,
+    "p_fa_mean": 0.0,
+    "rinr_db_median": 43.285476262572
+  },
+  "structural_only": {
+    "n_selected_mean": 7.75,
+    "p_d_mean": 0.8833333333333332,
+    "p_fa_mean": 0.045,
+    "rinr_db_median": -5.7890473597700005
+  }
+}

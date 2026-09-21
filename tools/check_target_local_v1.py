@@ -14,8 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import Config, apply_preset, iter_leaf_paths  # noqa: E402
-from isac_sim.fbl import packet_bits  # noqa: E402
+from isac_sim.core.config import Config, apply_preset, iter_leaf_paths  # noqa: E402
+from isac_sim.sensing.fbl import packet_bits  # noqa: E402
 
 
 REQUIRED_METHODS = {

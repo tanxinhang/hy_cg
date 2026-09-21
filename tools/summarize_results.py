@@ -317,27 +317,11 @@ def main() -> int:
                 f"{fnum(r, 'inr_ratio_db', 1)} | {fnum(r, 'sense_sinr_db', 1)} | "
                 f"{fnum(r, 'P_D')} | {fnum(r, 'selected_links_mean', 1)} |")
         add("")
-        add("**直射对消扫描（ISAC 可行性门限）**\n")
-        add("| κ_dc (dB) | I_sense/N0 (dB) | γ^s (dB) | P_D (proposed) | P_D (all-neighbour) | T (ms) |")
-        add("|---|---|---|---|---|---|")
-        sweep: Dict[str, Dict[str, Dict[str, str]]] = {}
-        for r in ic_rows:
-            if r.get("group") != "cancellation_sweep":
-                continue
-            sweep.setdefault(r.get("direct_cancellation_db", "-"), {})[r.get("method", "-")] = r
-        for key in sorted(sweep, key=lambda k: float(k) if k != "-" else 0.0):
-            by_m = sweep[key]
-            p = by_m.get("proposed_lagrangian", {})
-            a = by_m.get("all_neighbor", {})
-            add(f"| {fnum(p, 'direct_cancellation_db', 0)} | "
-                f"{fnum(p, 'sense_inr_table_db', 1)} | {fnum(p, 'sense_sinr_db', 1)} | "
-                f"{fnum(p, 'P_D')} | {fnum(a, 'P_D')} | {fnum(p, 'T_mean_ms', 2)} |")
-        add("")
-        add("> 论文 Table「Direct-path suppression budget」的数据源。运行口径由每行的 "
-            "`interference_model`/`coupling`/`eps_mode` 列显式记录——")
         add("> 不同口径的结果不可直接比较（论文用 active_set）。")
-        add("> 关键结论：近远比 ρ_NF ≈ 41 dB；零对消时连 all-neighbour 也只到 P_FA 水平，")
-        add("> 说明调度无法替代直射抑制。\n")
+        add("> ⚠️ 本节原本还有一张「直射对消扫描」表（P_D 对 κ_dc 的曲线）。")
+        add("> 它建立在被删除的 `interference.direct_cancellation_db` 上——那个常数")
+        add("> 没有接收机实现支撑却撑着整个 SINR 分母，所以那张曲线是记账不是性能。")
+        add("> 对消深度现在只有一个来源：TP-UIC 的**实测**残余。\n")
 
     # ------------------------------------------------------------------
     # Legacy vs corrected model, same operating point

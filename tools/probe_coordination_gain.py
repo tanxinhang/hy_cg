@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Can inter-UAV coordination reduce interference and buy detection performance?
 
 Locked scenario: 500 m footprint, RCS 0.2 m^2 (see ADVICE_002_INTEGRATION.md).
@@ -28,15 +34,15 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import (  # noqa: E402
+from isac_sim.core.config import (  # noqa: E402
     apply_overrides,
     apply_preset,
     default_config,
     validate_config,
 )
-from isac_sim.fusion import predicted_pd_for_links  # noqa: E402
-from isac_sim.model import compute_link_tables, build_base_gains, generate_geometry  # noqa: E402
-from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
+from isac_sim.detection.fusion import predicted_pd_for_links  # noqa: E402
+from isac_sim.sensing.model import compute_link_tables, build_base_gains, generate_geometry  # noqa: E402
+from isac_sim.cooperation.reporting import assign_fusion_nodes  # noqa: E402
 
 SEED = 20260916
 AREA = 500.0
@@ -70,7 +76,7 @@ def build(looks: int = 16, mask: np.ndarray | None = None, gate: bool = False,
 
 def pick_worst(cfg, tables, plan):
     """Worst target and its best *delivering* view (m1 > 0), as in the lever probe."""
-    from isac_sim.soft_channel import received_moments
+    from isac_sim.sensing.soft_channel import received_moments
 
     g = np.asarray(tables.gamma_sense)
     Q, M = g.shape[2], g.shape[0]

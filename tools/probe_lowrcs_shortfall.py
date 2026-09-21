@@ -5,7 +5,7 @@ Why a separate probe
 ``tools/audit_v1_lowrcs_screen`` measures what each *available knob* actually
 buys by running the Monte-Carlo detector.  That answers "does it work", but not
 "how far away are we".  This probe answers the second question in closed form
-from the derived LLR moments in ``isac_sim.llr``:
+from the derived LLR moments in ``isac_sim.detection.llr``:
 
     delta(gamma) = L * gamma^2 / (1 + gamma)      E1 - E0 mean gap
     var0(gamma)  = L * gamma^2 / (1 + gamma)^2    H0 variance
@@ -42,16 +42,16 @@ from scipy.stats import norm
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.audit_v1_exact_budget import config  # noqa: E402
 from tools.audit_v1_lowrcs_sweep import REPORT_CAP, SEED  # noqa: E402
-from isac_sim.belief import BeliefState, belief_dd_std_bins  # noqa: E402
-from isac_sim.config import apply_overrides, validate_config  # noqa: E402
-from isac_sim.llr import llr_delta, llr_var0, llr_var1  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.scenario.belief import BeliefState, belief_dd_std_bins  # noqa: E402
+from isac_sim.core.config import apply_overrides, validate_config  # noqa: E402
+from isac_sim.detection.llr import llr_delta, llr_var0, llr_var1  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     generate_geometry,
 )
-from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
-from isac_sim.selection import select_c2f_adaptive  # noqa: E402
+from isac_sim.cooperation.reporting import assign_fusion_nodes  # noqa: E402
+from experiments.selection import select_c2f_adaptive
 
 FIELDS = ["area_m", "rcs_m2", "trial", "n_looks", "target", "n_links",
           "gamma_mean_db", "gamma_min_db", "d_prime", "pd_pred",

@@ -17,7 +17,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from isac_sim.config import Config, apply_preset
+from isac_sim.core.config import Config, apply_preset
 from tools import probe_perlink_rho as pp
 
 

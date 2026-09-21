@@ -14,8 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np  # noqa: E402
 
-from isac_sim.config import Config, apply_overrides  # noqa: E402
-from isac_sim.model import (  # noqa: E402
+from isac_sim.core.config import Config, apply_overrides  # noqa: E402
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     denominator_guard,

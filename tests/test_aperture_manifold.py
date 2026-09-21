@@ -18,11 +18,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from isac_sim import aperture as apx
-from isac_sim import cancellation as cx
-from isac_sim.config import Config, apply_preset
-from isac_sim.model import build_base_gains, generate_geometry
-from isac_sim.prior import perturbed_geometry
+from isac_sim.sensing import aperture as apx
+from isac_sim.receiver import cancellation as cx
+from isac_sim.core.config import Config, apply_preset
+from isac_sim.sensing.model import build_base_gains, generate_geometry
+from isac_sim.scenario.prior import perturbed_geometry
 
 TRIAL = 11
 RECEIVER = 7
@@ -108,7 +108,7 @@ def test_lifting_preserves_the_template_norm():
 
 def test_the_array_raises_the_escape_fraction():
     """The point of the exercise, measured inside the observation model."""
-    from isac_sim import cancellation_glrt as gl
+    from isac_sim.receiver import cancellation_glrt as gl
 
     def rho(cfg, obs):
         arms = cx.cancellation_arms(cfg, obs, weak_target=0,

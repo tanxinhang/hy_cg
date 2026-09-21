@@ -1,3 +1,9 @@
+# RETIRED PREMISE (2026-09-20): this script swept / read the config field
+# `interference.direct_cancellation_db` (kappa_dc).
+# That field was DELETED: it asserted a fixed 40 dB direct-path cancellation with no
+# receiver implementation behind it while propping up the whole SINR denominator.
+# Direct-path cancellation is now only ever a MEASURED TP-UIC residual.  Running this
+# script as-is will fail on the missing attribute -- kept as historical evidence only.
 """Formal experiment: un-coordinated vs sparse-illumination detection (real MC).
 
 Locked scenario: 500 m footprint, RCS 0.2 m^2, V1 release 口径 (``target-local-v1``).
@@ -15,7 +21,7 @@ Three arms, paired inside each trial:
      Isolates "silencing" from "re-selection".
   3. ``sparse``        -- selection *under* the coordination口径: the illuminator
      mask is fed back into both stages of the release selector until it repeats
-     (:func:`isac_sim.coordination.select_with_coordination`, which closes F1),
+     (:func:`isac_sim.experiments.flow.sweeps.coordination.select_with_coordination`, which closes F1),
      with ``selector.tx_penalty`` charged per newly woken radiator. Only the
      illuminators of the resulting schedule radiate.
 
@@ -62,25 +68,22 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.config import (  # noqa: E402
+from isac_sim.core.config import (  # noqa: E402
     apply_overrides,
     apply_preset,
     default_config,
     validate_config,
 )
-from isac_sim.coordination import (  # noqa: E402
-    illuminator_mask,
-    select_with_coordination,
-)
-from isac_sim.model import (  # noqa: E402
+from experiments.coordination import illuminator_mask, select_with_coordination
+from isac_sim.sensing.model import (  # noqa: E402
     build_base_gains,
     compute_link_tables,
     generate_geometry,
     radar_hardware_gain,
 )
-from isac_sim.reporting import assign_fusion_nodes  # noqa: E402
-from isac_sim.selection import select_c2f_adaptive  # noqa: E402
-from isac_sim.simulate import evaluate_detection  # noqa: E402
+from isac_sim.cooperation.reporting import assign_fusion_nodes  # noqa: E402
+from experiments.selection import select_c2f_adaptive
+from experiments.flow.simulate import evaluate_detection  # noqa: E402
 # The 500-800 m / RCS 0.05-0.2 scene band needs a second geometry; reuse the
 # sweep's authoritative definition instead of duplicating the block here.
 from tools.audit_v1_lowrcs_sweep import SCENARIOS, scenario_overrides  # noqa: E402
@@ -106,7 +109,7 @@ def make_cfg(penalty: float, looks: int = 16, area: float = AREA,
 
     ``hardware_gain_db`` sets ``radio.radar_net_gain_db`` explicitly.  Leaving
     it ``None`` keeps the release default, which resolves to 0 dB (0 dBi Tx +
-    0 dBi Rx - 0 dB loss, see :func:`isac_sim.model.radar_hardware_gain`).  It
+    0 dBi Rx - 0 dB loss, see :func:`isac_sim.sensing.model.radar_hardware_gain`).  It
     exists so an "algorithm-only" arm can be paired against a "hardware-only"
     arm at the same geometry/RCS:  raising it is a hardware assumption, not an
     algorithmic improvement, and must never be the thing that closes the gap.

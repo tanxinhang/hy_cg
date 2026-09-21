@@ -37,7 +37,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from isac_sim.experiments import _paired_cluster_interval  # noqa: E402
+from experiments.flow.sweeps import _paired_cluster_interval  # noqa: E402
 
 DEFAULT_DIR = ROOT / "results_v1_utility_ablation"
 VARIANT_ORDER = ["full", "no_deficit_penalty", "no_softmin", "neither"]

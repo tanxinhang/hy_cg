@@ -31,18 +31,18 @@ SCAN_CSV = ROOT / "tools" / "_cleanup_scan.csv"
 # --------------------------------------------------------------------------
 OVERRIDE_KEEP = {
     # --- new-scenario core evidence, G_hw = 0 dB -------------------------
-    "results_coord_600m_g0k60": "G_hw=0 dB control arm (kappa=60)",
+    "results/coord_600m_g0k60": "G_hw=0 dB control arm (kappa=60)",
     "results_coord_800m_g0k60": "G_hw=0 dB control arm (kappa=60)",
-    "results_coordination_600m_rcs0.1": "0.9500 coordination result, G_hw=0",
+    "results/coordination_600m_rcs0.1": "0.9500 coordination result, G_hw=0",
     "results_coordination_800m_rcs0.05": "coordination result, G_hw=0",
     "results_coordination_smoke": "coordination smoke, G_hw=0",
     "results_hw_vs_algo": "600 m/0.1 hw-vs-algo matrix summary",
     "results_hw_vs_algo_800": "800 m/0.05 hw-vs-algo matrix summary",
-    "results_lowrcs_main_sparse": "negative control (gate off), MC=1000",
-    "results_lowrcs_main_gate": "release-calibre gate arm, MC=1000",
+    "results/lowrcs_main_sparse": "negative control (gate off), MC=1000",
+    "results/lowrcs_main_gate": "release-calibre gate arm, MC=1000",
     "results_lowrcs_main_kappa60": "release kappa sweep, MC=1000",
     "results_lowrcs_main_kappa80": "release kappa sweep, MC=1000",
-    "results_lowrcs_500_800_main": "release main comparison, 600 m/0.1",
+    "results/lowrcs_500_800_main": "release main comparison, 600 m/0.1",
     "results_lowrcs_kappa600_kcurve.png": "figure",
     "results_release_kappa600.png": "figure",
     # --- in-band, G_hw = 0 ------------------------------------------------
@@ -84,7 +84,7 @@ OVERRIDE_DELETE = {
 A_DELETE_MIN_DB = 15.0
 
 A_KEEP_NOTE = {
-    "results_coord_600m_g5k40": "5 dB down-shift control (< 15 dB threshold)",
+    "results/coord_600m_g5k40": "5 dB down-shift control (< 15 dB threshold)",
 }
 
 

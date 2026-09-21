@@ -3,7 +3,7 @@
 Compressing the formation shrinks two lengths at once:
 
 * the two-way target path, ``target_gain = lam^2 * rcs / ((4 pi)^3 * d_iq^2 * d_jq^2)``
-  (``isac_sim/model.py``), which the sensing signal rides, and
+  (``isac_sim/sensing/model.py``), which the sensing signal rides, and
 * the one-way illuminator-to-receiver direct path, ``path_gain`` with
   ``detect.path_loss_exp = 2.0``, which carries the dominant interference.
 
@@ -23,8 +23,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.audit_v1_exact_budget import config
-from isac_sim.config import apply_overrides
-from isac_sim.model import build_base_gains, generate_geometry
+from isac_sim.core.config import apply_overrides
+from isac_sim.sensing.model import build_base_gains, generate_geometry
 
 
 def factors(area, mc, seed):
