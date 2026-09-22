@@ -1,0 +1,111 @@
+{
+  "protocol": "real_tpuic_global_pfa_screen_v1",
+  "input": "D:\\Desktop\\conference\\studies\\direction3\\data\\global_pfa_real_tpuic_screen\\records.csv",
+  "target_pfa": 0.1,
+  "receivers": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "sample_counts": {
+    "calibration": 8,
+    "drift_estimation": 8,
+    "final_test": 8
+  },
+  "estimated_positive_scale_ratios": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    2.1857238823233813
+  ],
+  "mean_abs_calibration_correlation": 0.3218221706268128,
+  "results": [
+    {
+      "bits_per_uav": 2,
+      "method": "frozen_empirical",
+      "threshold": 260.15861418967324,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 2,
+      "method": "global_worst_scale",
+      "threshold": 568.6348962265233,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 2,
+      "method": "per_uav_scale_adaptive",
+      "threshold": 260.15861418967324,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 3,
+      "method": "frozen_empirical",
+      "threshold": 222.99309787686278,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 3,
+      "method": "global_worst_scale",
+      "threshold": 487.40133962273427,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 3,
+      "method": "per_uav_scale_adaptive",
+      "threshold": 222.99309787686278,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 16,
+      "method": "frozen_empirical",
+      "threshold": 236.5078310815211,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 16,
+      "method": "global_worst_scale",
+      "threshold": 516.9408147513848,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 16,
+      "method": "per_uav_scale_adaptive",
+      "threshold": 236.5078310815211,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    }
+  ],
+  "warning": "Eight final H0 samples imply PFA resolution 0.125; screening only."
+}

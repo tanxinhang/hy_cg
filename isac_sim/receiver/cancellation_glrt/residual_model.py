@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 import numpy as np
 
@@ -20,6 +21,60 @@ from isac_sim.receiver.cancellation_glrt.priors import (
 )
 from isac_sim.receiver.cancellation_glrt.probe import _low_rank_form
 from isac_sim.receiver.cancellation_glrt.residual_form import ResidualModel
+
+
+def _direct_mismatch_factor(cfg, obs: Observation, basis, small, gain: float) -> np.ndarray:
+    """First-order DD-placement uncertainty left after the cancellation map.
+
+    ``X`` is built at the receiver's estimated direct-path delay/Doppler.  A
+    nonzero estimation sigma therefore creates two random tangent directions
+    per source.  The old covariance only propagated coefficient uncertainty
+    inside ``span(X)`` and silently omitted these out-of-dictionary directions;
+    after LS cancellation that reduced ``C_res`` almost to the noise floor even
+    when the measured structural residual was large.
+    """
+    if float(gain) == 0.0:
+        return np.zeros((obs.y.size, 0), dtype=complex)
+    sources = obs.direct_est
+    if not sources:
+        return np.zeros((obs.y.size, 0), dtype=complex)
+    c = cfg.cancellation
+    sigma_l = max(float(c.direct_estimation_sigma_delay_bins or 0.0), 0.0)
+    sigma_k = max(float(c.direct_estimation_sigma_doppler_bins or 0.0), 0.0)
+    if sigma_l == 0.0 and sigma_k == 0.0:
+        return np.zeros((obs.y.size, 0), dtype=complex)
+
+    from isac_sim.receiver.cancellation.dictionaries import direct_dictionary
+
+    step = 1.0e-3
+    columns = []
+    for src in sources:
+        if sigma_k > 0.0:
+            plus = direct_dictionary(
+                cfg, [replace(src, doppler_bin=float(src.doppler_bin) + step)],
+                tangent_order=0,
+            )[:, 0]
+            minus = direct_dictionary(
+                cfg, [replace(src, doppler_bin=float(src.doppler_bin) - step)],
+                tangent_order=0,
+            )[:, 0]
+            columns.append(sigma_k * (plus - minus) / (2.0 * step))
+        if sigma_l > 0.0:
+            plus = direct_dictionary(
+                cfg, [replace(src, delay_bin=float(src.delay_bin) + step)],
+                tangent_order=0,
+            )[:, 0]
+            minus = direct_dictionary(
+                cfg, [replace(src, delay_bin=float(src.delay_bin) - step)],
+                tangent_order=0,
+            )[:, 0]
+            columns.append(sigma_l * (plus - minus) / (2.0 * step))
+    if not columns:
+        return np.zeros((obs.y.size, 0), dtype=complex)
+    factor = np.column_stack(columns)
+    if basis.shape[1]:
+        factor = factor - basis @ (small @ (basis.conj().T @ factor))
+    return float(gain) * factor
 
 
 def residual_model(
@@ -99,7 +154,12 @@ def residual_model(
     # —— 只有 ``(I-F) X``（抵消器给直连场留下的那部分）、系数误差和信念误差
     # 失配才带。把它加进去曾把条件数顶到 1e13，让 ``eigh`` 报出低于地板的
     # 最小特征值。
-    blocks = [b for b in (direct_factor, est_factor, belief_factor) if b.shape[1]]
+    direct_mismatch_factor = _direct_mismatch_factor(
+        cfg, obs, basis, small, gain
+    )
+    blocks = [b for b in (
+        direct_factor, direct_mismatch_factor, est_factor, belief_factor
+    ) if b.shape[1]]
 
     def c_apply(V: np.ndarray) -> np.ndarray:
         """``C_res @ V``，全程不构造 K x K 矩阵。"""
@@ -119,7 +179,14 @@ def residual_model(
         V = np.zeros((0, 0), dtype=complex)
     W = Q0 @ V if Q0.shape[1] else np.zeros((n_bins, 0), dtype=complex)
     min_ratio = float(mu.min() / sigma2) if mu.size else 1.0
-    if check and min_ratio < 1.0 - 1e-9:
+    # ``C_red`` is analytically sigma2*I plus PSD terms.  With the direct-DD
+    # mismatch block its condition number can exceed 1e6, and ``eigh`` may put
+    # a floor eigenvalue a few ulps below sigma2.  Clip only that numerical
+    # neighbourhood; a materially sub-floor eigenvalue remains a hard error.
+    if min_ratio >= 1.0 - 1e-6:
+        mu = np.maximum(mu, sigma2)
+        min_ratio = float(mu.min() / sigma2) if mu.size else 1.0
+    if check and min_ratio < 1.0 - 1e-6:
         raise RuntimeError(
             "arm %r: the modelled residual covariance has an eigenvalue below "
             "the noise floor (min / sigma^2 = %.6f).  C_res is a sum of PSD "

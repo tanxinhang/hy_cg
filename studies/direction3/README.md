@@ -1,5 +1,13 @@
 # 方向 3（TP-UIC × 协同闭环）——首轮可行性实验
 
+> **V2 唯一入口：** 当前研究问题、冻结场景、算法链、基线、正式实验和停止规则统一见
+> [`V2_RESEARCH_FRAMEWORK.md`](V2_RESEARCH_FRAMEWORK.md)。本文件第 1--11 节仅作历史追溯；
+> 第 12 节记录迁移前最后一个有效快照，不再继续向其中叠加新模块或新叙事。
+
+> 状态说明：第 1--11 节是研究过程记录，第 12 节是迁移前快照；二者均仅用于追溯。
+> 当前研究设计统一以 V2 主文件为准。已被证明口径错误的结果已删除，不得从历史段落
+> 外推性能。
+
 > 本目录只记录接收机证书、可辨识覆盖与协同选择的端到端闭环实验。
 > 首轮是小样本 pilot，不作为论文性能定论，也不修改默认发布路径。
 
@@ -211,36 +219,77 @@ worst P_D=0.8；多帧/积累不再只是调参选项，而是满足 trial 32 �
 该结论是当前模型可行集上的工程上界，不宣称是未建模物理系统的数学绝对上界。
 
 数据：`data/trial32_single_frame_all_links_upper_bound/`。
-## Matrix-information / exact-z / multi-frame closure audit (trial 32)
+## 12. 当前有效主线（2026-09-22）
 
-The scalar ``(I_res, eta)`` bridge now has an experimental matrix-valued
-counterpart.  It consumes the recovered cancellation operator ``G=I-F`` and
-the low-rank residual covariance in the existing whitened GLRT, exposing its
-noncentrality as receiver-to-coordinator detection information.  Binary
-receiver/target protection is explicit and exact local subsets are constrained
-by protection-subspace rank rather than target count.  Block updates are only
-accepted when ``min_q information_q`` increases.
+### 12.1 固定模型与评价口径
 
-Under the original 600 m, RCS 0.1, M=6, Q=3, trial-32 single-frame budget:
+当前只采用 `paper-canonical`、600 m、RCS 0.1、M=6、Q=3、`m_rx=4`、
+Swerling-II matrix covariance LLR。单个 OTFS 帧时长为
 
-* weakest-target information: 0.578669 (all-target protection) -> 0.579416
-  (exact-z), only +0.129%;
-* corresponding single-frame worst ``P_D`` at ``P_FA=0.05``: 0.05622 ->
-  0.05623;
-* independent fixed-per-frame-energy accumulation needs 2229 frames before
-  the analytic worst ``P_D`` reaches 0.8;
-* fixed-total-energy accumulation converges back toward ``P_FA`` and therefore
-  cannot meet the requirement.
+``T_frame = N*T = 64/30 kHz = 2.133 ms``。
 
-Thus exact protection selection is now implemented and auditable, but it is
-not the missing performance lever in this trial.  The bottleneck is detection
-information per degree of freedom, not certificate dependence or protection
-subset choice.  Reproducible output:
-``data/matrix_information_chain_trial32/result.json``.
+实验必须显式声明感知驻留时间，并由
+``n_looks=floor(T_dwell/T_frame)`` 派生 looks。`n_looks=16` 仅是34.133 ms
+参考点，不再作为无来源的处理增益。
 
-The matched 400 m rerun improves the bottleneck information from 0.579416 to
-0.921850 (+59.1%), but single-frame worst ``P_D`` is still only 0.06014.  Under
-fixed per-frame energy the 0.8 requirement is first crossed at 885 frames;
-under fixed total energy it remains infeasible.  Exact-z itself contributes
-only +0.714% information at 400 m.  See
-``data/matrix_information_chain_trial32_400m/result.json``.
+网络目标为 ``I_q=sum_j I_jq`` 后最大化 ``min_q I_q``，不是要求每架 UAV
+独立探测所有目标。中等视角定义为声明驻留时间下单接收端 `P_D>=0.3`，覆盖约束
+按每个目标分别计算，禁止用全局平均掩盖弱目标。
+
+### 12.2 当前可靠结果
+
+固定阵形基线在16 looks下的网络 `P_D` 为 `[1.000, 0.375, 0.114]`，中等视角
+数量为 `[6, 0, 0]`。固定总能量时，单纯增加 looks 不能解决瓶颈。
+
+采用真值辅助目标环阵、最小距离 UAV--锚点匹配和每目标两个设计视角后：
+
+| 单机移动预算 | 中等视角数 | 16-look worst P_D |
+|---:|---:|---:|
+| 100 m | `[6,1,0]` | 0.141 |
+| 200 m | `[6,4,0]` | 0.193 |
+| 300 m | `[6,4,0]` | 0.321 |
+| 400 m | `[6,4,2]` | 0.738 |
+| 无约束上限 | `[6,4,5]` | 0.979 |
+
+400 m点首次满足最差目标33.3%中等视角覆盖，20 looks（42.67 ms）跨过0.8。
+8 looks时覆盖退化为 `[6,2,1]`，网络 `P_D=[1.000,0.771,0.525]`，尚未达标。
+这些结果是结构可行性上限，不是现实在线控制器结果。
+
+### 12.3 TP-UIC的实际贡献
+
+400 m同阵形、16 looks消融：
+
+| 接收处理 | worst P_D | 达到0.8所需looks |
+|---|---:|---:|
+| no IC | 0.737859 | 20 |
+| TP-UIC Stage 1 | 0.738018 | 20 |
+| TP-UIC full | 0.738023 | 20 |
+| perfect channel subtraction | 0.737993 | 20 |
+
+因此当前性能提升几乎全部来自阵形；直达干扰对消不是活动瓶颈。`no_ic`仍是
+协方差感知 GLRT，会白化直达先验，并把其他目标放入 nuisance covariance，故
+TP-UIC是在强统计干扰处理上的小修正。Full还会使目标2从Stage 1的0.94784降至
+0.93757，后续必须采用逐目标收益门控，不能默认总是启用Full。
+
+### 12.4 保留数据与下一步
+
+当前有效数据为：
+
+* `matrix_stochastic_active_trial32`：固定阵形基线；
+* `matrix_formation_b100/b200/b300/b400_matched_trial32`：移动预算扫描；
+* `matrix_formation_b400_looks8_trial32`：低looks审计；
+* `matrix_formation_b400_no_ic/tp_uic_stage1/perfect_channel_trial32`：对消消融；
+* `matrix_formation_free_matched_trial32`：无约束结构上限。
+
+下一步只推进三项：belief驱动滚动阵形、通信可靠率/容量接入融合、TP-UIC压力
+场景与收益门控。旧deterministic-GLRT的0.056/2229帧及0.060/885帧结果已删除，
+未做最小距离匹配的早期阵形结果也已删除，不再用于任何结论。
+
+### 12.5 通信协同接入
+
+矩阵主线现已支持局部充分统计量/LLR包上报。每个目标选择显式融合UAV，接收端
+证据按通信包成功率做精确独立擦除混合，而非默认必达。400 m、16-look首个结果
+选择UAV 3作为三个目标的融合节点；当前链路速率0.96--2.90 Mbps，旧启发式可靠
+率饱和为1。融合节点仅使用本地观测时目标2/3 PD为0.365/0.466，接收其余UAV的
+LLR后达到0.938/0.738，协同增益分别为0.573/0.272。下一步必须用有限块长可靠
+率、容量和时延压力测试替代饱和启发式，并区分belief、LLR与压缩复回波三档载荷。

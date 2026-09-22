@@ -1,0 +1,210 @@
+{
+  "protocol": "real_tpuic_global_pfa_screen_v1",
+  "input": "D:\\Desktop\\conference\\studies\\direction3\\data\\global_pfa_real_tpuic_rcs5_screen\\records.csv",
+  "target_pfa": 0.1,
+  "receivers": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "sample_counts": {
+    "calibration": 8,
+    "drift_estimation": 8,
+    "final_test": 8
+  },
+  "estimated_positive_scale_ratios": [
+    1.0,
+    1.0,
+    1.5521878656797008,
+    1.0,
+    1.0,
+    2.1100865675167664
+  ],
+  "mean_abs_calibration_correlation": 0.3489171778253942,
+  "results": [
+    {
+      "bits_per_uav": 2,
+      "fusion": "max",
+      "method": "frozen_empirical",
+      "threshold": 198.72418687946495,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "max",
+      "method": "global_worst_scale",
+      "threshold": 419.3252373750506,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "max",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 198.72418687946495,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "sum",
+      "method": "frozen_empirical",
+      "threshold": 264.96558250595325,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "sum",
+      "method": "global_worst_scale",
+      "threshold": 559.1003165000675,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "sum",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 264.96558250595325,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "max",
+      "method": "frozen_empirical",
+      "threshold": 170.33501732525568,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "max",
+      "method": "global_worst_scale",
+      "threshold": 359.4216320357577,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "max",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 170.33501732525568,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "sum",
+      "method": "frozen_empirical",
+      "threshold": 255.5025259878835,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "sum",
+      "method": "global_worst_scale",
+      "threshold": 539.1324480536365,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "sum",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 255.5025259878835,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "max",
+      "method": "frozen_empirical",
+      "threshold": 180.6583517086045,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "max",
+      "method": "global_worst_scale",
+      "threshold": 381.20476125004603,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "max",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 180.6583517086045,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "sum",
+      "method": "frozen_empirical",
+      "threshold": 246.55723258590683,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "sum",
+      "method": "global_worst_scale",
+      "threshold": 520.2571046036292,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "sum",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 246.55723258590683,
+      "pfa": 0.125,
+      "pd": 0.125,
+      "false_alarms": 1,
+      "tests": 8
+    }
+  ],
+  "warning": "Eight final H0 samples imply PFA resolution 0.125; screening only."
+}

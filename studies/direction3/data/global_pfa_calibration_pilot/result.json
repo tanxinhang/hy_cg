@@ -1,0 +1,83 @@
+{
+  "protocol": "global_pfa_calibration_screen_v1",
+  "settings": {
+    "seed": 20260922,
+    "repeats": 300,
+    "n_cal": 64,
+    "n_test_per_repeat": 2000,
+    "uavs": 6,
+    "rho": 0.65,
+    "target_pfa": 0.05,
+    "positive_scale_mismatch": 0.2,
+    "signal_mean": 0.8
+  },
+  "results": [
+    {
+      "bits_per_uav": 2,
+      "method": "naive_independence",
+      "pfa": 0.03376166666666667,
+      "pd": 0.100795,
+      "pfa_error": -0.016238333333333334
+    },
+    {
+      "bits_per_uav": 2,
+      "method": "empirical_max",
+      "pfa": 0.02822,
+      "pd": 0.08854333333333334,
+      "pfa_error": -0.021780000000000004
+    },
+    {
+      "bits_per_uav": 2,
+      "method": "bounded_robust",
+      "pfa": 0.02822,
+      "pd": 0.08854333333333334,
+      "pfa_error": -0.021780000000000004
+    },
+    {
+      "bits_per_uav": 3,
+      "method": "naive_independence",
+      "pfa": 0.08155166666666666,
+      "pd": 0.19298,
+      "pfa_error": 0.03155166666666666
+    },
+    {
+      "bits_per_uav": 3,
+      "method": "empirical_max",
+      "pfa": 0.04704833333333333,
+      "pd": 0.12876666666666667,
+      "pfa_error": -0.002951666666666672
+    },
+    {
+      "bits_per_uav": 3,
+      "method": "bounded_robust",
+      "pfa": 0.046983333333333335,
+      "pd": 0.12848833333333334,
+      "pfa_error": -0.0030166666666666675
+    },
+    {
+      "bits_per_uav": 16,
+      "method": "naive_independence",
+      "pfa": 0.09426333333333334,
+      "pd": 0.21124166666666666,
+      "pfa_error": 0.044263333333333335
+    },
+    {
+      "bits_per_uav": 16,
+      "method": "empirical_max",
+      "pfa": 0.07883,
+      "pd": 0.18588666666666667,
+      "pfa_error": 0.028829999999999995
+    },
+    {
+      "bits_per_uav": 16,
+      "method": "bounded_robust",
+      "pfa": 0.047981666666666666,
+      "pd": 0.13058666666666666,
+      "pfa_error": -0.0020183333333333373
+    }
+  ],
+  "finite_sample_note": {
+    "minimum_alpha_for_finite_conformal_threshold": 0.015384615384615385,
+    "minimum_calibration_samples_for_alpha_1e-3": 999
+  }
+}

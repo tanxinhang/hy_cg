@@ -90,9 +90,16 @@ def build_observation(
     alpha_true = np.zeros(A_true.shape[1], dtype=complex)
     if alpha_true.size:
         centre_t = np.arange(0, alpha_true.size, n_tgt_basis)
-        alpha_true[centre_t] = np.exp(
-            1j * rng.uniform(0.0, 2.0 * np.pi, size=centre_t.size)
-        )
+        response_model = str(cfg.detect.target_response_model)
+        if response_model in ("swerling1_shared", "swerling2_fast"):
+            alpha_true[centre_t] = (
+                rng.normal(size=centre_t.size)
+                + 1j * rng.normal(size=centre_t.size)
+            ) / math.sqrt(2.0)
+        else:
+            alpha_true[centre_t] = np.exp(
+                1j * rng.uniform(0.0, 2.0 * np.pi, size=centre_t.size)
+            )
     ids_true, centres_true = build_true_ids(true_ids, n_tgt_basis)
     ids_belief, centres_belief = build_belief_ids(cfg, targets_belief)
 
@@ -128,6 +135,7 @@ def build_observation(
         alpha_true=alpha_true,
         sigma2=sigma2,
         direct=direct,
+        direct_est=direct_est,
         targets=targets_true,
         targets_belief=targets_belief,
         basis_belief=basis_belief,

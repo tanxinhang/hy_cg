@@ -1,0 +1,104 @@
+{
+  "protocol": "robust_common_subset_association_pilot_v1",
+  "input": "D:\\Desktop\\conference\\studies\\direction3\\data\\association_nonenum_pilot_receiver\\records.csv",
+  "settings": {
+    "arm": "tp_uic_full",
+    "boost_db": 30.0,
+    "k": 3,
+    "bootstrap": 100,
+    "shrink": 0.7
+  },
+  "methods": {
+    "common_sinr_topk": {
+      "subset": [
+        0,
+        1,
+        5
+      ],
+      "worst_test_auc": 0.4722222222222222,
+      "mean_test_auc": 0.5462962962962963,
+      "worst_test_pd": 0.16666666666666666,
+      "per_target": {
+        "0": {
+          "test_auc": 0.5833333333333334,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        },
+        "1": {
+          "test_auc": 0.5833333333333334,
+          "test_pfa": 0.3333333333333333,
+          "test_pd": 0.3333333333333333
+        },
+        "2": {
+          "test_auc": 0.4722222222222222,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        }
+      }
+    },
+    "common_independent_greedy": {
+      "subset": [
+        0,
+        1,
+        4
+      ],
+      "worst_test_auc": 0.4166666666666667,
+      "mean_test_auc": 0.5,
+      "worst_test_pd": 0.0,
+      "per_target": {
+        "0": {
+          "test_auc": 0.5555555555555556,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        },
+        "1": {
+          "test_auc": 0.4166666666666667,
+          "test_pfa": 0.5,
+          "test_pd": 0.5
+        },
+        "2": {
+          "test_auc": 0.5277777777777778,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.0
+        }
+      }
+    },
+    "robust_corr_greedy_swap": {
+      "subset": [
+        0,
+        1,
+        4
+      ],
+      "worst_test_auc": 0.4166666666666667,
+      "mean_test_auc": 0.5,
+      "worst_test_pd": 0.0,
+      "per_target": {
+        "0": {
+          "test_auc": 0.5555555555555556,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        },
+        "1": {
+          "test_auc": 0.4166666666666667,
+          "test_pfa": 0.5,
+          "test_pd": 0.5
+        },
+        "2": {
+          "test_auc": 0.5277777777777778,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.0
+        }
+      }
+    }
+  },
+  "search_budget": {
+    "independent_states": 15,
+    "robust_states": 21,
+    "robust_complete_k_subsets": 10
+  },
+  "limitations": [
+    "only six calibration and six held-out samples per target",
+    "fixed shrinkage is used because nested tuning is unsupported at this sample size",
+    "post-IC SINR is a truth-assisted diagnostic baseline"
+  ]
+}

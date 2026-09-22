@@ -23,6 +23,7 @@ import pytest
 
 from isac_sim.core.config import Config, apply_overrides, apply_preset
 from isac_sim.receiver import cancellation as cx
+from isac_sim.receiver import cancellation_glrt as gl
 from isac_sim.receiver.cancellation.build_direct import (
     build_direct_sources,
     perturb_direct_sources,
@@ -230,3 +231,39 @@ def test_deeper_delta_is_worse_than_shallower_delta():
             vals.append(_struct_db(_kappa(cfg, make_obs(cfg, seed=seed))))
         meds.append(float(np.median(vals)))
     assert meds[0] > meds[1] > meds[2], f"depth must fall monotonically: {meds}"
+
+
+def test_direct_dd_uncertainty_enters_estimator_residual_covariance():
+    """The GLRT covariance must price the out-of-dictionary residual."""
+    cfg = make_cfg(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+    )
+    obs = make_obs(cfg, seed=4)
+    arms = cx.cancellation_arms(cfg, obs)
+    with_mismatch = gl.residual_model(cfg, obs, "tp_uic_full", arms)
+
+    cfg_zero = make_cfg(
+        cancellation__direct_estimation_sigma_delay_bins=0.0,
+        cancellation__direct_estimation_sigma_doppler_bins=0.0,
+    )
+    without_mismatch = gl.residual_model(cfg_zero, obs, "tp_uic_full", arms)
+    assert with_mismatch.cov.trace > without_mismatch.cov.trace
+    assert with_mismatch.cov.rank > without_mismatch.cov.rank
+
+
+def test_perfect_channel_does_not_pay_direct_dictionary_mismatch():
+    """An oracle that subtracts the true field leaves no direct mismatch."""
+    cfg = make_cfg(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+    )
+    obs = make_obs(cfg, seed=4)
+    arms = cx.cancellation_arms(cfg, obs)
+    with_mismatch = gl.residual_model(cfg, obs, "perfect_channel", arms)
+    cfg_zero = make_cfg(
+        cancellation__direct_estimation_sigma_delay_bins=0.0,
+        cancellation__direct_estimation_sigma_doppler_bins=0.0,
+    )
+    without_mismatch = gl.residual_model(cfg_zero, obs, "perfect_channel", arms)
+    assert with_mismatch.cov.trace == pytest.approx(without_mismatch.cov.trace)

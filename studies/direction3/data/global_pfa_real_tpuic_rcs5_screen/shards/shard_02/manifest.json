@@ -1,0 +1,52 @@
+{
+  "protocol": "tpuic_receiver_only_empirical_roc_v1",
+  "purpose": "Innovation-I receiver isolation; no network optimization",
+  "master_seed": 20260922,
+  "uavs": 6,
+  "targets_count": 3,
+  "receivers": [
+    2
+  ],
+  "targets": [
+    0
+  ],
+  "arms": [
+    "tp_uic_full"
+  ],
+  "calibration_scenes": 4,
+  "test_scenes": 8,
+  "realisations_per_scene_target_receiver": 2,
+  "p_fa": 0.1,
+  "target_rcs_m2": 5.0,
+  "area_xy_m": 800.0,
+  "m_rx": 4,
+  "total_power_w_per_uav": 1.0,
+  "sensing_fraction": 0.8,
+  "sensing_power_w_per_uav": 0.8,
+  "direct_gain_boost_db_grid": [
+    30.0
+  ],
+  "direct_estimation_sigma_delay_bins": 0.1,
+  "direct_estimation_sigma_doppler_bins": 0.1,
+  "belief_sigma_pos_m": 20.0,
+  "belief_sigma_vel_mps": 3.0,
+  "max_protected_targets": 3,
+  "fixed_network_variables": {
+    "power_optimization": false,
+    "formation_optimization": false,
+    "reporting_optimization": false,
+    "fusion_optimization": false,
+    "active_mask": "all UAVs active"
+  },
+  "primary_endpoints": [
+    "empirical_pd_at_empirically_calibrated_pfa",
+    "eta_survive_q",
+    "kappa_structural_db"
+  ],
+  "secondary_endpoints": [
+    "auc",
+    "identifiable_fraction",
+    "kappa_accounted_db",
+    "residual_covariance_calibration_error_db"
+  ]
+}

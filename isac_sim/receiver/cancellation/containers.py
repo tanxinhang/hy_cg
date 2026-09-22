@@ -22,6 +22,11 @@ class Observation:
     alpha_true: np.ndarray  # (Q,) 真值回波系数
     sigma2: float
     direct: List[DirectSource] = field(default_factory=list)
+    # Receiver-side direct-path parameter estimates used to build ``X``.
+    # ``direct`` remains the truth-only diagnostic list.  Keeping the estimated
+    # sources is necessary for a deployable residual covariance: DD mismatch
+    # must be linearised around what the receiver knows, not around truth.
+    direct_est: List[DirectSource] | None = None
     targets: List[TargetSource] = field(default_factory=list)
     # **信念侧**的目标源。上面的 ``targets`` 装的是真值源，所以没有这个字段，
     # 调用方就无法从目标的一个子集重建信念侧字典 —— 而这正是 V1.1 连续 DD

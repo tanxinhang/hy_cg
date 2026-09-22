@@ -1,0 +1,83 @@
+{
+  "protocol": "global_pfa_calibration_screen_v1",
+  "settings": {
+    "seed": 20260922,
+    "repeats": 300,
+    "n_cal": 64,
+    "n_test_per_repeat": 2000,
+    "uavs": 6,
+    "rho": 0.65,
+    "target_pfa": 0.05,
+    "positive_scale_mismatch": 0.0,
+    "signal_mean": 0.8
+  },
+  "results": [
+    {
+      "bits_per_uav": 2,
+      "method": "naive_independence",
+      "pfa": 0.018183333333333333,
+      "pd": 0.06247333333333333,
+      "pfa_error": -0.031816666666666674
+    },
+    {
+      "bits_per_uav": 2,
+      "method": "empirical_max",
+      "pfa": 0.014733333333333333,
+      "pd": 0.053525,
+      "pfa_error": -0.03526666666666667
+    },
+    {
+      "bits_per_uav": 2,
+      "method": "bounded_robust",
+      "pfa": 0.014733333333333333,
+      "pd": 0.053525,
+      "pfa_error": -0.03526666666666667
+    },
+    {
+      "bits_per_uav": 3,
+      "method": "naive_independence",
+      "pfa": 0.05014166666666667,
+      "pd": 0.13637833333333332,
+      "pfa_error": 0.00014166666666666494
+    },
+    {
+      "bits_per_uav": 3,
+      "method": "empirical_max",
+      "pfa": 0.026643333333333335,
+      "pd": 0.08452166666666666,
+      "pfa_error": -0.023356666666666668
+    },
+    {
+      "bits_per_uav": 3,
+      "method": "bounded_robust",
+      "pfa": 0.026643333333333335,
+      "pd": 0.08452166666666666,
+      "pfa_error": -0.023356666666666668
+    },
+    {
+      "bits_per_uav": 16,
+      "method": "naive_independence",
+      "pfa": 0.05977333333333333,
+      "pd": 0.15186166666666667,
+      "pfa_error": 0.009773333333333328
+    },
+    {
+      "bits_per_uav": 16,
+      "method": "empirical_max",
+      "pfa": 0.047981666666666666,
+      "pd": 0.13058666666666666,
+      "pfa_error": -0.0020183333333333373
+    },
+    {
+      "bits_per_uav": 16,
+      "method": "bounded_robust",
+      "pfa": 0.047981666666666666,
+      "pd": 0.13058666666666666,
+      "pfa_error": -0.0020183333333333373
+    }
+  ],
+  "finite_sample_note": {
+    "minimum_alpha_for_finite_conformal_threshold": 0.015384615384615385,
+    "minimum_calibration_samples_for_alpha_1e-3": 999
+  }
+}
