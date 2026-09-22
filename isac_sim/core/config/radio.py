@@ -11,6 +11,8 @@ class Radio:
     """发射功率、噪声地板、ISAC 功率划分与残余干扰。"""
 
     P_default: float = 1.0
+    # 可选逐 UAV 总功率。None 保持历史上的统一 P_default。
+    P_by_uav: tuple[float, ...] | None = None
     rho: float = 0.80  # 联合波形中的感知功率占比
     # 可选的逐 UAV 感知占比；每架 UAV 的总功率仍是 P_default 瓦。
     # 取 None 精确保持历史上的均匀划分。

@@ -50,6 +50,10 @@ def power_split(
     r, c = cfg.radio, cfg.comm
 
     P = np.full(M, r.P_default, dtype=float)
+    if r.P_by_uav is not None:
+        P = np.asarray(r.P_by_uav, dtype=float)
+        if P.shape != (M,) or not np.all(np.isfinite(P)) or np.any(P <= 0.0):
+            raise ValueError(f"P_by_uav must contain {M} finite positive powers")
     rho = r.rho
     if r.rho_by_uav is not None:
         rho = np.asarray(r.rho_by_uav, dtype=float)
