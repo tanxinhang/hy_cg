@@ -225,6 +225,11 @@ Single UAV、SINR Top-$K$、Proposed、All-UAV 和虚线 Oracle-$K$。任何主�
 
 ## 17. 检测信息链整改（2026-09-23）
 
+顺序研究门禁的最终机器可读裁决见
+[`RESEARCH_GATE_VERDICT_2026-09-23.json`](RESEARCH_GATE_VERDICT_2026-09-23.json)：
+TP-UIC 已降级为工程预处理，关联尚未证明超过 SINR Top-K，完整通信模型和系统级
+实验因此保持冻结。
+
 直达 DD Jacobian 已以 $[X_0,\sigma_\tau J_\tau,\sigma_\nu J_\nu]$ 进入估计器，并与 mismatch covariance 开关解耦。四臂 paired screen 中，Jacobian 将结构对消深度由 13.9 dB 提高至 31.8 dB，combined 将 H0 全残差白化功率/维数中位数由 nominal 的 21.12 降至 1.29；但 AUC 仍约 0.52，没有接近 perfect-channel 的 0.574。因此该修复只被认定为估计器与校准改善，不认定为检测增益。
 
 协同端已改为 association/fusion 共用 H0 covariance，并实现 Schur 条件信息增益。旧 6/6 样本 pilot 上仍未超过 truth-assisted SINR，故 association 保持冻结。详见 `SYSTEM_REMEDIATION_V3.md`。

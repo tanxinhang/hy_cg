@@ -1,0 +1,37 @@
+{
+  "protocol": "direction3_sequential_research_gates_v1",
+  "order": ["tp_uic_contribution", "association_over_sinr", "communication_system"],
+  "gates": {
+    "tp_uic_contribution": {
+      "status": "rejected_current_method",
+      "advance": false,
+      "primary_evidence": "data/detection_aware_tpuic_highxi_screen/summary.csv",
+      "screen_evidence": "data/tpuic_receiver_feasibility_screen6_mismatch_cov/summary.csv",
+      "decision": "Detection-aware selection chose TP-UIC full in 24/24 cases, but at +30 dB its AUC equalled plain LS and no-IC (0.611); perfect-channel reached 0.833.",
+      "allowed_claim": "TP-UIC is an optional engineering preprocessor with corrected residual covariance.",
+      "forbidden_claim": "TP-UIC provides an independent weak-target detection contribution."
+    },
+    "association_over_sinr": {
+      "status": "not_demonstrated",
+      "advance": false,
+      "primary_evidence": "data/association_nonenum_pilot/robust_result.json",
+      "independence_audit": "Each split contains only 3 independent scenes with 2 noise realizations per scene.",
+      "sinr_topk": {"worst_auc": 0.4722222222222222, "mean_auc": 0.5462962962962963, "worst_pd": 0.16666666666666666},
+      "proposed": {"worst_auc": 0.4166666666666667, "mean_auc": 0.5, "worst_pd": 0.0},
+      "decision": "The robust correlation-aware method did not exceed SINR Top-K; the small independent-scene count also prevents a definitive null result.",
+      "allowed_claim": "Association remains an unproven research hypothesis.",
+      "forbidden_claim": "Residual-aware association outperforms SINR Top-K."
+    },
+    "communication_system": {
+      "status": "blocked_by_upstream_gates",
+      "advance": false,
+      "required_gates": ["tp_uic_contribution", "association_over_sinr"],
+      "decision": "Do not build or run the complete communication model or system-level experiment until both upstream gates pass on independent evidence."
+    }
+  },
+  "next_allowed_work": [
+    "Treat TP-UIC as fixed preprocessing, not a claimed contribution.",
+    "If association is revisited, freeze its rule and minimum effect before collecting larger independent train/calibration/test scene sets.",
+    "Do not tune communication or system variables to rescue either failed gate."
+  ]
+}
