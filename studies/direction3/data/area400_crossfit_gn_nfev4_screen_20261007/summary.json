@@ -1,0 +1,86 @@
+{
+  "protocol": {
+    "master_seed": 20261007,
+    "boost_db": [
+      10.0,
+      50.0
+    ],
+    "looks": 2,
+    "fit": "opposite-look cross-fit",
+    "map_solver": "gn",
+    "gn_max_nfev": 4,
+    "test_scenes": 8
+  },
+  "evaluation": [
+    {
+      "boost_db": 10.0,
+      "receiver": "two_cpi",
+      "threshold": Infinity,
+      "test_auc": 0.984375,
+      "test_pfa": 0.0,
+      "test_pd": 0.0,
+      "n_calibration": 2,
+      "n_test": 8,
+      "oracle_auc_gap": -0.03125,
+      "oracle_pd_gap": 0.0
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": "crossfit_map",
+      "threshold": Infinity,
+      "test_auc": 1.0,
+      "test_pfa": 0.0,
+      "test_pd": 0.0,
+      "n_calibration": 2,
+      "n_test": 8,
+      "median_map_seconds_per_scene": 11.725832400028594,
+      "oracle_auc_gap": -0.046875,
+      "oracle_pd_gap": 0.0
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": "perfect_two_cpi",
+      "threshold": Infinity,
+      "test_auc": 0.953125,
+      "test_pfa": 0.0,
+      "test_pd": 0.0,
+      "n_calibration": 2,
+      "n_test": 8
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": "two_cpi",
+      "threshold": Infinity,
+      "test_auc": 0.828125,
+      "test_pfa": 0.0,
+      "test_pd": 0.0,
+      "n_calibration": 2,
+      "n_test": 8,
+      "oracle_auc_gap": 0.140625,
+      "oracle_pd_gap": 0.0
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": "crossfit_map",
+      "threshold": Infinity,
+      "test_auc": 0.96875,
+      "test_pfa": 0.0,
+      "test_pd": 0.0,
+      "n_calibration": 2,
+      "n_test": 8,
+      "median_map_seconds_per_scene": 11.74184819997754,
+      "oracle_auc_gap": 0.0,
+      "oracle_pd_gap": 0.0
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": "perfect_two_cpi",
+      "threshold": Infinity,
+      "test_auc": 0.96875,
+      "test_pfa": 0.0,
+      "test_pd": 0.0,
+      "n_calibration": 2,
+      "n_test": 8
+    }
+  ]
+}

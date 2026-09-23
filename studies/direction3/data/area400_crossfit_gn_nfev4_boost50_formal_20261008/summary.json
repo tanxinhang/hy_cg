@@ -1,0 +1,50 @@
+{
+  "protocol": {
+    "master_seed": 20261008,
+    "boost_db": [
+      50.0
+    ],
+    "looks": 2,
+    "fit": "opposite-look cross-fit",
+    "map_solver": "gn",
+    "gn_max_nfev": 4,
+    "test_scenes": 40
+  },
+  "evaluation": [
+    {
+      "boost_db": 50.0,
+      "receiver": "two_cpi",
+      "threshold": 119.6003537452396,
+      "test_auc": 0.6925,
+      "test_pfa": 0.025,
+      "test_pd": 0.025,
+      "n_calibration": 40,
+      "n_test": 40,
+      "oracle_auc_gap": 0.06187500000000001,
+      "oracle_pd_gap": 0.225
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": "crossfit_map",
+      "threshold": 23.448110682985885,
+      "test_auc": 0.758125,
+      "test_pfa": 0.0,
+      "test_pd": 0.2,
+      "n_calibration": 40,
+      "n_test": 40,
+      "median_map_seconds_per_scene": 11.203777800197713,
+      "oracle_auc_gap": -0.003750000000000031,
+      "oracle_pd_gap": 0.04999999999999999
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": "perfect_two_cpi",
+      "threshold": 22.837881418176934,
+      "test_auc": 0.754375,
+      "test_pfa": 0.025,
+      "test_pd": 0.25,
+      "n_calibration": 40,
+      "n_test": 40
+    }
+  ]
+}

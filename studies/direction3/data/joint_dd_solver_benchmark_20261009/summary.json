@@ -1,0 +1,111 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\joint_dd_solver_benchmark_20261009",
+    "scenes": 3,
+    "boost_db": 50.0,
+    "master_seed": 20261009
+  },
+  "aggregate": {
+    "grid": {
+      "median_seconds": 0.5600709499558434,
+      "median_objective": 6752441.543659962
+    },
+    "gn": {
+      "median_seconds": 0.5855978500330821,
+      "median_objective": 16386.601697657214
+    },
+    "speedup_grid_over_gn": 0.9564088220682563
+  },
+  "rows": [
+    {
+      "scene": 0,
+      "hypothesis": "h1",
+      "solver": "grid",
+      "seconds": 0.5904691000469029,
+      "objective": 4709987.8404877605
+    },
+    {
+      "scene": 0,
+      "hypothesis": "h1",
+      "solver": "gn",
+      "seconds": 0.4887157999910414,
+      "objective": 16402.025340838325,
+      "grid_gn_offset_rms_sigma": 0.2248766128733967
+    },
+    {
+      "scene": 0,
+      "hypothesis": "h0",
+      "solver": "grid",
+      "seconds": 0.5073092000093311,
+      "objective": 4700788.642444562
+    },
+    {
+      "scene": 0,
+      "hypothesis": "h0",
+      "solver": "gn",
+      "seconds": 0.4606217001564801,
+      "objective": 16372.730371374953,
+      "grid_gn_offset_rms_sigma": 0.22460185150435807
+    },
+    {
+      "scene": 1,
+      "hypothesis": "h1",
+      "solver": "grid",
+      "seconds": 0.5851626999210566,
+      "objective": 49083953.50753262
+    },
+    {
+      "scene": 1,
+      "hypothesis": "h1",
+      "solver": "gn",
+      "seconds": 0.5883533000014722,
+      "objective": 16400.47302393947,
+      "grid_gn_offset_rms_sigma": 0.4115022083168791
+    },
+    {
+      "scene": 1,
+      "hypothesis": "h0",
+      "solver": "grid",
+      "seconds": 0.5349791999906301,
+      "objective": 49078500.595440276
+    },
+    {
+      "scene": 1,
+      "hypothesis": "h0",
+      "solver": "gn",
+      "seconds": 0.5828424000646919,
+      "objective": 16272.409933027631,
+      "grid_gn_offset_rms_sigma": 0.41156739423641303
+    },
+    {
+      "scene": 2,
+      "hypothesis": "h1",
+      "solver": "grid",
+      "seconds": 0.5899934000335634,
+      "objective": 6749317.181259674
+    },
+    {
+      "scene": 2,
+      "hypothesis": "h1",
+      "solver": "gn",
+      "seconds": 0.5988450001459569,
+      "objective": 16286.520846208232,
+      "grid_gn_offset_rms_sigma": 0.28489480713283377
+    },
+    {
+      "scene": 2,
+      "hypothesis": "h0",
+      "solver": "grid",
+      "seconds": 0.5157604000996798,
+      "objective": 6755565.90606025
+    },
+    {
+      "scene": 2,
+      "hypothesis": "h0",
+      "solver": "gn",
+      "seconds": 0.6024923000950366,
+      "objective": 16461.34222491519,
+      "grid_gn_offset_rms_sigma": 0.285406209072412
+    }
+  ]
+}

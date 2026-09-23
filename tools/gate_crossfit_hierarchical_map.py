@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import time
 from pathlib import Path
 
 import numpy as np
@@ -66,14 +67,21 @@ def _score(cfg, obs, target, arm):
     ).statistic
 
 
-def _crossfit(cfg, observations, target):
+def _crossfit(cfg, observations, target, solver, gn_max_nfev):
+    started = time.perf_counter()
     total = 0.0
     for held_index in range(2):
         reference = observations[1 - held_index]
-        sources = cx.refine_direct_dd_joint(cfg, [reference])
+        if solver == "grid":
+            sources = cx.refine_direct_dd_joint(cfg, [reference])
+        elif solver == "gn":
+            sources = cx.refine_direct_dd_joint_gn(
+                cfg, [reference], max_nfev=gn_max_nfev)
+        else:
+            raise ValueError(f"unknown MAP solver {solver!r}")
         held = cx.apply_direct_dd(cfg, observations[held_index], sources)
         total += _score(cfg, held, target, "tp_uic_full")
-    return float(total)
+    return float(total), float(time.perf_counter() - started)
 
 
 def _auc(rows, prefix):
@@ -92,6 +100,8 @@ def main():
     parser.add_argument("--receiver", type=int, default=0)
     parser.add_argument("--target", type=int, default=1)
     parser.add_argument("--boost-db", default="10,50")
+    parser.add_argument("--map-solver", choices=("grid", "gn"), default="grid")
+    parser.add_argument("--gn-max-nfev", type=int, default=4)
     args = parser.parse_args()
     boosts = tuple(float(v) for v in args.boost_db.split(","))
     args.out.mkdir(parents=True, exist_ok=True)
@@ -114,8 +124,10 @@ def main():
                                 ("perfect_channel", "perfect_two_cpi")):
                 row[f"{prefix}_h0"] = sum(_score(cfg, obs, args.target, arm) for obs in h0)
                 row[f"{prefix}_h1"] = sum(_score(cfg, obs, args.target, arm) for obs in h1)
-            row["crossfit_map_h0"] = _crossfit(cfg, h0, args.target)
-            row["crossfit_map_h1"] = _crossfit(cfg, h1, args.target)
+            row["crossfit_map_h0"], row["map_seconds_h0"] = _crossfit(
+                cfg, h0, args.target, args.map_solver, args.gn_max_nfev)
+            row["crossfit_map_h1"], row["map_seconds_h1"] = _crossfit(
+                cfg, h1, args.target, args.map_solver, args.gn_max_nfev)
             records.append(row)
 
     evaluation = []
@@ -138,6 +150,11 @@ def main():
                       "n_test": len(partition.test.rows)}
             evaluation.append(result)
             by_name[name] = result
+        map_seconds = [float(r["map_seconds_h0"]) + float(r["map_seconds_h1"])
+                       for r in partition.test.rows]
+        by_name["crossfit_map"]["median_map_seconds_per_scene"] = float(
+            np.median(map_seconds)
+        )
         oracle = by_name["perfect_two_cpi"]
         for name in ("two_cpi", "crossfit_map"):
             by_name[name]["oracle_auc_gap"] = (
@@ -151,7 +168,9 @@ def main():
         writer.writeheader()
         writer.writerows(records)
     payload = {"protocol": {"master_seed": args.master_seed, "boost_db": boosts,
-                             "looks": 2, "fit": "opposite-look cross-fit",
+        "looks": 2, "fit": "opposite-look cross-fit",
+                             "map_solver": args.map_solver,
+                             "gn_max_nfev": args.gn_max_nfev,
                              "test_scenes": args.test_scenes},
                "evaluation": evaluation}
     (args.out / "summary.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")

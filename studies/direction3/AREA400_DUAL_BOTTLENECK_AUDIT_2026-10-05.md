@@ -134,6 +134,38 @@ does not independently pass a strict superiority gate.  Neither result makes
 the 5x5 grid production-ready; the next implementation task is an equivalent
 Gauss--Newton/LM solver followed by a numerical-equivalence and runtime gate.
 
+### Bounded Gauss--Newton replacement gate
+
+A trust-region reflective Gauss--Newton solver now profiles the same
+look-specific complex gains, minimises the same target-protected MAP residual,
+and enforces the same +/-2 sigma DD box.  Four function evaluations were fixed
+from an independent three-scene runtime probe before formal confirmation.
+
+The matched +50 dB microbenchmark gives a median pure-solver time of 0.246 s
+for GN4 versus 0.551 s for the 5x5 grid, a **2.24x solver speedup**.  Every
+probed H0/H1 GN4 objective was lower than the coarse-grid objective.  The gain
+is not an end-to-end 2.24x speedup: TP-UIC, covariance construction and GLRT
+remain common fixed costs.
+
+On the same formal seed and 1/40/40 split used above, GN4 produces:
+
+| Solver | AUC | PFA | PD | Threshold | Median cross-fit stage / scene |
+|---|---:|---:|---:|---:|---:|
+| 5x5 grid | 0.754 | 0.000 | 0.200 | 25.453 | not instrumented in frozen run |
+| GN4 | 0.758 | 0.000 | 0.200 | 23.448 | 11.204 s |
+
+The paired GN4-minus-grid AUC change is +0.0038 with a 95% interval of
+[-0.0244, +0.0294]; the PD change is exactly 0 with interval [0, 0].  Final
+statistics have Pearson correlation 0.988 and median relative difference
+1.63%.  GN4 therefore passes numerical/detection non-degradation and pure MAP
+runtime gates.  It replaces the grid as the experimental solver default.
+
+The broader receiver is **not yet runtime-closed**: the formal GN4 cross-fit
+stage still costs about 11.2 s per scene in this Python harness.  The next
+runtime target is shared dictionary/Jacobian caching and analytic manifold
+Jacobians; claiming a production-ready end-to-end acceleration now would be
+incorrect.
+
 The next detector candidate remains multi-look evidence accumulation, with
 1/2/4-look latency curves and a larger calibration partition.  Promotion
 requires both:
@@ -150,5 +182,7 @@ Machine evidence:
 - `data/area400_crossfit_map_screen_20261007/`
 - `data/area400_crossfit_map_boost30_formal_20261008/`
 - `data/area400_crossfit_map_boost50_formal_20261008/`
-- `data/area400_crossfit_map_formal_analysis_20261008.json`
+- `data/area400_crossfit_map_formal_analysis_20261008/summary.json`
+- `data/area400_crossfit_gn_nfev4_boost50_formal_20261008/`
+- `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

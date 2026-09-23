@@ -31,18 +31,7 @@ def refine_direct_dd_joint(
     if sigma_l == 0.0 and sigma_k == 0.0:
         return initial
 
-    projected = []
-    for obs in observations:
-        protect = _orth(
-            np.asarray(obs.basis_belief, dtype=complex)
-            if obs.basis_belief is not None
-            else np.zeros((obs.y.size, 0), dtype=complex)
-        )
-
-        def outside(v, basis=protect):
-            return v - basis @ (basis.conj().T @ v) if basis.shape[1] else v
-
-        projected.append((outside, outside(np.asarray(obs.y, complex)), float(obs.sigma2)))
+    projected = _projected_looks(observations)
 
     sources = list(initial)
     offsets_l = np.linspace(-radius_sigma * sigma_l, radius_sigma * sigma_l, grid_points)
@@ -67,6 +56,23 @@ def refine_direct_dd_joint(
                         best = (key, trial)
             sources[index] = best[1]
     return sources
+
+
+def _projected_looks(observations):
+    """Build target-protected receiver views without consulting truth fields."""
+    projected = []
+    for obs in observations:
+        protect = _orth(
+            np.asarray(obs.basis_belief, dtype=complex)
+            if obs.basis_belief is not None
+            else np.zeros((obs.y.size, 0), dtype=complex)
+        )
+
+        def outside(v, basis=protect):
+            return v - basis @ (basis.conj().T @ v) if basis.shape[1] else v
+
+        projected.append((outside, outside(np.asarray(obs.y, complex)), float(obs.sigma2)))
+    return projected
 
 
 def _profiled_loss(cfg, sources, projected) -> float:
