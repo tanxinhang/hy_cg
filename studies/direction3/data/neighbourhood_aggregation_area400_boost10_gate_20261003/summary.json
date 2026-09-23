@@ -1,0 +1,38 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\neighbourhood_aggregation_area400_boost10_gate_20261003",
+    "train_scenes": 20,
+    "calibration_scenes": 20,
+    "test_scenes": 40,
+    "master_seed": 20261003,
+    "receiver": 0,
+    "target": 1,
+    "boost_db": 10.0,
+    "area_xy": 400.0,
+    "direct_dd_sigma": 0.1,
+    "modes": [
+      "max",
+      "logmeanexp"
+    ],
+    "p_fa": 0.05
+  },
+  "gate": {
+    "train_auc_margin": 0.01,
+    "test_auc_margin": 0.02,
+    "test_pd_no_worse": true
+  },
+  "train_auc": {
+    "max": 0.6425,
+    "logmeanexp": 0.6325
+  },
+  "selected": "max",
+  "evaluation": {
+    "max": {
+      "threshold": 12.330894801561877,
+      "auc": 0.8225,
+      "pfa": 0.025,
+      "pd": 0.35
+    }
+  },
+  "decision": "retain_max"
+}
