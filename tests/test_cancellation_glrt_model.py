@@ -120,6 +120,57 @@ def test_null_covariance_threshold_reduces_to_standard_for_same_model():
     assert calibrated.threshold == pytest.approx(standard.threshold, rel=1e-10)
 
 
+def test_zero_radius_neighbourhood_is_exactly_the_centre_glrt():
+    cfg = make_cfg()
+    obs, _, target = make_trial(cfg)
+    arms, plans = make_arms(cfg, obs)
+    model = gl.residual_model(cfg, obs, "tp_uic_full", arms, plans=plans)
+    centre = gl.target_conditioned_glrt(
+        cfg, obs, arms["tp_uic_full"], model, target=target
+    )
+    local = gl.target_neighbourhood_glrt(
+        cfg, obs, arms["tp_uic_full"], model, target=target,
+        radius_bins=0.0, grid_points=3,
+    )
+    assert local.statistic == pytest.approx(centre.statistic, rel=1e-12)
+    assert local.threshold == pytest.approx(centre.threshold, rel=1e-12)
+    assert local.neighbourhood_size == 1
+
+
+def test_neighbourhood_max_uses_a_familywise_threshold():
+    cfg = make_cfg()
+    obs, _, target = make_trial(cfg)
+    arms, plans = make_arms(cfg, obs)
+    model = gl.residual_model(cfg, obs, "tp_uic_full", arms, plans=plans)
+    centre = gl.target_conditioned_glrt(
+        cfg, obs, arms["tp_uic_full"], model, target=target
+    )
+    local = gl.target_neighbourhood_glrt(
+        cfg, obs, arms["tp_uic_full"], model, target=target,
+        radius_bins=0.25, grid_points=3,
+    )
+    assert local.statistic >= centre.statistic - 1e-12
+    assert local.threshold > centre.threshold
+    assert local.neighbourhood_size == 9
+
+
+def test_whitened_energy_normalization_requires_calibrated_threshold():
+    cfg = make_cfg(**{
+        "cancellation.target_statistic_normalization": "whitened_energy",
+    })
+    obs, _, target = make_trial(cfg)
+    arms, plans = make_arms(cfg, obs)
+    model = gl.residual_model(cfg, obs, "tp_uic_full", arms, plans=plans)
+    out = gl.target_conditioned_glrt(
+        cfg, obs, arms["tp_uic_full"], model, target=target
+    )
+    assert out.statistic == pytest.approx(
+        out.raw_statistic / out.whitened_residual_power
+    )
+    assert np.isinf(out.threshold)
+    assert not out.detected
+
+
 def test_oracle_arms_do_not_depend_on_the_observation():
     """``no_ic`` and ``perfect_channel`` remove a constant, so ``F = 0``.
 

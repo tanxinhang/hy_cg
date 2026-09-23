@@ -149,7 +149,7 @@ def _orth(A: np.ndarray, rtol: float = 1e-10) -> np.ndarray:
     return U[:, keep]
 
 
-def interference_target_conflict(obs, target: int) -> float:
+def interference_target_conflict(obs, target: int, interference_block: int = 1) -> float:
     """
     Largest squared canonical correlation between the assumed direct-interference
     subspace span(X) and target-q belief subspace span(A_q).
@@ -163,7 +163,11 @@ def interference_target_conflict(obs, target: int) -> float:
     sel = ids == int(target)
     if not np.any(sel) or obs.X.shape[1] == 0:
         return 0.0
-    Ui = _orth(obs.X)
+    # Conflict is a property of the nominal physical direct manifold, not of
+    # how many nuisance Jacobians a particular estimator chooses to append.
+    # Otherwise the stress axis itself changes across the four-arm ablation.
+    X_nominal = obs.X[:, ::max(int(interference_block), 1)]
+    Ui = _orth(X_nominal)
     Ut = _orth(obs.A[:, sel])
     if Ui.shape[1] == 0 or Ut.shape[1] == 0:
         return 0.0
@@ -233,18 +237,24 @@ def _all_arms(cfg, obs) -> dict:
     return cx.cancellation_arms(cfg, obs, weak_target=int(obs.weak_index))
 
 
-def _run_arm(cfg, obs, arm: str, results: dict):
+def _run_arm(cfg, obs, arm: str, results: dict, *, dictionary: str = "belief"):
     if arm not in results:
         raise KeyError(f"arm {arm!r} was not produced; available={sorted(results)}")
     result = results[arm]
-    model = gl.residual_model(cfg, obs, arm, results)
-    out = gl.target_conditioned_glrt(
-        cfg, obs, result, model,
-        target=int(obs.weak_index),
-        p_fa=float(cfg.detect.Pfa_target),
-        dictionary="belief",
-        centre_only=True,
-    )
+    model = gl.residual_model(cfg, obs, arm, results, dictionary=dictionary)
+    if str(cfg.cancellation.target_glrt_mode) == "neighbourhood_max":
+        out = gl.target_neighbourhood_glrt(
+            cfg, obs, result, model, target=int(obs.weak_index),
+            p_fa=float(cfg.detect.Pfa_target), dictionary=dictionary,
+        )
+    else:
+        out = gl.target_conditioned_glrt(
+            cfg, obs, result, model,
+            target=int(obs.weak_index),
+            p_fa=float(cfg.detect.Pfa_target),
+            dictionary=dictionary,
+            centre_only=True,
+        )
     return result, model, out
 
 
@@ -282,6 +292,26 @@ def _make_cfg(args) -> Config:
         "cancellation.max_protected_targets": int(args.max_protected_targets),
         "cancellation.tangent_order": 1,
         "cancellation.belief_error_in_cres": True,
+        "cancellation.interference_tangent_order": int(args.interference_tangent_order),
+        "cancellation.interference_uncertainty_weighted": bool(
+            args.interference_uncertainty_weighted
+        ),
+        "cancellation.direct_mismatch_in_cres": bool(args.direct_mismatch_in_cres),
+        "cancellation.direct_mismatch_covariance_model": str(
+            args.direct_mismatch_covariance_model
+        ),
+        "cancellation.direct_mismatch_covariance_scale": float(
+            args.direct_mismatch_covariance_scale
+        ),
+        "cancellation.oracle_direct_residual_in_cres": bool(
+            args.oracle_direct_residual_in_cres
+        ),
+        "cancellation.target_glrt_mode": str(args.target_glrt_mode),
+        "cancellation.target_glrt_radius_bins": float(args.target_glrt_radius_bins),
+        "cancellation.target_glrt_grid_points": int(args.target_glrt_grid_points),
+        "cancellation.target_statistic_normalization": str(
+            args.target_statistic_normalization
+        ),
         "cancellation.direct_estimation_sigma_delay_bins": float(args.direct_dd_sigma),
         "cancellation.direct_estimation_sigma_doppler_bins": float(args.direct_dd_sigma),
 
@@ -342,6 +372,8 @@ def _record_one(
     realisation: int,
     boost_db: float,
     arms: tuple[str, ...],
+    direct_error_scope: str,
+    target_dictionary: str,
 ):
     geom_belief = belief.as_geometry(truth)
 
@@ -365,9 +397,17 @@ def _record_one(
         int(realisation),
         404,
     ])
+    if direct_error_scope == "scene":
+        direct_error_rng = np.random.default_rng([
+            int(cfg.run.seed), int(scene_id), int(receiver), int(target), 405,
+        ])
+    elif direct_error_scope == "realisation":
+        direct_error_rng = None
+    else:
+        raise ValueError(f"unknown direct-error scope {direct_error_scope!r}")
     obs1, obs0 = cx.build_observation_pair(
         cfg, truth, geom_belief, base, int(receiver),
-        rng=obs_rng,
+        rng=obs_rng, direct_error_rng=direct_error_rng,
         sense_power=sense_power,
         radiated_power=radiated_power,
         processing_gain=processing_gain,
@@ -378,7 +418,10 @@ def _record_one(
         share_noise=False,
     )
 
-    xi = interference_target_conflict(obs1, target)
+    xi = interference_target_conflict(
+        obs1, target,
+        1 + 2 * int(cfg.cancellation.interference_tangent_order),
+    )
     inr_db = direct_inr_db(obs1)
 
     # The protection budget selects targets by WEAKEST echo power
@@ -408,8 +451,12 @@ def _record_one(
                 )
             selected_base_arm = selected1
         else:
-            r1, _m1, g1 = _run_arm(cfg, obs1, arm, results1)
-            _r0, _m0, g0 = _run_arm(cfg, obs0, arm, results0)
+            r1, _m1, g1 = _run_arm(
+                cfg, obs1, arm, results1, dictionary=target_dictionary
+            )
+            _r0, _m0, g0 = _run_arm(
+                cfg, obs0, arm, results0, dictionary=target_dictionary
+            )
             selected_base_arm = arm
 
         rows.append({
@@ -429,9 +476,21 @@ def _record_one(
 
             "stat_h0": float(g0.statistic),
             "stat_h1": float(g1.statistic),
+            "raw_stat_h0": float(g0.raw_statistic),
+            "raw_stat_h1": float(g1.raw_statistic),
+            "target_direction_inflation_h0": float(
+                g0.raw_statistic / max(g0.dof_real / 2.0, 1.0)
+            ),
+            "whitened_residual_power_h0": float(g0.whitened_residual_power),
+            "whitened_residual_ratio_h0": float(
+                g0.whitened_residual_power / max(obs0.y.size, 1)
+            ),
             "dof_real": int(g1.dof_real),
             "identifiable_fraction": float(g1.rho_weighted),
             "ncp_unit": float(g1.ncp_unit),
+            "glrt_neighbourhood_size": int(g1.neighbourhood_size),
+            "glrt_selected_offset_delay": float(g1.selected_offset_delay),
+            "glrt_selected_offset_doppler": float(g1.selected_offset_doppler),
 
             "kappa_accounted_db": float(r1.kappa_db),
             "kappa_structural_db": _depth_db(
@@ -472,7 +531,19 @@ def _write_csv(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
-def _summarise(rows: list[dict], p_fa: float):
+def _calibrated_threshold(values: np.ndarray, p_fa: float, mode: str) -> float:
+    if mode == "empirical_quantile":
+        return float(np.quantile(values, 1.0 - float(p_fa), method="higher"))
+    if mode != "split_conformal":
+        raise ValueError(f"unknown threshold calibration mode {mode!r}")
+    n = int(values.size)
+    rank = int(math.ceil((n + 1) * (1.0 - float(p_fa))))
+    if rank > n:
+        return float("inf")
+    return float(np.sort(values)[rank - 1])
+
+
+def _summarise(rows: list[dict], p_fa: float, threshold_calibration: str):
     calibration = defaultdict(list)
     test = defaultdict(list)
 
@@ -490,9 +561,7 @@ def _summarise(rows: list[dict], p_fa: float):
             continue
 
         cal_h0 = np.asarray([r["stat_h0"] for r in cal_rows], dtype=float)
-        threshold = float(np.quantile(
-            cal_h0, 1.0 - float(p_fa), method="higher"
-        ))
+        threshold = _calibrated_threshold(cal_h0, p_fa, threshold_calibration)
 
         h0 = np.asarray([r["stat_h0"] for r in test_rows], dtype=float)
         h1 = np.asarray([r["stat_h1"] for r in test_rows], dtype=float)
@@ -569,6 +638,8 @@ def run(args) -> dict:
     arms = tuple(v.strip() for v in args.arms.split(",") if v.strip())
     if not arms:
         raise ValueError("at least one arm is required")
+    if args.target_dictionary == "truth" and DETECTION_AWARE_ARM in arms:
+        raise ValueError("truth-template oracle cannot use detection-aware arm selection")
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -596,9 +667,13 @@ def run(args) -> dict:
                             realisation=realisation,
                             boost_db=boost_db,
                             arms=arms,
+                            direct_error_scope=str(args.direct_error_scope),
+                            target_dictionary=str(args.target_dictionary),
                         ))
 
-    summaries, scene_rows = _summarise(rows, float(args.p_fa))
+    summaries, scene_rows = _summarise(
+        rows, float(args.p_fa), str(args.threshold_calibration)
+    )
     _write_csv(out_dir / "records.csv", rows)
     _write_csv(out_dir / "summary.csv", summaries)
     _write_csv(out_dir / "scene_summary.csv", scene_rows)
@@ -606,6 +681,15 @@ def run(args) -> dict:
     manifest = {
         "protocol": "tpuic_receiver_only_empirical_roc_v1",
         "purpose": "Innovation-I receiver isolation; no network optimization",
+        "observation_pairing_scope": "one receiver-target pair",
+        "global_no_target_h0_available": False,
+        "multi_target_joint_alarm_compatible": False,
+        "multi_target_warning": (
+            "Each target q uses a separately seeded observation and an H0 "
+            "that excludes only q while retaining other targets. Rows with "
+            "different target values must not be combined as one physical "
+            "multi-target global-null observation."
+        ),
         "master_seed": int(args.master_seed),
         "uavs": int(args.uavs),
         "targets_count": int(args.targets_count),
@@ -616,6 +700,8 @@ def run(args) -> dict:
         "test_scenes": int(args.test_scenes),
         "realisations_per_scene_target_receiver": int(args.realisations),
         "p_fa": float(args.p_fa),
+        "threshold_calibration": str(args.threshold_calibration),
+        "direct_error_scope": str(args.direct_error_scope),
         "target_rcs_m2": float(args.target_rcs),
         "area_xy_m": float(args.area_xy),
         "m_rx": int(args.m_rx),
@@ -627,6 +713,21 @@ def run(args) -> dict:
         "direct_gain_boost_db_grid": list(boosts),
         "direct_estimation_sigma_delay_bins": float(args.direct_dd_sigma),
         "direct_estimation_sigma_doppler_bins": float(args.direct_dd_sigma),
+        "interference_tangent_order": int(args.interference_tangent_order),
+        "interference_uncertainty_weighted": bool(args.interference_uncertainty_weighted),
+        "direct_mismatch_in_cres": bool(args.direct_mismatch_in_cres),
+        "direct_mismatch_covariance_model": str(
+            args.direct_mismatch_covariance_model
+        ),
+        "direct_mismatch_covariance_scale": float(
+            args.direct_mismatch_covariance_scale
+        ),
+        "oracle_direct_residual_in_cres": bool(args.oracle_direct_residual_in_cres),
+        "target_glrt_mode": str(args.target_glrt_mode),
+        "target_dictionary": str(args.target_dictionary),
+        "target_glrt_radius_bins": float(args.target_glrt_radius_bins),
+        "target_glrt_grid_points": int(args.target_glrt_grid_points),
+        "target_statistic_normalization": str(args.target_statistic_normalization),
         "belief_sigma_pos_m": float(args.belief_pos_sigma),
         "belief_sigma_vel_mps": float(args.belief_vel_sigma),
         "max_protected_targets": int(args.max_protected_targets),
@@ -722,6 +823,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--test-scenes", type=int, default=4)
     p.add_argument("--realisations", type=int, default=16)
     p.add_argument("--p-fa", type=float, default=0.05)
+    p.add_argument("--threshold-calibration",
+                   choices=("empirical_quantile", "split_conformal"),
+                   default="empirical_quantile")
 
     # Stress axes.
     p.add_argument(
@@ -732,6 +836,27 @@ def build_parser() -> argparse.ArgumentParser:
         "--direct-dd-sigma", type=float, default=0.10,
         help="std. dev. of direct-path delay and Doppler estimation error [bins]",
     )
+    p.add_argument("--direct-error-scope", choices=("realisation", "scene"),
+                   default="realisation",
+                   help="hold DD error fixed per scene or redraw per realisation")
+    p.add_argument("--interference-tangent-order", type=int, choices=(0, 1), default=0)
+    p.add_argument("--interference-uncertainty-weighted", action="store_true")
+    p.add_argument("--no-direct-mismatch-in-cres", dest="direct_mismatch_in_cres",
+                   action="store_false")
+    p.set_defaults(direct_mismatch_in_cres=True)
+    p.add_argument("--direct-mismatch-covariance-model",
+                   choices=("first_order", "sigma_point"), default="first_order")
+    p.add_argument("--direct-mismatch-covariance-scale", type=float, default=1.0)
+    p.add_argument("--oracle-direct-residual-in-cres", action="store_true",
+                   help="diagnostic truth-leaking rank-one C_res correction")
+    p.add_argument("--target-glrt-mode", choices=("centre", "neighbourhood_max"),
+                   default="centre")
+    p.add_argument("--target-dictionary", choices=("belief", "truth"),
+                   default="belief", help="truth is an oracle diagnostic only")
+    p.add_argument("--target-glrt-radius-bins", type=float, default=0.0)
+    p.add_argument("--target-glrt-grid-points", type=int, default=3)
+    p.add_argument("--target-statistic-normalization",
+                   choices=("none", "whitened_energy"), default="none")
     p.add_argument("--belief-pos-sigma", type=float, default=20.0)
     p.add_argument("--belief-vel-sigma", type=float, default=3.0)
     # Protection budget.  1 = protect ONE target (the weakest by echo power).

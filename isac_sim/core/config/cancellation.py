@@ -57,6 +57,9 @@ class Cancellation:
     # 每个在发照射机的分数 DD 切向列数。默认 0 = 假设直连时延/多普勒由共享位置算出。
     # 加切向列是在建模残余失配，代价是可测的深度损失 —— 当鲁棒性轴用，不要当基线。
     interference_tangent_order: int = 0
+    # Scale direct-path Jacobians by their delay/Doppler uncertainty.  A unit
+    # coefficient prior then corresponds to a one-sigma offset.
+    interference_uncertainty_weighted: bool = False
     # --- 目标保护 ---------------------------------------------------------
     protect_targets: bool = True
     # 一个接收机保护多少个目标。
@@ -114,6 +117,16 @@ class Cancellation:
     joint_refine: bool = True
     # 形成检测统计量时用的局部 DD 搜索半宽。
     search_half_width: int = 1
+    # Detector-side target mismatch treatment. ``centre`` preserves the
+    # published single-location GLRT; ``neighbourhood_max`` searches a local
+    # DD grid and requires a family-wise or empirical maximum-statistic gate.
+    target_glrt_mode: str = "centre"
+    target_glrt_radius_bins: float = 0.0
+    target_glrt_grid_points: int = 3
+    # Optional detector-level scale robustness. ``whitened_energy`` is an
+    # ACE-like ratio between target projection energy and total whitened
+    # residual energy; its gate must be calibrated for this ratio statistic.
+    target_statistic_normalization: str = "none"
     # --- 记账 -------------------------------------------------------------
     hw_ceiling_db: float = 60.0
     # --- 生产接线（实验性） -----------------------------------------------
@@ -141,6 +154,21 @@ class Cancellation:
     # 误差的 bin、直连场仍用真 bin ⇒ kappa 由数据决定（逐位不变由 tests/test_direct_estimation_error.py 钉住）。
     direct_estimation_sigma_delay_bins: float = 0.0
     direct_estimation_sigma_doppler_bins: float = 0.0
+    # Independent ablation switch: model DD mismatch in C_res even when the
+    # cancellation dictionary does not (or does) contain its Jacobians.
+    direct_mismatch_in_cres: bool = True
+    # ``first_order`` preserves the legacy Jacobian propagation.  ``sigma_point``
+    # propagates a 3x3 Gaussian cubature rule through the exact DD manifold and
+    # the actual cancellation map, retaining post-tangent curvature energy.
+    direct_mismatch_covariance_model: str = "first_order"
+    # Nonnegative loading of the physical DD-mismatch covariance block.  The
+    # default reproduces the first-order model.  Pilot studies may freeze this
+    # value from calibration H0 only; it must not be tuned on test detections.
+    direct_mismatch_covariance_scale: float = 1.0
+    # Diagnostic upper bound only: add the simulator-known post-cancellation
+    # direct residual direction to C_res.  This leaks truth and is not a
+    # deployable receiver; it tests whether learning that direction is useful.
+    oracle_direct_residual_in_cres: bool = False
     # --- 残余干扰记账口径 -------------------------------------------------
     # ``measured``（默认）：i_res = ||x-f(x)||^2 + ||f(n)||^2，逐位不变。⚠️ 第二项是
     # **被减掉的**噪声（占 ||n||^2 的 0.12%），却被记成残余干扰并占 i_res 的 99.8%。

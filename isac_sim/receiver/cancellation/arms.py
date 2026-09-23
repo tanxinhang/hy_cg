@@ -73,9 +73,10 @@ def cancellation_arms(
     )
     parts: Dict[str, _Arm] = {}
     gate, supported = build_basic_arms(ctx, parts, only=only)
-    if only is None:
+    if only is None or only == "adaptive_soft_tpuic":
         soft_belief = ctx.weak_block if ctx.weak_block is not None else ctx.belief
         build_adaptive_arm(ctx, parts, soft_belief)
+    if only is None:
         zero = np.zeros(ctx.n_bins, dtype=complex)
         parts["perfect_channel"] = _Arm(
             "perfect_channel", ctx.x.copy(), zero.copy(), zero.copy(),

@@ -35,6 +35,8 @@ def _direct_mismatch_factor(cfg, obs: Observation, basis, small, gain: float) ->
     """
     if float(gain) == 0.0:
         return np.zeros((obs.y.size, 0), dtype=complex)
+    if not bool(cfg.cancellation.direct_mismatch_in_cres):
+        return np.zeros((obs.y.size, 0), dtype=complex)
     sources = obs.direct_est
     if not sources:
         return np.zeros((obs.y.size, 0), dtype=complex)
@@ -74,7 +76,50 @@ def _direct_mismatch_factor(cfg, obs: Observation, basis, small, gain: float) ->
     factor = np.column_stack(columns)
     if basis.shape[1]:
         factor = factor - basis @ (small @ (basis.conj().T @ factor))
-    return float(gain) * factor
+    scale = float(cfg.cancellation.direct_mismatch_covariance_scale)
+    if not np.isfinite(scale) or scale < 0.0:
+        raise ValueError("direct_mismatch_covariance_scale must be finite and nonnegative")
+    return float(gain) * math.sqrt(scale) * factor
+
+
+def _direct_mismatch_sigma_point_factor(
+    cfg, obs: Observation, basis, small, gain: float
+) -> np.ndarray:
+    """Exact-manifold Gaussian cubature for post-cancellation DD mismatch.
+
+    Each direct coefficient has random unit phase, so its unconditional mean is
+    zero.  The returned columns factor the *second moment* after the actual
+    cancellation map; unlike the Jacobian factor, curvature energy survives
+    when the fitted dictionary already contains first-order tangents.
+    """
+    if float(gain) == 0.0 or not bool(cfg.cancellation.direct_mismatch_in_cres):
+        return np.zeros((obs.y.size, 0), dtype=complex)
+    sigma_l = max(float(cfg.cancellation.direct_estimation_sigma_delay_bins), 0.0)
+    sigma_k = max(float(cfg.cancellation.direct_estimation_sigma_doppler_bins), 0.0)
+    if (sigma_l == 0.0 and sigma_k == 0.0) or not obs.direct_est:
+        return np.zeros((obs.y.size, 0), dtype=complex)
+
+    from isac_sim.receiver.cancellation.dictionaries import direct_dictionary
+
+    nodes = (-math.sqrt(3.0), 0.0, math.sqrt(3.0))
+    weights = (1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0)
+    columns = []
+    for src in obs.direct_est:
+        for ik, zk in enumerate(nodes):
+            for il, zl in enumerate(nodes):
+                shifted = replace(
+                    src,
+                    doppler_bin=float(src.doppler_bin) + zk * sigma_k,
+                    delay_bin=float(src.delay_bin) + zl * sigma_l,
+                )
+                v = direct_dictionary(cfg, [shifted], tangent_order=0)[:, 0]
+                if basis.shape[1]:
+                    v = v - basis @ (small @ (basis.conj().T @ v))
+                weight = weights[ik] * weights[il]
+                columns.append(math.sqrt(weight) * v)
+    factor = np.column_stack(columns) if columns else np.zeros((obs.y.size, 0), complex)
+    scale = float(cfg.cancellation.direct_mismatch_covariance_scale)
+    return float(gain) * math.sqrt(scale) * factor
 
 
 def residual_model(
@@ -154,11 +199,33 @@ def residual_model(
     # —— 只有 ``(I-F) X``（抵消器给直连场留下的那部分）、系数误差和信念误差
     # 失配才带。把它加进去曾把条件数顶到 1e13，让 ``eigh`` 报出低于地板的
     # 最小特征值。
-    direct_mismatch_factor = _direct_mismatch_factor(
-        cfg, obs, basis, small, gain
-    )
+    mismatch_model = str(cfg.cancellation.direct_mismatch_covariance_model)
+    if mismatch_model == "sigma_point":
+        direct_mismatch_factor = _direct_mismatch_sigma_point_factor(
+            cfg, obs, basis, small, gain
+        )
+    elif mismatch_model == "first_order":
+        direct_mismatch_factor = _direct_mismatch_factor(
+            cfg, obs, basis, small, gain
+        )
+    else:
+        raise ValueError(f"unknown direct mismatch covariance model {mismatch_model!r}")
+    if plan.kind == "estimator" and bool(
+        cfg.cancellation.oracle_direct_residual_in_cres
+    ):
+        # Diagnostic only: ``x_direct`` is simulator truth.  The outer product
+        # below is an oracle rank-one correction, not a covariance estimator.
+        removed_truth = (
+            basis @ (small @ (basis.conj().T @ obs.x_direct))
+            if basis.shape[1]
+            else np.zeros_like(obs.x_direct)
+        )
+        oracle_direct_factor = (gain * (obs.x_direct - removed_truth))[:, None]
+    else:
+        oracle_direct_factor = np.zeros((n_bins, 0), dtype=complex)
     blocks = [b for b in (
-        direct_factor, direct_mismatch_factor, est_factor, belief_factor
+        direct_factor, direct_mismatch_factor, oracle_direct_factor,
+        est_factor, belief_factor
     ) if b.shape[1]]
 
     def c_apply(V: np.ndarray) -> np.ndarray:

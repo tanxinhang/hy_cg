@@ -28,6 +28,7 @@ def build_observation(
     receiver: int,
     *,
     rng: np.random.Generator,
+    direct_error_rng: np.random.Generator | None = None,
     sense_power: np.ndarray,
     radiated_power: np.ndarray,
     processing_gain: float,
@@ -60,7 +61,9 @@ def build_observation(
     # ``cancellation.direct_estimation_sigma_*_bins``）。门关着时两者是同一个
     # 列表对象，下面的分支因此完全不执行。
     direct = build_direct_sources(ctx)
-    direct_est = perturb_direct_sources(cfg, direct, rng=rng)
+    direct_est = perturb_direct_sources(
+        cfg, direct, rng=rng if direct_error_rng is None else direct_error_rng
+    )
     targets_true, targets_belief, true_ids = build_target_sources(ctx)
 
     X = direct_dictionary(cfg, direct_est)

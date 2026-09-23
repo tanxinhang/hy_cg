@@ -129,6 +129,34 @@ def test_gate_off_does_not_consume_rng():
     assert before == after
 
 
+def test_separate_direct_error_rng_can_freeze_dd_error_across_realisations():
+    cfg = make_cfg(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+    )
+    setup_rng = np.random.default_rng(91)
+    geom = generate_geometry(cfg, setup_rng)
+    base = build_base_gains(cfg, geom, setup_rng)
+    sense = np.full(cfg.scale.M, cfg.radio.rho * cfg.radio.P_default)
+
+    def build(realisation_seed, error_seed):
+        return cx.build_observation(
+            cfg, geom, geom, base, 0,
+            rng=np.random.default_rng(realisation_seed),
+            direct_error_rng=np.random.default_rng(error_seed),
+            sense_power=sense, radiated_power=sense,
+            processing_gain=cfg.waveform.N * cfg.waveform.L, hw_gain=1.0,
+        )
+
+    first = build(1, 77)
+    second = build(2, 77)
+    redrawn = build(2, 78)
+    np.testing.assert_array_equal(first.X, second.X)
+    assert not np.array_equal(first.h_true, second.h_true)
+    assert not np.array_equal(first.y, second.y)
+    assert not np.array_equal(first.X, redrawn.X)
+
+
 def test_gate_off_is_bitwise_identical_to_the_published_path():
     """默认配置下 Observation 的每个数组都逐位不变。"""
     obs_default = make_obs(make_cfg(), seed=3, belief_error=True)
@@ -267,3 +295,135 @@ def test_perfect_channel_does_not_pay_direct_dictionary_mismatch():
     )
     without_mismatch = gl.residual_model(cfg_zero, obs, "perfect_channel", arms)
     assert with_mismatch.cov.trace == pytest.approx(without_mismatch.cov.trace)
+
+
+def test_uncertainty_weighted_direct_dictionary_uses_sigma_scaled_jacobians():
+    sigma_l, sigma_k = 0.2, 0.1
+    cfg_raw = make_cfg(
+        cancellation__interference_tangent_order=1,
+        cancellation__direct_estimation_sigma_delay_bins=sigma_l,
+        cancellation__direct_estimation_sigma_doppler_bins=sigma_k,
+    )
+    cfg_weighted = make_cfg(
+        cancellation__interference_tangent_order=1,
+        cancellation__interference_uncertainty_weighted=True,
+        cancellation__direct_estimation_sigma_delay_bins=sigma_l,
+        cancellation__direct_estimation_sigma_doppler_bins=sigma_k,
+    )
+    source = _sources(cfg_raw)[:1]
+    raw = direct_dictionary(cfg_raw, source)
+    weighted = direct_dictionary(cfg_weighted, source)
+    np.testing.assert_allclose(weighted[:, 0], raw[:, 0])
+    np.testing.assert_allclose(weighted[:, 1], sigma_l * raw[:, 1])
+    np.testing.assert_allclose(weighted[:, 2], sigma_k * raw[:, 2])
+
+
+def test_direct_jacobian_changes_only_receiver_dictionary_not_physical_field():
+    base = dict(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+    )
+    nominal = make_obs(make_cfg(**base), seed=9, belief_error=True)
+    tangent = make_obs(make_cfg(
+        **base,
+        cancellation__interference_tangent_order=1,
+        cancellation__interference_uncertainty_weighted=True,
+    ), seed=9, belief_error=True)
+    assert tangent.X.shape[1] == 3 * nominal.X.shape[1]
+    np.testing.assert_array_equal(tangent.y, nominal.y)
+    np.testing.assert_array_equal(tangent.x_direct, nominal.x_direct)
+    np.testing.assert_array_equal(tangent.s_target, nominal.s_target)
+
+
+def test_direct_mismatch_covariance_has_an_independent_ablation_switch():
+    cfg_on = make_cfg(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+    )
+    obs = make_obs(cfg_on, seed=10)
+    arms = cx.cancellation_arms(cfg_on, obs)
+    model_on = gl.residual_model(cfg_on, obs, "tp_uic_full", arms)
+    cfg_off = make_cfg(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+        cancellation__direct_mismatch_in_cres=False,
+    )
+    model_off = gl.residual_model(cfg_off, obs, "tp_uic_full", arms)
+    assert model_on.cov.trace > model_off.cov.trace
+    assert model_on.cov.rank > model_off.cov.rank
+
+
+def test_direct_mismatch_covariance_loading_is_directional_and_monotone():
+    base = dict(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+    )
+    cfg1 = make_cfg(**base, cancellation__direct_mismatch_covariance_scale=1.0)
+    obs = make_obs(cfg1, seed=13)
+    arms = cx.cancellation_arms(cfg1, obs)
+    model1 = gl.residual_model(cfg1, obs, "tp_uic_full", arms)
+    cfg10 = make_cfg(**base, cancellation__direct_mismatch_covariance_scale=10.0)
+    model10 = gl.residual_model(cfg10, obs, "tp_uic_full", arms)
+    assert model10.cov.trace > model1.cov.trace
+    assert model10.cov.rank == model1.cov.rank
+
+
+def test_sigma_point_mismatch_retains_curvature_after_tangent_cancellation():
+    base = dict(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+        cancellation__interference_tangent_order=1,
+        cancellation__interference_uncertainty_weighted=True,
+    )
+    cfg_first = make_cfg(**base)
+    obs = make_obs(cfg_first, seed=2)
+    arms = cx.cancellation_arms(cfg_first, obs)
+    first = gl.residual_model(cfg_first, obs, "tp_uic_full", arms)
+    cfg_sigma = make_cfg(
+        **base, cancellation__direct_mismatch_covariance_model="sigma_point"
+    )
+    sigma = gl.residual_model(cfg_sigma, obs, "tp_uic_full", arms)
+    # Seed 2 is a fixed high-curvature case from the root-cause audit.  Exact
+    # propagation must retain energy omitted by the projected Jacobian model.
+    assert sigma.cov.trace > first.cov.trace
+    assert sigma.cov.rank >= first.cov.rank
+
+
+def test_oracle_direct_residual_covariance_is_explicit_and_default_off():
+    base = dict(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+    )
+    cfg_off = make_cfg(**base)
+    obs = make_obs(cfg_off, seed=14)
+    arms = cx.cancellation_arms(cfg_off, obs)
+    model_off = gl.residual_model(cfg_off, obs, "tp_uic_full", arms)
+    cfg_on = make_cfg(**base, cancellation__oracle_direct_residual_in_cres=True)
+    model_on = gl.residual_model(cfg_on, obs, "tp_uic_full", arms)
+    assert cfg_off.cancellation.oracle_direct_residual_in_cres is False
+    assert model_on.cov.trace > model_off.cov.trace
+    # The oracle correction is one direction, modulo dependence on existing
+    # covariance factors.
+    assert model_on.cov.rank <= model_off.cov.rank + 1
+
+
+def test_uncertainty_weighted_jacobian_reduces_real_structural_residual():
+    base = dict(
+        cancellation__direct_estimation_sigma_delay_bins=0.1,
+        cancellation__direct_estimation_sigma_doppler_bins=0.1,
+    )
+    nominal_depth, tangent_depth, tangent_survival = [], [], []
+    for seed in (0, 1, 2):
+        cfg0 = make_cfg(**base)
+        cfg1 = make_cfg(
+            **base,
+            cancellation__interference_tangent_order=1,
+            cancellation__interference_uncertainty_weighted=True,
+        )
+        r0 = _kappa(cfg0, make_obs(cfg0, seed=seed))
+        r1 = _kappa(cfg1, make_obs(cfg1, seed=seed))
+        nominal_depth.append(_struct_db(r0))
+        tangent_depth.append(_struct_db(r1))
+        tangent_survival.append(r1.eta_survive_q)
+    assert np.median(tangent_depth) > np.median(nominal_depth) + 10.0
+    assert np.median(tangent_survival) > 0.80

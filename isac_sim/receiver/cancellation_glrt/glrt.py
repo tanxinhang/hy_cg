@@ -89,7 +89,13 @@ def target_conditioned_glrt(
     r_whitened = cov.whiten(model.residual(obs.y))
 
     B_q = _project_out(w_neg, w_q)
-    statistic = _projector_energy(B_q, r_whitened)
+    raw_statistic = _projector_energy(B_q, r_whitened)
+    whitened_power = float(np.vdot(r_whitened, r_whitened).real)
+    normalization = str(cfg.cancellation.target_statistic_normalization)
+    statistic = (
+        raw_statistic / max(whitened_power, EPS)
+        if normalization == "whitened_energy" else raw_statistic
+    )
     dof_real = 2 * _numerical_rank(B_q)
     threshold = (
         float(threshold_override)
@@ -97,6 +103,11 @@ def target_conditioned_glrt(
     )
     if threshold_override is None and null_cov_model is not None and dof_real > 0:
         threshold = _null_cov_threshold(cov, B_q, dof_real, p_fa, null_cov_model)
+    # The chi-square gate belongs to the unnormalised quadratic form.  The
+    # ACE-like ratio has a different null law and must use an explicit or
+    # held-out empirical/conformal threshold; never silently reuse chi-square.
+    if normalization == "whitened_energy" and threshold_override is None:
+        threshold = float("inf")
 
     g_self = np.real(np.sum(np.abs(w_q) ** 2, axis=0))
     g_keep = np.real(np.sum(np.abs(B_q) ** 2, axis=0))
@@ -130,5 +141,7 @@ def target_conditioned_glrt(
         n_nuisance_columns=int(A_neg.shape[1]),
         nuisance_rank=_numerical_rank(w_neg),
         residual_power=float(np.vdot(model.residual(obs.y), model.residual(obs.y)).real),
-        whitened_residual_power=float(np.vdot(r_whitened, r_whitened).real),
+        whitened_residual_power=whitened_power,
+        raw_statistic=float(raw_statistic),
+        statistic_normalization=normalization,
     )

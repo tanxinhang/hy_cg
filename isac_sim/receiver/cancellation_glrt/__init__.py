@@ -96,9 +96,10 @@ from isac_sim.receiver.cancellation_glrt.chi2 import (
 )
 from isac_sim.receiver.cancellation_glrt.covariance import LowRankCovariance
 from isac_sim.receiver.cancellation_glrt.glrt import target_conditioned_glrt
+from isac_sim.receiver.cancellation_glrt.neighbourhood import target_neighbourhood_glrt
 from isac_sim.receiver.cancellation_glrt.ident import IdentifiabilityAudit
 from isac_sim.receiver.cancellation_glrt.information import (DetectionInformation,
-                                                             detection_information)
+    StochasticDetectionInformation, detection_information, stochastic_detection_information)
 from isac_sim.receiver.cancellation_glrt.linalg import (
     _generalised_min_eigen,
     _numerical_rank,
@@ -133,7 +134,7 @@ __all__ = [
     "ARM_ORDER",
     "ArmPlan",
     "IdentifiabilityAudit",
-    "DetectionInformation", "detection_information",
+    "DetectionInformation", "StochasticDetectionInformation", "detection_information", "stochastic_detection_information",
     "LowRankCovariance",
     "MaskingCurve",
     "ResidualModel",
@@ -146,4 +147,5 @@ __all__ = [
     "residual_model",
     "restrict_to_target",
     "target_conditioned_glrt",
+    "target_neighbourhood_glrt",
 ]

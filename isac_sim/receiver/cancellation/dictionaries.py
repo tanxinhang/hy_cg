@@ -40,7 +40,12 @@ def direct_dictionary(
     blocks: List[np.ndarray] = []
     for src in sources:
         amp = math.sqrt(max(src.power_at_receiver, 0.0))
-        blocks.append(amp * tangent_columns(cfg, src.doppler_bin, src.delay_bin, order, step))
+        block = amp * tangent_columns(cfg, src.doppler_bin, src.delay_bin, order, step)
+        if order == 1 and bool(c.interference_uncertainty_weighted):
+            block = block.copy()
+            block[:, 1] *= max(float(c.direct_estimation_sigma_delay_bins), 0.0)
+            block[:, 2] *= max(float(c.direct_estimation_sigma_doppler_bins), 0.0)
+        blocks.append(block)
     if not blocks:
         return np.zeros((_n_obs(cfg), 0), dtype=complex)
     return lift_dictionary(cfg, np.concatenate(blocks, axis=1),

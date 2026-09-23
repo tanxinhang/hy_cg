@@ -20,6 +20,7 @@ def build_observation_pair(
     receiver: int,
     *,
     rng: np.random.Generator,
+    direct_error_rng: np.random.Generator | None = None,
     sense_power: np.ndarray,
     radiated_power: np.ndarray,
     processing_gain: float,
@@ -49,7 +50,8 @@ def build_observation_pair(
     """
     obs1 = build_observation(
         cfg, geom_true, geom_belief, base, receiver,
-        rng=rng, sense_power=sense_power, radiated_power=radiated_power,
+        rng=rng, direct_error_rng=direct_error_rng,
+        sense_power=sense_power, radiated_power=radiated_power,
         processing_gain=processing_gain, hw_gain=hw_gain,
         active_mask=active_mask, include_echo=True,
         weak_index=int(exclude_target) if weak_index is None else int(weak_index),

@@ -41,6 +41,11 @@ class TargetGLRT:
     nuisance_rank: int
     residual_power: float
     whitened_residual_power: float = 0.0
+    selected_offset_delay: float = 0.0
+    selected_offset_doppler: float = 0.0
+    neighbourhood_size: int = 1
+    raw_statistic: float = 0.0
+    statistic_normalization: str = "none"
 
     @property
     def rho_min(self) -> float:

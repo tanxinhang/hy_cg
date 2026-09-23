@@ -47,6 +47,34 @@ def check_proposal(cfg: Config) -> None:
         raise ValueError(
             "cancellation.interference_tangent_order currently supports only 0 or 1"
         )
+    if str(cfg.cancellation.target_glrt_mode) not in {"centre", "neighbourhood_max"}:
+        raise ValueError("cancellation.target_glrt_mode must be 'centre' or 'neighbourhood_max'")
+    if int(cfg.cancellation.target_glrt_grid_points) < 1 or int(
+        cfg.cancellation.target_glrt_grid_points
+    ) % 2 != 1:
+        raise ValueError("cancellation.target_glrt_grid_points must be a positive odd integer")
+    if not math.isfinite(cfg.cancellation.target_glrt_radius_bins) or float(
+        cfg.cancellation.target_glrt_radius_bins
+    ) < 0.0:
+        raise ValueError("cancellation.target_glrt_radius_bins must be finite and non-negative")
+    if str(cfg.cancellation.target_statistic_normalization) not in {
+        "none", "whitened_energy"
+    }:
+        raise ValueError(
+            "cancellation.target_statistic_normalization must be 'none' or 'whitened_energy'"
+        )
+    mismatch_scale = float(cfg.cancellation.direct_mismatch_covariance_scale)
+    if not math.isfinite(mismatch_scale) or mismatch_scale < 0.0:
+        raise ValueError(
+            "cancellation.direct_mismatch_covariance_scale must be finite and nonnegative"
+        )
+    if str(cfg.cancellation.direct_mismatch_covariance_model) not in {
+        "first_order", "sigma_point"
+    }:
+        raise ValueError(
+            "cancellation.direct_mismatch_covariance_model must be "
+            "'first_order' or 'sigma_point'"
+        )
     if not math.isfinite(cfg.cancellation.tangent_step_bins) or (
         cfg.cancellation.tangent_step_bins <= 0.0
     ):
