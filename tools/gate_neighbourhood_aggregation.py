@@ -24,6 +24,7 @@ TEST_MARGIN = 0.02
 def _cfg(args):
     defaults = bench.build_parser().parse_args(["--out", str(args.out)])
     defaults.master_seed = args.master_seed
+    defaults.area_xy = args.area_xy
     defaults.direct_dd_sigma = args.direct_dd_sigma
     defaults.interference_tangent_order = 1
     defaults.interference_uncertainty_weighted = True
@@ -78,6 +79,7 @@ def main():
     parser.add_argument("--receiver", type=int, default=0)
     parser.add_argument("--target", type=int, default=1)
     parser.add_argument("--boost-db", type=float, default=30.0)
+    parser.add_argument("--area-xy", type=float, default=800.0)
     parser.add_argument("--direct-dd-sigma", type=float, default=0.10)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
