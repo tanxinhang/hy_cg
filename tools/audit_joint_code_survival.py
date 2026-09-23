@@ -12,7 +12,7 @@ import numpy as np
 from isac_sim.cooperation.scientific_validation import load_frozen_scenario
 from isac_sim.core.config import apply_overrides
 from isac_sim.receiver import cancellation as cx
-from tools.run_joint_global_alarm import joint_observation
+from isac_sim.receiver.joint_observation import joint_observation
 from tools.run_tpuic_receiver_benchmark import _boost_direct, _make_cfg, build_parser
 
 

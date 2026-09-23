@@ -10,13 +10,11 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 
-from isac_sim.receiver import cancellation as cx
-from isac_sim.sensing.model import radar_hardware_gain
+from isac_sim.receiver.joint_observation import generate_joint_observation_pair
 from tools.run_quantized_fixed_fusion import quantize
 from tools.run_tpuic_receiver_benchmark import (
     _all_arms, _boost_direct, _make_cfg, _parse_int_selection,
@@ -88,27 +86,6 @@ def _learn_minimax_weight(train: list[dict], *, field: str,
             "selection": "maximin one-sided deflection on independent train scenes only"}
 
 
-def joint_observation(cfg, truth, belief, base, *, scene: int, receiver: int):
-    """Produce a shared full-target H1 and no-target H0 with independent noise."""
-    rng = np.random.default_rng([int(cfg.run.seed), scene, receiver, 0, 404])
-    direct_rng = np.random.default_rng([int(cfg.run.seed), scene, receiver, 405])
-    m = int(cfg.scale.M)
-    power = np.full(m, float(cfg.radio.P_default) * float(cfg.radio.rho))
-    obs1 = cx.build_observation(
-        cfg, truth, belief.as_geometry(truth), base, receiver,
-        rng=rng, direct_error_rng=direct_rng,
-        sense_power=power, radiated_power=power,
-        processing_gain=float(cfg.waveform.N * cfg.waveform.L),
-        hw_gain=float(radar_hardware_gain(cfg)),
-        active_mask=np.ones(m, dtype=bool), include_echo=True, weak_index=0,
-    )
-    noise = (rng.normal(size=obs1.y.size) + 1j * rng.normal(size=obs1.y.size)) * math.sqrt(obs1.sigma2 / 2)
-    obs0 = replace(obs1, y=obs1.x_direct + noise,
-                   s_target=np.zeros_like(obs1.s_target),
-                   alpha_true=np.zeros_like(obs1.alpha_true))
-    return obs0, obs1
-
-
 def run(args) -> dict:
     if args.train_scenes < 0 or (0 < args.train_scenes < 3):
         raise ValueError("train-scenes must be 0 or at least 3 independent scenes")
@@ -141,11 +118,10 @@ def run(args) -> dict:
         raw = np.zeros((2, len(receivers), len(targets)))
         reported = np.zeros_like(raw)
         for i, receiver in enumerate(receivers):
-            obs0, obs1 = joint_observation(cfg, truth, belief, base,
-                                           scene=scene, receiver=receiver)
+            pair = generate_joint_observation_pair(
+                cfg, truth, belief, base, scene_id=scene, receiver=receiver)
             for j, target in enumerate(targets):
-                for hypothesis, obs in enumerate((obs0, obs1)):
-                    tested = replace(obs, weak_index=target)
+                for hypothesis, tested in enumerate(pair.for_target(target)):
                     _, _, glrt = _run_arm(cfg, tested, "tp_uic_full",
                                           _all_arms(cfg, tested))
                     rank = float(glrt.dof_real) / 2

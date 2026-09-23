@@ -15,7 +15,8 @@ from isac_sim.core.config import apply_overrides
 from isac_sim.receiver import cancellation as cx
 from isac_sim.receiver import cancellation_glrt as gl
 from isac_sim.receiver.cancellation.link_offsets import target_link_offset
-from tools.run_joint_global_alarm import _variant, joint_observation
+from isac_sim.receiver.joint_observation import joint_observation
+from tools.run_joint_global_alarm import _variant
 from tools.run_quantized_fixed_fusion import quantize
 from tools.run_tpuic_receiver_benchmark import (
     _all_arms, _boost_direct, _make_cfg, _run_arm, build_parser,
