@@ -40,6 +40,23 @@ same look, so the location search can follow noise or imperfectly protected
 target structure.  Its roughly five-by-five grid cost is also unsuitable for
 production.
 
+An independent low-interference check at 400 m / +10 dB used master seed
+`20261006` and another 24 held-out scenes:
+
+| Receiver | Test AUC | Gap to perfect channel |
+|---|---:|---:|
+| TP-UIC | 0.630 | 0.066 |
+| Single-look nonlinear-refined TP-UIC | 0.653 | 0.043 |
+| Perfect channel | 0.696 | 0.000 |
+
+The refined receiver gains +0.023 AUC at this point and closes 0.023 of the
+oracle gap.  A same-scene paired bootstrap gives a 95% interval of
+[-0.024, +0.085] for the AUC change, so the sign is not established.  Together
+with the -0.007 point change at +50 dB, this is evidence of a regime-dependent
+effect, not a promotable general robustness improvement.  The single-look
+variant remains rejected; the low-INR result is retained as motivation for
+cross-fitted multi-look DD refinement rather than discarded.
+
 ## Detection branch
 
 The prior independent result remains the positive detector direction.  At
@@ -69,4 +86,5 @@ requires both:
 Machine evidence:
 
 - `data/area400_boost50_refinement_screen_20261005/`
+- `data/area400_boost10_refinement_screen_20261006/`
 - `tools/gate_area400_dual_axis.py`
