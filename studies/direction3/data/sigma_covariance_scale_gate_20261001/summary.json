@@ -1,0 +1,53 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\sigma_covariance_scale_gate_20261001",
+    "train_scenes": 20,
+    "calibration_scenes": 20,
+    "test_scenes": 40,
+    "master_seed": 20261001,
+    "receiver": 0,
+    "target": 1,
+    "boost_db": 30.0,
+    "direct_dd_sigma": 0.1,
+    "scales": [
+      0.5,
+      0.75,
+      1.0,
+      1.5,
+      2.0
+    ],
+    "p_fa": 0.05
+  },
+  "selection": {
+    "scale": 0.75,
+    "median_inflation": 1.3117335626039655,
+    "objective": 0.27134959261535074
+  },
+  "evaluation": {
+    "fixed": {
+      "scale": 1.0,
+      "threshold": 11.947069789675082,
+      "auc": 0.61625,
+      "pfa": 0.05,
+      "pd": 0.05,
+      "median_h0_inflation": 1.20217767994408
+    },
+    "learned": {
+      "scale": 0.75,
+      "threshold": 12.30595156237656,
+      "auc": 0.6225,
+      "pfa": 0.05,
+      "pd": 0.025,
+      "median_h0_inflation": 1.1965815071856039
+    }
+  },
+  "gate": {
+    "auc_improvement_at_least": 0.02,
+    "pd_no_worse": true,
+    "test_median_h0_inflation_range": [
+      0.8,
+      1.25
+    ]
+  },
+  "decision": "stop_scalar_learning"
+}
