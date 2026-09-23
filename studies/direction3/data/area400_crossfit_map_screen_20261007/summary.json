@@ -1,0 +1,44 @@
+{
+  "protocol": {
+    "master_seed": 20261007,
+    "boost_db": [
+      10.0,
+      50.0
+    ],
+    "looks": 2,
+    "fit": "opposite-look cross-fit",
+    "test_scenes": 8
+  },
+  "evaluation": [
+    {
+      "boost_db": 10.0,
+      "receiver": "two_cpi",
+      "test_auc": 0.984375
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": "crossfit_map",
+      "test_auc": 1.0
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": "perfect_two_cpi",
+      "test_auc": 0.953125
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": "two_cpi",
+      "test_auc": 0.828125
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": "crossfit_map",
+      "test_auc": 0.96875
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": "perfect_two_cpi",
+      "test_auc": 0.96875
+    }
+  ]
+}

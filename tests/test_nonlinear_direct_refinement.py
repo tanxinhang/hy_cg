@@ -34,3 +34,18 @@ def test_refinement_validates_grid_contract():
     cfg, obs = _case()
     with np.testing.assert_raises(ValueError):
         cx.refine_direct_dd(cfg, obs, grid_points=4)
+
+
+def test_joint_refinement_is_truth_free_and_applies_to_held_out_look():
+    cfg, obs = _case()
+    reference = deepcopy(obs)
+    reference.x_direct = 1000.0 * reference.x_direct
+    reference.h_true = 1000.0 * reference.h_true
+    left = cx.refine_direct_dd_joint(cfg, [obs], grid_points=3)
+    right = cx.refine_direct_dd_joint(cfg, [reference], grid_points=3)
+    for a, b in zip(left, right):
+        assert a.delay_bin == b.delay_bin
+        assert a.doppler_bin == b.doppler_bin
+    held_out = cx.apply_direct_dd(cfg, obs, left)
+    assert held_out.X.shape == obs.X.shape
+    assert held_out.direct_est == left

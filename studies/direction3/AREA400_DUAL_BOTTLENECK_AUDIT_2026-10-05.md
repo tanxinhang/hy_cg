@@ -74,6 +74,33 @@ a held-out look; this removes the single-look data-reuse failure.  Replace the
 grid with coarse-to-fine or Gauss--Newton only after that statistical gate
 passes.
 
+### Initial hierarchical-MAP cross-fit screen
+
+That next candidate was implemented as a two-fold screen.  CPI 1 estimates the
+shared DD state and CPI 2 supplies a held-out detection statistic; the roles
+are then reversed and the two held-out statistics are summed.  Each reference
+look profiles an independent complex direct-path gain, while DD displacement
+has a Gaussian prior.  The equal-cost baseline sums two ordinary TP-UIC looks.
+
+On a new seed (`20261007`), with eight held-out scenes per interference level:
+
+| Boost | Ordinary two-CPI TP-UIC | Cross-fitted hierarchical MAP | Perfect-channel two-CPI |
+|---|---:|---:|---:|
+| +10 dB | 0.984 | 1.000 | 0.953 |
+| +50 dB | 0.828 | 0.969 | 0.969 |
+
+The same-scene AUC changes are +0.016 at +10 dB (bootstrap interval
+[0.000, 0.063]) and +0.141 at +50 dB ([0.000, 0.281]).  The +50 dB point closes
+the observed oracle gap completely and reverses the single-look failure, so
+the hierarchical/cross-fit structure passes the **directional screen**.
+Eight scenes are far too few for promotion, perfect-channel need not rank first
+in a finite sample, and two calibration scenes cannot support a finite 5% tail
+threshold.  No PD/PFA claim is made.  The current two-way 5x5 coordinate grid
+is also a correctness prototype, not a viable production solver.
+
+Decision: expand the +30/+50 dB test with a real calibration partition; only
+then replace the grid with shared-dictionary Gauss--Newton and measure runtime.
+
 The next detector candidate remains multi-look evidence accumulation, with
 1/2/4-look latency curves and a larger calibration partition.  Promotion
 requires both:
@@ -87,4 +114,5 @@ Machine evidence:
 
 - `data/area400_boost50_refinement_screen_20261005/`
 - `data/area400_boost10_refinement_screen_20261006/`
+- `data/area400_crossfit_map_screen_20261007/`
 - `tools/gate_area400_dual_axis.py`
