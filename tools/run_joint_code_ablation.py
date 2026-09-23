@@ -16,6 +16,7 @@ from isac_sim.receiver import cancellation as cx
 from isac_sim.receiver import cancellation_glrt as gl
 from isac_sim.receiver.cancellation.link_offsets import target_link_offset
 from isac_sim.receiver.joint_observation import joint_observation
+from isac_sim.detection.evaluation_split import EvaluationPartition
 from tools.run_joint_global_alarm import _variant
 from tools.run_quantized_fixed_fusion import quantize
 from tools.run_tpuic_receiver_benchmark import (
@@ -192,15 +193,15 @@ def run(args):
     summary = {}
     for variant in variants:
         rows = records[variant]
-        cal = [r for r in rows if r["split"] == "calibration"]
-        test = [r for r in rows if r["split"] == "test"]
+        partition = EvaluationPartition.from_records(rows)
+        cal, test = partition.calibration, partition.test
         summary[variant] = {
             "raw": _variant(cal, test, field="raw_by_hypothesis_receiver_target",
                             receiver_index=None, alpha=args.p_fa),
             "quantized": _variant(cal, test, field="reported_by_hypothesis_receiver_target",
                                   receiver_index=None, alpha=args.p_fa),
             "test_median_joint_echo_norm_survival": float(np.median(
-                [x for r in test for x in r["joint_echo_norm_survival"]])),
+                [x for r in test.rows for x in r["joint_echo_norm_survival"]])),
         }
     output = {"baseline": str(baseline), "variants": summary,
               "records": records, "limitations": [

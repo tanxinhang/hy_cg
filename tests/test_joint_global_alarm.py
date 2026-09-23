@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
+from isac_sim.detection.evaluation_split import EvaluationPartition, SplitDataset
 from tools.run_joint_global_alarm import _learn_minimax_weight, _variant
 
 
-def _row(scene: int, h0: float, h1: float) -> dict:
+def _row(scene: int, h0: float, h1: float, split: str = "calibration") -> dict:
     return {
-        "scene_id": scene,
+        "scene_id": scene, "split": split,
         "raw_by_hypothesis_receiver_target": [
             [[h0, h0 + 0.2], [h0 + 0.1, h0]],
             [[h1, h1 + 0.2], [h1 + 0.1, h1]],
@@ -18,8 +20,9 @@ def _row(scene: int, h0: float, h1: float) -> dict:
 
 def test_global_gate_uses_max_over_targets_and_calibration_only():
     cal = [_row(i, i / 10, i / 10 + 1) for i in range(20)]
-    test = [_row(20, 0.0, 3.0)]
-    result = _variant(cal, test, field="raw_by_hypothesis_receiver_target",
+    test = [_row(20, 0.0, 3.0, "test")]
+    partition = EvaluationPartition.from_records(cal + test)
+    result = _variant(partition.calibration, partition.test, field="raw_by_hypothesis_receiver_target",
                       receiver_index=None, alpha=0.05)
     assert result["conformal_order"] == 20
     assert result["marginal_global_pfa_bound"] == 1 / 21
@@ -27,7 +30,7 @@ def test_global_gate_uses_max_over_targets_and_calibration_only():
     assert result["test_global_false_alarms"] == 0
     assert result["test_per_target_detections"] == [1, 1]
     test[0]["raw_by_hypothesis_receiver_target"][0][0][0] = 1000
-    changed = _variant(cal, test, field="raw_by_hypothesis_receiver_target",
+    changed = _variant(partition.calibration, partition.test, field="raw_by_hypothesis_receiver_target",
                        receiver_index=None, alpha=0.05)
     assert changed["threshold"] == result["threshold"]
     assert changed["test_global_false_alarms"] == 1
@@ -35,7 +38,8 @@ def test_global_gate_uses_max_over_targets_and_calibration_only():
 
 def test_global_gate_refuses_nontrivial_alpha_with_too_few_scenes():
     cal = [_row(i, i, i + 1) for i in range(8)]
-    result = _variant(cal, [_row(9, 0, 1)],
+    partition = EvaluationPartition.from_records(cal + [_row(9, 0, 1, "test")])
+    result = _variant(partition.calibration, partition.test,
                       field="raw_by_hypothesis_receiver_target",
                       receiver_index=None, alpha=0.05)
     assert result["threshold"] == float("inf")
@@ -46,18 +50,29 @@ def test_weight_selection_uses_train_scores_only():
     train = []
     for scene in range(20):
         base = scene % 4
-        train.append({"reported_by_hypothesis_receiver_target": [
+        train.append({"scene_id": scene, "split": "train", "reported_by_hypothesis_receiver_target": [
             [[base, base], [base + 0.1, base + 0.1]],
             [[base + 2, base + 2], [base + 0.1, base + 0.1]],
         ]})
+    training = SplitDataset("train", tuple(train))
     learned = _learn_minimax_weight(
-        train, field="reported_by_hypothesis_receiver_target", quant_step=8 / 7)
+        training, field="reported_by_hypothesis_receiver_target", quant_step=8 / 7)
     assert learned["selected"]["weights"] == [1.0, 0.0]
     cal = [_row(i, i / 10, i / 10 + 1) for i in range(20)]
-    test = [_row(20, 0, 3)]
-    first = _variant(cal, test, field="raw_by_hypothesis_receiver_target",
+    test = [_row(20, 0, 3, "test")]
+    partition = EvaluationPartition.from_records(cal + test)
+    first = _variant(partition.calibration, partition.test, field="raw_by_hypothesis_receiver_target",
                      receiver_index=None, weights=np.asarray([1.0, 0.0]), alpha=0.05)
     test[0]["raw_by_hypothesis_receiver_target"][0][0][0] = 1e6
-    second = _variant(cal, test, field="raw_by_hypothesis_receiver_target",
+    second = _variant(partition.calibration, partition.test, field="raw_by_hypothesis_receiver_target",
                       receiver_index=None, weights=np.asarray([1.0, 0.0]), alpha=0.05)
     assert first["threshold"] == second["threshold"]
+
+
+def test_split_protocol_rejects_scene_leakage_and_wrong_role():
+    rows = [_row(1, 0, 1, "calibration"), _row(1, 0, 1, "test")]
+    with pytest.raises(ValueError, match="scene leakage"):
+        EvaluationPartition.from_records(rows)
+    calibration = SplitDataset("calibration", (_row(2, 0, 1),))
+    with pytest.raises(TypeError, match="training"):
+        _learn_minimax_weight(calibration, field="x", quant_step=1.0)

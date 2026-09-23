@@ -69,6 +69,7 @@
 
 - 固定发射功率、波形/带宽、CPI/looks、几何、TP-UIC 和 GLRT；不通过增加感知能量或占用更多时频资源制造关联收益。固定 K、总上报 bit 与时延预算，包含每 UAV 报告的 payload 和协议开销，并记录误包。
 - 三个场景级独立数据块：train 学子集、H0 协方差和融合权重；calibration 只定最终门限；test 只评估。共同场景中所有 UAV/目标配对；同场景多次噪声实现只用于聚类分析，不能增加场景级 conformal 样本数。
+- 上述隔离现由 `isac_sim.detection.evaluation_split` 强制：split 标签错误、单个 split 内场景重复、跨 split 复用 scene ID，或主协议缺少 train/calibration/test 任一数据块都会直接失败。权重学习、门限校准和最终评价分别只接受对应角色的数据对象。
 - 联合接收观测生成器已提升为正式领域模块 `isac_sim.receiver.joint_observation`：每 UAV/场景/实现只生成一对共享的全局 H0/H1 物理观测，所有 q 的 GLRT 仅切换检测目标索引，不重抽观测。后续实验必须复用该契约；不得把现有逐目标排除式 benchmark 的行拼接替代它。
 - 不枚举子集：比较最佳单 UAV、可部署 SINR Top-K、独立信息贪心与 H0 相关性贪心；同一 K、bit/时延预算。真值辅助 post-IC SINR 只能是诊断上界。记录实际候选评估数。
 - 对每种已冻结方法，以量化/丢包后的最终多目标分数 `T=max_q T_q` 在独立 H0 calibration 上定门限，再在 test 报最差目标 PD、全局 PFA、置信区间及通信成本。各方法可有各自门限，但必须比较同一目标 PFA。

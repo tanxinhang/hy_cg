@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from isac_sim.detection.evaluation_split import EvaluationPartition, SplitDataset
 from isac_sim.receiver.joint_observation import generate_joint_observation_pair
 from tools.run_quantized_fixed_fusion import quantize
 from tools.run_tpuic_receiver_benchmark import (
@@ -29,7 +30,7 @@ def _auc(h0: np.ndarray, h1: np.ndarray) -> float:
     return float((ranks[n:].sum() - n * (n + 1) / 2) / (n * n))
 
 
-def _variant(cal: list[dict], test: list[dict], *, field: str,
+def _variant(cal: SplitDataset, test: SplitDataset, *, field: str,
              receiver_index: int | None, alpha: float,
              weights: np.ndarray | None = None) -> dict:
     def score(row: dict, hypothesis: int) -> np.ndarray:
@@ -40,13 +41,15 @@ def _variant(cal: list[dict], test: list[dict], *, field: str,
             return np.sum(values, axis=0)
         return values[receiver_index]
 
+    if cal.role != "calibration" or test.role != "test":
+        raise TypeError("global gate requires calibration then test datasets")
     n = len(cal)
     order = math.ceil((n + 1) * (1 - alpha))
-    cal_global = np.asarray([np.max(score(row, 0)) for row in cal])
+    cal_global = np.asarray([np.max(score(row, 0)) for row in cal.rows])
     threshold = (float("inf") if order > n else
                  float(np.sort(cal_global)[order - 1]))
-    h0 = np.asarray([score(row, 0) for row in test])
-    h1 = np.asarray([score(row, 1) for row in test])
+    h0 = np.asarray([score(row, 0) for row in test.rows])
+    h1 = np.asarray([score(row, 1) for row in test.rows])
     return {
         "threshold": threshold, "conformal_order": order,
         "marginal_global_pfa_bound": 0 if order > n else (n + 1 - order) / (n + 1),
@@ -56,13 +59,15 @@ def _variant(cal: list[dict], test: list[dict], *, field: str,
     }
 
 
-def _learn_minimax_weight(train: list[dict], *, field: str,
+def _learn_minimax_weight(train: SplitDataset, *, field: str,
                           quant_step: float) -> dict:
     """Frozen 5-point grid; H0 covariance shrinkage and worst-target deflection."""
+    if train.role != "train":
+        raise TypeError("weight learning requires a training dataset")
     if len(train) < 3:
         raise ValueError("at least three independent training scenes required")
-    h0 = np.asarray([row[field][0] for row in train], dtype=float)
-    h1 = np.asarray([row[field][1] for row in train], dtype=float)
+    h0 = np.asarray([row[field][0] for row in train.rows], dtype=float)
+    h1 = np.asarray([row[field][1] for row in train.rows], dtype=float)
     if h0.shape[1] != 2:
         raise ValueError("weight pilot requires exactly two receivers")
     candidates = []
@@ -87,8 +92,8 @@ def _learn_minimax_weight(train: list[dict], *, field: str,
 
 
 def run(args) -> dict:
-    if args.train_scenes < 0 or (0 < args.train_scenes < 3):
-        raise ValueError("train-scenes must be 0 or at least 3 independent scenes")
+    if args.train_scenes < 3:
+        raise ValueError("at least 3 independent training scenes are required")
     if args.cal_scenes <= 0 or args.test_scenes <= 0:
         raise ValueError("calibration and test require positive independent scene counts")
     if args.bits < 1 or not math.isfinite(args.clip) or args.clip <= 0:
@@ -137,9 +142,8 @@ def run(args) -> dict:
                         "h0_per_target": scores[0].tolist(),
                         "h1_per_target": scores[1].tolist(),
                         "global_h0": float(np.max(scores[0]))})
-    train = [r for r in records if r["split"] == "train"]
-    cal = [r for r in records if r["split"] == "calibration"]
-    test = [r for r in records if r["split"] == "test"]
+    partition = EvaluationPartition.from_records(records, require_train=True)
+    train, cal, test = partition.train, partition.calibration, partition.test
     variants = {}
     reported_label = f"{args.bits}bit"
     for label, field in (("unquantized", "raw_by_hypothesis_receiver_target"),
@@ -150,7 +154,7 @@ def run(args) -> dict:
             variants[f"receiver_{receiver}_{label}"] = _variant(
                 cal, test, field=field, receiver_index=i, alpha=args.p_fa)
     learned = None
-    if train:
+    if len(train):
         field = "reported_by_hypothesis_receiver_target"
         learned = _learn_minimax_weight(
             train, field=field, quant_step=args.clip / ((1 << args.bits) - 1))
@@ -190,7 +194,7 @@ def main() -> None:
     parser: argparse.ArgumentParser = build_parser()
     parser.add_argument("--bits", type=int, default=3)
     parser.add_argument("--clip", type=float, default=8.0)
-    parser.add_argument("--train-scenes", type=int, default=0)
+    parser.add_argument("--train-scenes", type=int, default=20)
     parser.add_argument("--allow-underpowered-smoke", action="store_true")
     args = parser.parse_args()
     result = run(args)
