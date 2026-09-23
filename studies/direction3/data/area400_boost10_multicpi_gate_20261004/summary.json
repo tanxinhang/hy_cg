@@ -1,0 +1,44 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\area400_boost10_multicpi_gate_20261004",
+    "train_scenes": 20,
+    "calibration_scenes": 20,
+    "test_scenes": 40,
+    "master_seed": 20261004,
+    "receiver": 0,
+    "target": 1,
+    "area_xy": 400.0,
+    "boost_db": 10.0,
+    "direct_dd_sigma": 0.1,
+    "p_fa": 0.05,
+    "cpi_count": 2,
+    "combiner": "noncoherent_sum"
+  },
+  "gate": {
+    "test_auc_margin": 0.02,
+    "test_pd_no_worse": true
+  },
+  "train_auc": {
+    "one_cpi": 0.8,
+    "two_cpi": 0.8275
+  },
+  "evaluation": {
+    "one_cpi": {
+      "threshold": 10.73461519346962,
+      "auc": 0.67375,
+      "pfa": 0.05,
+      "pd": 0.225
+    },
+    "two_cpi": {
+      "threshold": 17.969488550747855,
+      "auc": 0.73875,
+      "pfa": 0.075,
+      "pd": 0.525
+    }
+  },
+  "decision": "promote_two_cpi",
+  "cost": {
+    "observation_blocks": 2,
+    "receiver_compute_approx_x": 2.0
+  }
+}
