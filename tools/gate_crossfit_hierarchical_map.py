@@ -86,8 +86,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--train-scenes", type=int, default=2)
-    parser.add_argument("--calibration-scenes", type=int, default=3)
-    parser.add_argument("--test-scenes", type=int, default=12)
+    parser.add_argument("--calibration-scenes", type=int, default=40)
+    parser.add_argument("--test-scenes", type=int, default=40)
     parser.add_argument("--master-seed", type=int, default=20261007)
     parser.add_argument("--receiver", type=int, default=0)
     parser.add_argument("--target", type=int, default=1)
@@ -123,9 +123,29 @@ def main():
         partition = EvaluationPartition.from_records(
             [r for r in records if r["boost_db"] == boost], require_train=True
         )
+        by_name = {}
         for name in ("two_cpi", "crossfit_map", "perfect_two_cpi"):
-            evaluation.append({"boost_db": boost, "receiver": name,
-                               "test_auc": _auc(partition.test.rows, name)})
+            cal0 = np.asarray([r[f"{name}_h0"] for r in partition.calibration.rows])
+            threshold = bench._calibrated_threshold(cal0, 0.05, "split_conformal")
+            test0 = np.asarray([r[f"{name}_h0"] for r in partition.test.rows])
+            test1 = np.asarray([r[f"{name}_h1"] for r in partition.test.rows])
+            result = {"boost_db": boost, "receiver": name,
+                      "threshold": float(threshold),
+                      "test_auc": _auc(partition.test.rows, name),
+                      "test_pfa": float(np.mean(test0 > threshold)),
+                      "test_pd": float(np.mean(test1 > threshold)),
+                      "n_calibration": len(partition.calibration.rows),
+                      "n_test": len(partition.test.rows)}
+            evaluation.append(result)
+            by_name[name] = result
+        oracle = by_name["perfect_two_cpi"]
+        for name in ("two_cpi", "crossfit_map"):
+            by_name[name]["oracle_auc_gap"] = (
+                oracle["test_auc"] - by_name[name]["test_auc"]
+            )
+            by_name[name]["oracle_pd_gap"] = (
+                oracle["test_pd"] - by_name[name]["test_pd"]
+            )
     with (args.out / "records.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(records[0]))
         writer.writeheader()

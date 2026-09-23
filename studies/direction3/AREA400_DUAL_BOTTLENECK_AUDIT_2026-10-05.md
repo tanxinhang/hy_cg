@@ -101,6 +101,39 @@ is also a correctness prototype, not a viable production solver.
 Decision: expand the +30/+50 dB test with a real calibration partition; only
 then replace the grid with shared-dictionary Gauss--Newton and measure runtime.
 
+### Formal +30/+50 dB confirmation
+
+The fixed candidate was rerun with master seed `20261008`, separately at each
+interference level, using exactly 1 train, 40 calibration and 40 held-out test
+scenes.  Each receiver received its own 5% split-conformal H0 threshold.
+
+| Boost | Receiver | Threshold | AUC | PFA | PD | Oracle AUC gap | Oracle PD gap |
+|---|---|---:|---:|---:|---:|---:|---:|
+| +30 dB | ordinary two-CPI | 26.327 | 0.727 | 0.000 | 0.125 | 0.027 | 0.125 |
+| +30 dB | cross-fitted MAP | 23.023 | 0.748 | 0.000 | 0.175 | 0.006 | 0.075 |
+| +30 dB | perfect channel | 22.838 | 0.754 | 0.025 | 0.250 | 0.000 | 0.000 |
+| +50 dB | ordinary two-CPI | 119.600 | 0.693 | 0.025 | 0.025 | 0.062 | 0.225 |
+| +50 dB | cross-fitted MAP | 25.453 | 0.754 | 0.000 | 0.200 | 0.000 | 0.050 |
+| +50 dB | perfect channel | 22.838 | 0.754 | 0.025 | 0.250 | 0.000 | 0.000 |
+
+At +30 dB the MAP changes AUC by +0.021 (paired bootstrap 95% interval
+[-0.001, +0.054]) and PD by +0.050 ([0.000, +0.125]).  This is a positive but
+not decisive trend.  At +50 dB it changes AUC by +0.062 ([-0.021, +0.146]) and
+PD by **+0.175** ([+0.075, +0.300]).  The high-interference PD improvement is
+the first formally nonzero receiver gain in this sequence.  MAP PFA is 0/40 at
+both levels (Wilson upper bound 0.088); this does not indicate inflation.
+
+The +50 dB point estimate closes the AUC oracle gap and reduces the PD oracle
+gap from 0.225 to 0.050.  Its oracle-minus-MAP intervals are [-0.050, +0.043]
+for AUC and [0.000, +0.125] for PD.  Thus oracle parity in AUC is plausible but
+not proven as an identity, while a small residual working-point PD gap remains.
+
+Decision: **the hierarchical/cross-fit MAP passes the formal +50 dB PD gate and
+is retained as the high-interference receiver candidate.**  The +30 dB result
+does not independently pass a strict superiority gate.  Neither result makes
+the 5x5 grid production-ready; the next implementation task is an equivalent
+Gauss--Newton/LM solver followed by a numerical-equivalence and runtime gate.
+
 The next detector candidate remains multi-look evidence accumulation, with
 1/2/4-look latency curves and a larger calibration partition.  Promotion
 requires both:
@@ -115,4 +148,7 @@ Machine evidence:
 - `data/area400_boost50_refinement_screen_20261005/`
 - `data/area400_boost10_refinement_screen_20261006/`
 - `data/area400_crossfit_map_screen_20261007/`
+- `data/area400_crossfit_map_boost30_formal_20261008/`
+- `data/area400_crossfit_map_boost50_formal_20261008/`
+- `data/area400_crossfit_map_formal_analysis_20261008.json`
 - `tools/gate_area400_dual_axis.py`

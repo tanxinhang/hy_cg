@@ -1,0 +1,152 @@
+[
+  {
+    "directory": "studies\\direction3\\data\\area400_crossfit_map_boost30_formal_20261008",
+    "split_counts": {
+      "train": 1,
+      "calibration": 40,
+      "test": 40
+    },
+    "point": {
+      "two_cpi": {
+        "auc": 0.726875,
+        "pfa": 0.0,
+        "pd": 0.125
+      },
+      "crossfit_map": {
+        "auc": 0.748125,
+        "pfa": 0.0,
+        "pd": 0.175
+      },
+      "perfect_two_cpi": {
+        "auc": 0.754375,
+        "pfa": 0.025,
+        "pd": 0.25
+      }
+    },
+    "paired_bootstrap95": {
+      "map_minus_base_auc": [
+        -0.0012500000000000844,
+        0.05439062499999983
+      ],
+      "map_minus_base_pd": [
+        0.0,
+        0.125
+      ],
+      "oracle_minus_map_auc": [
+        -0.04125000000000001,
+        0.05687500000000001
+      ],
+      "oracle_minus_map_pd": [
+        0.0,
+        0.175
+      ]
+    },
+    "binomial95": {
+      "two_cpi": {
+        "pfa_wilson95": [
+          0.0,
+          0.08762160119728664
+        ],
+        "pd_wilson95": [
+          0.05459500250945401,
+          0.261121198388511
+        ]
+      },
+      "crossfit_map": {
+        "pfa_wilson95": [
+          0.0,
+          0.08762160119728664
+        ],
+        "pd_wilson95": [
+          0.0874541374603592,
+          0.31949990331787714
+        ]
+      },
+      "perfect_two_cpi": {
+        "pfa_wilson95": [
+          0.0044268315026814095,
+          0.1288136896347409
+        ],
+        "pd_wilson95": [
+          0.14187118639096302,
+          0.40193961420768026
+        ]
+      }
+    }
+  },
+  {
+    "directory": "studies\\direction3\\data\\area400_crossfit_map_boost50_formal_20261008",
+    "split_counts": {
+      "train": 1,
+      "calibration": 40,
+      "test": 40
+    },
+    "point": {
+      "two_cpi": {
+        "auc": 0.6925,
+        "pfa": 0.025,
+        "pd": 0.025
+      },
+      "crossfit_map": {
+        "auc": 0.754375,
+        "pfa": 0.0,
+        "pd": 0.2
+      },
+      "perfect_two_cpi": {
+        "auc": 0.754375,
+        "pfa": 0.025,
+        "pd": 0.25
+      }
+    },
+    "paired_bootstrap95": {
+      "map_minus_base_auc": [
+        -0.02124999999999999,
+        0.145625
+      ],
+      "map_minus_base_pd": [
+        0.075,
+        0.3
+      ],
+      "oracle_minus_map_auc": [
+        -0.04999999999999993,
+        0.04314062499999985
+      ],
+      "oracle_minus_map_pd": [
+        0.0,
+        0.125
+      ]
+    },
+    "binomial95": {
+      "two_cpi": {
+        "pfa_wilson95": [
+          0.0044268315026814095,
+          0.1288136896347409
+        ],
+        "pd_wilson95": [
+          0.0044268315026814095,
+          0.1288136896347409
+        ]
+      },
+      "crossfit_map": {
+        "pfa_wilson95": [
+          0.0,
+          0.08762160119728664
+        ],
+        "pd_wilson95": [
+          0.10499989725437704,
+          0.347573063463995
+        ]
+      },
+      "perfect_two_cpi": {
+        "pfa_wilson95": [
+          0.0044268315026814095,
+          0.1288136896347409
+        ],
+        "pd_wilson95": [
+          0.14187118639096302,
+          0.40193961420768026
+        ]
+      }
+    }
+  }
+]

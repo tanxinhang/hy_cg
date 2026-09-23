@@ -9,3 +9,7 @@ def test_crossfit_gate_fits_only_the_opposite_look():
     assert "observations[held_index]" in text
     assert "refine_direct_dd_joint(cfg, [reference])" in text
     assert "EvaluationPartition.from_records" in text
+    assert "partition.calibration.rows" in text
+    assert '"test_pfa"' in text
+    assert '"test_pd"' in text
+    assert '"oracle_auc_gap"' in text
