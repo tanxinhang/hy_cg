@@ -15,7 +15,10 @@ from types import SimpleNamespace
 
 import numpy as np
 
-import run_tpuic_receiver_benchmark as bench
+try:  # Support both ``python tools/...`` and ``python -m tools...``.
+    from tools import run_tpuic_receiver_benchmark as bench
+except ModuleNotFoundError:  # pragma: no cover - direct-script compatibility
+    import run_tpuic_receiver_benchmark as bench
 from isac_sim.receiver import cancellation as cx
 from isac_sim.receiver import cancellation_glrt as gl
 from isac_sim.sensing.model import radar_hardware_gain

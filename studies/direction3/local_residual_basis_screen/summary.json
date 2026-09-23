@@ -1,0 +1,55 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\local_residual_basis_screen",
+    "scenes": 6,
+    "realisations": 2,
+    "receiver": 0,
+    "target": 1,
+    "boost_db": 30.0,
+    "master_seed": 20260922,
+    "uavs": 6,
+    "targets_count": 3,
+    "target_rcs": 0.05,
+    "area_xy": 800.0,
+    "m_rx": 4,
+    "direct_dd_sigma": 0.1,
+    "covariance": "sigma_point",
+    "tangent_order": 1,
+    "uncertainty_weighted": true
+  },
+  "gate": {
+    "median_at_least": 0.8,
+    "q25_at_least": 0.5
+  },
+  "summary": {
+    "direct": {
+      "count": 12,
+      "median": 0.00017165942542172262,
+      "q25": 3.253255906236048e-05,
+      "minimum": 1.5149354694641873e-05,
+      "median_rank": 15.0,
+      "raw_median": 0.003290403183338418,
+      "passes": false
+    },
+    "direct_tested_target": {
+      "count": 12,
+      "median": 0.0032790696153040364,
+      "q25": 0.0019924186495209537,
+      "minimum": 0.00015666551672341482,
+      "median_rank": 30.0,
+      "raw_median": 0.010623341114762617,
+      "passes": false
+    },
+    "direct_all_targets": {
+      "count": 12,
+      "median": 0.02394043802910273,
+      "q25": 0.01169063697601781,
+      "minimum": 0.001254667931120663,
+      "median_rank": 60.0,
+      "raw_median": 0.0403734235993512,
+      "passes": false
+    }
+  },
+  "decision": "stop",
+  "warning": "x_direct is used only as an oracle diagnostic label, never in a candidate basis"
+}
