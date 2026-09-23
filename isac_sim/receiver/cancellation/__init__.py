@@ -31,6 +31,7 @@ from isac_sim.receiver.cancellation.constants import EPS
 from isac_sim.receiver.cancellation.sources import DirectSource, TargetSource
 from isac_sim.receiver.cancellation.containers import Observation
 from isac_sim.receiver.cancellation.result import CancellationResult
+from isac_sim.receiver.cancellation.nonlinear_refinement import refine_direct_dd
 from isac_sim.receiver.cancellation.prior_quantile import (
     _residual_quantile_from_descriptors, residual_power_prior_quantile)
 from isac_sim.receiver.cancellation.link_offsets import (
@@ -79,5 +80,5 @@ __all__ = [
     "build_observation_pair", "protected_target_ids", "_protection_basis",
     "_noise_power", "predict_cancellation", "_protection_leakage_fraction",
     "kappa_from_budget", "ReceiverContext", "ReceiverMeasurement",
-    "measure_receiver_context", "measure_residual_fraction",
+    "measure_receiver_context", "measure_residual_fraction", "refine_direct_dd",
 ]

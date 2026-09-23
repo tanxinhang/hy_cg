@@ -1,0 +1,58 @@
+{
+  "protocol": {
+    "master_seed": 20261005,
+    "area_xy_m": 400.0,
+    "boost_db": [
+      50.0
+    ],
+    "cpi_counts": [
+      1
+    ],
+    "arms": [
+      "tp_uic_full",
+      "refined_tp_uic",
+      "perfect_channel"
+    ],
+    "train_scenes": 2,
+    "calibration_scenes": 3,
+    "test_scenes": 24,
+    "p_fa": 0.05,
+    "combiner": "noncoherent_sum"
+  },
+  "evaluation": [
+    {
+      "boost_db": 50.0,
+      "arm": "tp_uic_full",
+      "cpi_count": 1,
+      "train_auc": 0.5,
+      "threshold": Infinity,
+      "auc": 0.5503472222222222,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "oracle_auc_gap": 0.06423611111111116,
+      "oracle_pd_gap": 0.0
+    },
+    {
+      "boost_db": 50.0,
+      "arm": "refined_tp_uic",
+      "cpi_count": 1,
+      "train_auc": 0.5,
+      "threshold": Infinity,
+      "auc": 0.5434027777777778,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "oracle_auc_gap": 0.07118055555555558,
+      "oracle_pd_gap": 0.0
+    },
+    {
+      "boost_db": 50.0,
+      "arm": "perfect_channel",
+      "cpi_count": 1,
+      "train_auc": 0.5,
+      "threshold": Infinity,
+      "auc": 0.6145833333333334,
+      "pfa": 0.0,
+      "pd": 0.0
+    }
+  ]
+}
