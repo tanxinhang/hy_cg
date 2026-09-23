@@ -41,6 +41,22 @@ def arm_plans(
         "tp_uic_full": ArmPlan("tp_uic_full", "estimator", belief, prior, candidates),
         "perfect_channel": ArmPlan("perfect_channel", "oracle", empty, None),
     }
+    if results is not None and "targeted_tpuic_stage1" in results:
+        ids = np.asarray(obs.A_target_ids)
+        tested = int(obs.weak_index)
+        target_subspace = orthonormalise(obs.A[:, ids == tested])
+        plans["targeted_tpuic_stage1"] = ArmPlan(
+            "targeted_tpuic_stage1", "estimator", target_subspace, prior
+        )
+    if results is not None and "targeted_tpuic_full" in results:
+        targeted = results["targeted_tpuic_full"]
+        ids = np.asarray(obs.A_target_ids)
+        tested = int(obs.weak_index)
+        target_subspace = orthonormalise(obs.A[:, ids == tested])
+        plans["targeted_tpuic_full"] = ArmPlan(
+            "targeted_tpuic_full", "estimator", target_subspace, prior,
+            tuple(int(c) for c in targeted.candidates),
+        )
     if results is not None and "adaptive_soft_tpuic" in results:
         adaptive = results["adaptive_soft_tpuic"]
         if adaptive.soft_mu is None:

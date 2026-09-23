@@ -69,11 +69,11 @@ def check_proposal(cfg: Config) -> None:
             "cancellation.direct_mismatch_covariance_scale must be finite and nonnegative"
         )
     if str(cfg.cancellation.direct_mismatch_covariance_model) not in {
-        "first_order", "sigma_point"
+        "first_order", "sigma_point", "sigma_point_replacement"
     }:
         raise ValueError(
             "cancellation.direct_mismatch_covariance_model must be "
-            "'first_order' or 'sigma_point'"
+            "'first_order', 'sigma_point', or 'sigma_point_replacement'"
         )
     if not math.isfinite(cfg.cancellation.tangent_step_bins) or (
         cfg.cancellation.tangent_step_bins <= 0.0

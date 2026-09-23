@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import replace
-
 import numpy as np
-
 from isac_sim.receiver.cancellation import EPS, CancellationResult, Observation
 from isac_sim.receiver.cancellation_glrt.arm_table import arm_plans
 from isac_sim.receiver.cancellation_glrt.belief_error import _belief_error_factor
@@ -200,10 +198,12 @@ def residual_model(
     # 失配才带。把它加进去曾把条件数顶到 1e13，让 ``eigh`` 报出低于地板的
     # 最小特征值。
     mismatch_model = str(cfg.cancellation.direct_mismatch_covariance_model)
-    if mismatch_model == "sigma_point":
+    if mismatch_model in {"sigma_point", "sigma_point_replacement"}:
         direct_mismatch_factor = _direct_mismatch_sigma_point_factor(
             cfg, obs, basis, small, gain
         )
+        if mismatch_model.endswith("replacement"):
+            direct_factor = direct_factor[:, :0]
     elif mismatch_model == "first_order":
         direct_mismatch_factor = _direct_mismatch_factor(
             cfg, obs, basis, small, gain

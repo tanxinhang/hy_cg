@@ -1,0 +1,36 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\target_risk_gate_screen_20261002",
+    "scenes": 6,
+    "master_seed": 20261002,
+    "uavs": 6,
+    "targets": 3,
+    "target_rcs": 0.05,
+    "area_xy": 800.0,
+    "boost_db": 30.0,
+    "direct_dd_sigma": 0.1,
+    "risk_gate": 0.8,
+    "arms": [
+      "plain_ls",
+      "targeted_tpuic_full",
+      "tp_uic_full"
+    ]
+  },
+  "preregistered_gate": {
+    "risk_truth_rank_correlation_at_least": 0.5,
+    "risky_fraction_at_least": 0.2,
+    "risky_median_delta_ncp_positive": true,
+    "risky_q25_delta_ncp_nonnegative": true
+  },
+  "result": {
+    "count": 108,
+    "risky_count": 17,
+    "safe_count": 91,
+    "risky_fraction": 0.1574074074074074,
+    "risk_truth_rank_correlation": 0.9377232844608304,
+    "risky_median_delta_ncp": 0.005613791518917555,
+    "risky_q25_delta_ncp": 0.0036859707932590524
+  },
+  "decision": "stop_risk_gate",
+  "scope": "mechanism screen only; oracle survival is diagnostic, never a gate input"
+}

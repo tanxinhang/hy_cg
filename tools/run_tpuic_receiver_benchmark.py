@@ -845,7 +845,8 @@ def build_parser() -> argparse.ArgumentParser:
                    action="store_false")
     p.set_defaults(direct_mismatch_in_cres=True)
     p.add_argument("--direct-mismatch-covariance-model",
-                   choices=("first_order", "sigma_point"), default="first_order")
+                   choices=("first_order", "sigma_point", "sigma_point_replacement"),
+                   default="first_order")
     p.add_argument("--direct-mismatch-covariance-scale", type=float, default=1.0)
     p.add_argument("--oracle-direct-residual-in-cres", action="store_true",
                    help="diagnostic truth-leaking rank-one C_res correction")
