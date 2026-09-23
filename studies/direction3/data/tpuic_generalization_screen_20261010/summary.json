@@ -1,0 +1,921 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\tpuic_generalization_screen_20261010",
+    "train_scenes": 1,
+    "calibration_scenes": 2,
+    "test_scenes": 2,
+    "master_seed": 20261010,
+    "receivers": "0,1,2,3",
+    "targets": "0,1,2",
+    "boost_db": "10,30,50",
+    "gn_max_nfev": 4,
+    "p_fa": 0.05,
+    "receiver": 3,
+    "target": 2
+  },
+  "cells": [
+    {
+      "boost_db": 10.0,
+      "receiver": 0,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 0,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.25,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.25,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 0,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 1,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 1,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 1,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 2,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 2,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 2,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 3,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 3,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 10.0,
+      "receiver": 3,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 0,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 0,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.25,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.25,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 0,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 1,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 1,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.25,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.25,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 1,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.25,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 2,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 2,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 2,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 3,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 3,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 30.0,
+      "receiver": 3,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 0,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 0,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 0,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 1,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 1,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 1,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.25,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 2,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 2,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 2,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 3,
+      "target": 0,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 1.0,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 3,
+      "target": 1,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.5,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    },
+    {
+      "boost_db": 50.0,
+      "receiver": 3,
+      "target": 2,
+      "two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "crossfit_map": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      },
+      "perfect_two_cpi": {
+        "threshold": Infinity,
+        "auc": 0.75,
+        "pfa": 0.0,
+        "pd": 0.0
+      }
+    }
+  ],
+  "aggregate": [
+    {
+      "boost_db": 10.0,
+      "cells": 12,
+      "macro_two_cpi": {
+        "auc": 0.6875,
+        "pd": 0.0,
+        "pfa": 0.0
+      },
+      "macro_crossfit_map": {
+        "auc": 0.7083333333333334,
+        "pd": 0.0,
+        "pfa": 0.0
+      },
+      "macro_perfect": {
+        "auc": 0.7708333333333334,
+        "pd": 0.0,
+        "pfa": 0.0
+      },
+      "map_minus_base_auc": 0.020833333333333332,
+      "map_minus_base_pd": 0.0,
+      "nonnegative_auc_cell_fraction": 1.0,
+      "nonnegative_pd_cell_fraction": 1.0
+    },
+    {
+      "boost_db": 30.0,
+      "cells": 12,
+      "macro_two_cpi": {
+        "auc": 0.6875,
+        "pd": 0.0,
+        "pfa": 0.0
+      },
+      "macro_crossfit_map": {
+        "auc": 0.6666666666666666,
+        "pd": 0.0,
+        "pfa": 0.0
+      },
+      "macro_perfect": {
+        "auc": 0.6875,
+        "pd": 0.0,
+        "pfa": 0.0
+      },
+      "map_minus_base_auc": -0.020833333333333332,
+      "map_minus_base_pd": 0.0,
+      "nonnegative_auc_cell_fraction": 0.8333333333333334,
+      "nonnegative_pd_cell_fraction": 1.0
+    },
+    {
+      "boost_db": 50.0,
+      "cells": 12,
+      "macro_two_cpi": {
+        "auc": 0.6875,
+        "pd": 0.0,
+        "pfa": 0.0
+      },
+      "macro_crossfit_map": {
+        "auc": 0.6666666666666666,
+        "pd": 0.0,
+        "pfa": 0.0
+      },
+      "macro_perfect": {
+        "auc": 0.7291666666666666,
+        "pd": 0.0,
+        "pfa": 0.0
+      },
+      "map_minus_base_auc": -0.020833333333333332,
+      "map_minus_base_pd": 0.0,
+      "nonnegative_auc_cell_fraction": 0.8333333333333334,
+      "nonnegative_pd_cell_fraction": 1.0
+    }
+  ],
+  "decision": {
+    "eligible": false,
+    "status": "screen_only"
+  }
+}

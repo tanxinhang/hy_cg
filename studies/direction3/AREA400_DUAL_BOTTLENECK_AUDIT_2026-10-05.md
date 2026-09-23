@@ -184,5 +184,22 @@ Machine evidence:
 - `data/area400_crossfit_map_boost50_formal_20261008/`
 - `data/area400_crossfit_map_formal_analysis_20261008/summary.json`
 - `data/area400_crossfit_gn_nfev4_boost50_formal_20261008/`
+
+### Receiver-target 泛化筛查（2026-10-10）
+
+冻结 GN4 + TP-UIC 主体后，新增 400 m、4 receiver × 3 target ×
+`{+10,+30,+50}` dB 的跨几何筛查。协议为 1 train / 2 calibration /
+2 test，仅用于发现明显退化和估算成本；在 `P_FA=0.05` 下，2 个 calibration
+样本的 split-conformal 阈值必然为 `inf`，因此本轮 PD/PFA 不可解释，也不得作为
+正式通过证据。
+
+宏平均 AUC 差值（GN-MAP TP-UIC 减普通两 CPI TP-UIC）为：+10 dB
+`+0.0208`，+30 dB `-0.0208`，+50 dB `-0.0208`。+30/+50 dB 均有
+10/12 个 receiver-target 单元 AUC 不退化，但两个负迁移单元说明单节点正式结果
+尚不能外推为跨节点结论。裁决：`screen_only`，TP-UIC 主体继续冻结；正式门禁应
+预注册跨 4 个 receiver 的代表/困难组合，并为每个单元使用至少 40 calibration、
+40 test。扩样前先补增量落盘、断点恢复和受控并行，避免直接运行全笛卡尔 40/40。
+
+产物：`data/tpuic_generalization_screen_20261010/summary.json`。
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

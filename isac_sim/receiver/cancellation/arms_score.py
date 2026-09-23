@@ -59,7 +59,10 @@ def score_arms(ctx: ArmContext, parts: Dict[str, _Arm],
         # 生成器（每目标三个单位模散射体）把 ``s_energy`` 抬到了 EPS 之上。
         if s_energy > 0.0:
             projected_s = ctx.belief.project(ctx.s)
-            eta_protect = float(np.vdot(projected_s, projected_s).real / s_energy)
+            raw_protect = float(np.vdot(projected_s, projected_s).real / s_energy)
+            # An orthogonal projection cannot increase energy.  Roundoff can
+            # nevertheless produce values such as 1.000000000000001.
+            eta_protect = float(np.clip(raw_protect, 0.0, 1.0))
             left_s = ctx.s - arm.sub_target
             eta_survive = float(np.vdot(left_s, left_s).real / s_energy)
         else:
