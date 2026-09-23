@@ -23,7 +23,7 @@ def check_scenario(cfg: Config) -> None:
     if cfg.detect.n_looks < 1:
         raise ValueError("detect.n_looks must be at least one")
     if cfg.detect.sensing_dwell_s is not None:
-        from isac_sim.sensing.waveform.timing import looks_from_dwell
+        from isac_sim.core.config.timing import looks_from_dwell
         looks_from_dwell(cfg, cfg.detect.sensing_dwell_s)
     if cfg.detect.target_response_model not in (
         "unit_phase", "deterministic_unknown", "swerling1_shared",

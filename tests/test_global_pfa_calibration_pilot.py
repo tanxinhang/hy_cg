@@ -1,3 +1,4 @@
+"""Contracts for finite-sample global-PFA calibration and split isolation."""
 import sys
 from pathlib import Path
 

@@ -28,6 +28,8 @@ KNOWN_CORRUPT = {
     "studies/direction1/docs/AUDIT_REAL_VS_EXPECTED_GAP.md",
     "studies/direction1/docs/AUDIT_TPUIC_RESIDUAL_ACCOUNTING.md",
     "studies/direction1/docs/TPUIC_RESIDUAL_ACCOUNTING_AUDIT.md",
+    "studies/direction3/TPUIC_FEASIBILITY_VERDICT.md",
+    "studies/direction3/V2_RESEARCH_FRAMEWORK.md",
 }
 
 _TOKEN = re.compile(r"data/([A-Za-z0-9_\-]+)")

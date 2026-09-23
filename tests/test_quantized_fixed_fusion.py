@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from run_quantized_fixed_fusion import quantize, run  # noqa: E402
-from test_fixed_fusion_conformal import _input  # noqa: E402
+from _fixed_fusion_common import input_records as _input  # noqa: E402
 
 
 def test_quantizer_and_fixed_payload():

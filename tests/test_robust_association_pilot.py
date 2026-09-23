@@ -1,3 +1,4 @@
+"""Contracts for robust association candidates, scoring, and search budgets."""
 import sys
 from pathlib import Path
 

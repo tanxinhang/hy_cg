@@ -1,3 +1,4 @@
+"""Contracts for non-enumerative association search budgets and selection."""
 import sys
 from pathlib import Path
 

@@ -1,3 +1,4 @@
+"""Contracts for frozen scenarios, data splits, formation, and held-out ROC."""
 import numpy as np
 
 from isac_sim.cooperation.scientific_validation import (

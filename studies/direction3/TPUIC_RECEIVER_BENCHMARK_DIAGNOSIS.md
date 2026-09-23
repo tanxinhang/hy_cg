@@ -453,4 +453,4 @@ Innovation I 换不来检测增益。** 可报的正面量是 κ = 12.64 dB [11.
 | `tools/run_tpuic_receiver_shards.py` | 分片并行驱动 + 合并（正确性论证见其 docstring） |
 | `tools/analyze_tpuic_receiver.py` | 汇总分析：AUC/P_D 分臂、配对差、机制指标、ξ 分箱 |
 | `studies/direction3/data/tpuic_receiver_smoke/` | 烟测输出（records/summary/scene_summary/manifest/scenes） |
-| `studies/direction3/data/_driver_check/` | 分片驱动自检输出 |
+| `_driver_check`（临时目录，已清理） | 分片驱动自检输出 |

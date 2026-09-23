@@ -1,3 +1,4 @@
+"""Contracts for quantization and scene-count auditing of real TP-UIC scores."""
 import sys
 from pathlib import Path
 
