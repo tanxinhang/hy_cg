@@ -89,4 +89,3 @@ def apply_direct_dd(cfg, obs: Observation, sources) -> Observation:
     if len(sources) != len(obs.direct_est or []):
         raise ValueError("direct-source count differs across receiver looks")
     return replace(obs, direct_est=sources, X=direct_dictionary(cfg, sources))
-
