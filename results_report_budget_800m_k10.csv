@@ -1,3 +1,0 @@
-preset,net_gain_db,report_budget,fusion_rule,mc,seed,P_D,P_D_weak,actual_reports,selected_observations,all_targets_satisfied_prob,actual_worst_target_P_D
-small-uav-compact-800m,0.0,10,pd_lookahead,20,2026,0.495,0.4,7.05,17.05,0.0,0.35
-small-uav-compact-800m,0.0,10,nearest,20,2026,0.53,0.4,6.85,16.85,0.0,0.4

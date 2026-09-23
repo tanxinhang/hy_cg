@@ -1,0 +1,161 @@
+{
+  "protocol": "robust_common_subset_association_pilot_v1",
+  "input": "D:\\Desktop\\conference\\studies\\direction3\\data\\association_nonenum_pilot_receiver\\records.csv",
+  "settings": {
+    "arm": "tp_uic_full",
+    "boost_db": 30.0,
+    "k": 3,
+    "bootstrap": 100,
+    "shrink": 0.7
+  },
+  "methods": {
+    "common_sinr_topk": {
+      "subset": [
+        0,
+        1,
+        5
+      ],
+      "worst_test_auc": 0.4722222222222222,
+      "mean_test_auc": 0.5648148148148149,
+      "worst_test_pd": 0.16666666666666666,
+      "per_target": {
+        "0": {
+          "test_auc": 0.6388888888888888,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        },
+        "1": {
+          "test_auc": 0.5833333333333334,
+          "test_pfa": 0.3333333333333333,
+          "test_pd": 0.3333333333333333
+        },
+        "2": {
+          "test_auc": 0.4722222222222222,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        }
+      }
+    },
+    "common_independent_greedy": {
+      "subset": [
+        0,
+        1,
+        3
+      ],
+      "worst_test_auc": 0.4722222222222222,
+      "mean_test_auc": 0.5092592592592592,
+      "worst_test_pd": 0.16666666666666666,
+      "per_target": {
+        "0": {
+          "test_auc": 0.5555555555555556,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        },
+        "1": {
+          "test_auc": 0.5,
+          "test_pfa": 0.3333333333333333,
+          "test_pd": 0.3333333333333333
+        },
+        "2": {
+          "test_auc": 0.4722222222222222,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        }
+      }
+    },
+    "robust_corr_greedy_swap": {
+      "subset": [
+        0,
+        1,
+        4
+      ],
+      "worst_test_auc": 0.4722222222222222,
+      "mean_test_auc": 0.5092592592592592,
+      "worst_test_pd": 0.0,
+      "per_target": {
+        "0": {
+          "test_auc": 0.5555555555555556,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        },
+        "1": {
+          "test_auc": 0.4722222222222222,
+          "test_pfa": 0.5,
+          "test_pd": 0.5
+        },
+        "2": {
+          "test_auc": 0.5,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.0
+        }
+      }
+    },
+    "h0_schur_cig_greedy": {
+      "subset": [
+        0,
+        1,
+        4
+      ],
+      "worst_test_auc": 0.4722222222222222,
+      "mean_test_auc": 0.5092592592592592,
+      "worst_test_pd": 0.0,
+      "per_target": {
+        "0": {
+          "test_auc": 0.5555555555555556,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.16666666666666666
+        },
+        "1": {
+          "test_auc": 0.4722222222222222,
+          "test_pfa": 0.5,
+          "test_pd": 0.5
+        },
+        "2": {
+          "test_auc": 0.5,
+          "test_pfa": 0.16666666666666666,
+          "test_pd": 0.0
+        }
+      }
+    }
+  },
+  "search_budget": {
+    "independent_states": 15,
+    "robust_states": 21,
+    "robust_complete_k_subsets": 10,
+    "cig_candidate_evaluations": 15
+  },
+  "cig_trace": [
+    {
+      "receiver": 0,
+      "worst_gain": 0.0012041652255125573,
+      "per_target_gain": [
+        0.0012041652255125573,
+        0.0036798466800598787,
+        0.01082308570495925
+      ]
+    },
+    {
+      "receiver": 1,
+      "worst_gain": 0.000643378028672434,
+      "per_target_gain": [
+        0.09142441283556552,
+        0.008066420381396527,
+        0.000643378028672434
+      ]
+    },
+    {
+      "receiver": 4,
+      "worst_gain": 0.0004991817197594402,
+      "per_target_gain": [
+        0.0004991817197594402,
+        0.049099023292627615,
+        0.004809188065187274
+      ]
+    }
+  ],
+  "limitations": [
+    "only six calibration and six held-out samples per target",
+    "fixed shrinkage is used because nested tuning is unsupported at this sample size",
+    "post-IC SINR is a truth-assisted diagnostic baseline"
+  ]
+}

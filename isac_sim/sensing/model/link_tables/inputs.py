@@ -107,6 +107,8 @@ def resolve_inputs(
     # （active_set 的复评会传 dd_gain=None 并复用选择阶段的感知块）。
     can_reuse_sensing = (
         reuse_from is not None
+        and r.P_sense_by_uav is None
+        and r.P_comm_by_uav is None
         and r.rho_by_uav is None
         and sensing_power_scale_by_uav is None
         and dd_gain is None

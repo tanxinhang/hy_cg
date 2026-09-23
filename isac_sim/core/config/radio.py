@@ -11,6 +11,11 @@ class Radio:
     """发射功率、噪声地板、ISAC 功率划分与残余干扰。"""
 
     P_default: float = 1.0
+    # 新主线直接以两类物理功率为变量。二者同时为 None 时才使用下面的
+    # P_by_uav/rho_by_uav 兼容路径；显式向量允许为零，以表达 sensing-only、
+    # reporting-only 与关闭的 UAV，而不再用 epsilon 功率伪装。
+    P_sense_by_uav: tuple[float, ...] | None = None
+    P_comm_by_uav: tuple[float, ...] | None = None
     # 可选逐 UAV 总功率。None 保持历史上的统一 P_default。
     P_by_uav: tuple[float, ...] | None = None
     rho: float = 0.80  # 联合波形中的感知功率占比

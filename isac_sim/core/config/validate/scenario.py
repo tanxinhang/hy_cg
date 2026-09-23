@@ -22,6 +22,14 @@ def check_scenario(cfg: Config) -> None:
         raise ValueError("detect.Pfa_target must lie in (0, 1)")
     if cfg.detect.n_looks < 1:
         raise ValueError("detect.n_looks must be at least one")
+    if cfg.detect.sensing_dwell_s is not None:
+        from isac_sim.sensing.waveform.timing import looks_from_dwell
+        looks_from_dwell(cfg, cfg.detect.sensing_dwell_s)
+    if cfg.detect.target_response_model not in (
+        "unit_phase", "deterministic_unknown", "swerling1_shared",
+        "swerling2_fast",
+    ):
+        raise ValueError("unknown detect.target_response_model")
     if cfg.detect.num_h1_per_target < 1:
         raise ValueError("detect.num_h1_per_target must be at least one")
     if cfg.detect.num_false_per_target < 1:

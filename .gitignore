@@ -75,6 +75,12 @@ archive/results_preview_*/
 # --- 冒烟 / 预览跑（小 MC，非论文结果）---
 /results_*_smoke/
 
+# --- Active research run cache ---
+# Canonical evidence promoted into studies/direction*/data is versioned there.
+# The top-level results/ tree is a regenerable local run cache and may contain
+# partial screens; do not mistake it for frozen evidence.
+/results/
+
 # --- 手工备份 / 改动前快照（本地保留，不入库）---
 *.bak
 *.bak-*

@@ -233,7 +233,16 @@ if __name__ == "__main__":
 | 编号 | 规则 |
 |---|---|
 | **V-1** | **源码、规范、测试、方向产物必须入库**：`isac_sim/`、`experiments/`、`tests/`、`docs/`、`studies/`、`tools/`、`release/` 下不得有"从没 add 过"的文件 |
-| **V-2** | **删除必须登记**：重构把旧模块换成包之后，旧路径的删除要一起 `git add`，否则 clone 出来是重构前的旧结构 |
+| **V-2** | **删除必须登记**：重构把旧模块换成包之后，旧路径的删除要一起 `git add`，否则 clone 出来是重构前的旧结构（porcelain 里 ` D` 违规、`D ` 合规） |
+
+**这两条已做成门禁**：`tests/test_repo_tracking.py`（2 条，1.3 s；非 git 环境自动跳过）。
+2026-09-21 首次运行即为红 —— 实测发现 `docs/` 与 `studies/` 两个目录**整体从未入库**，
+重构删掉的 43 个 `isac_sim` 旧模块 + 19 个旧测试未登记删除，41 个新测试文件未入库；
+已按用户裁决执行 `git add -A docs studies tests isac_sim experiments release tools`
+（**只入索引，未 commit**），门禁转绿。
+⚠️ 仍**未处理**的历史遗留（在 V-1/V-2 范围之外，需另行决定）：
+`_archive/` 543 条删除、`archive/` 134 条、`results*/` 数百条、以及根目录一批旧 md
+（`V1_STABLE_RELEASE.md`、`TP_UIC_V12.md`、`COORDINATION_WIRING.md` …）显示为已删除。
 | **V-3** | `.workbuddy/` **永远不入库**（记忆 + CI 基线）。⇒ 逐位门禁在 CI 里跑不了，CI 只有三道环境无关门禁，这是**已知且接受**的 |
 | **V-4** | 大产物/中间物走 `.gitignore`（`*_smoke/`、`/tmp/`、`*.bak`、`ppt/**/*.pptx`），不靠"记得不 add" |
 | **V-5** | 提交前 `git status --porcelain` **全量核对**（本仓曾长期 1500+ 条未提交脏状态）；推送后用 `git ls-remote origin refs/heads/main` 实查 |

@@ -40,6 +40,12 @@ from isac_sim.sensing.waveform.sampling import (
     draw_matched_filter_energy,
 )
 from isac_sim.sensing.waveform.sweep import sweep_compare_analytic_vs_psf
+from isac_sim.sensing.waveform.timing import (
+    configured_looks,
+    dwell_from_looks_s,
+    looks_from_dwell,
+    otfs_frame_duration_s,
+)
 
 __all__ = [
     "EPS",
@@ -62,4 +68,8 @@ __all__ = [
     "erlang_sf",
     "exact_singleton_reference",
     "calibrated_singleton_threshold",
+    "otfs_frame_duration_s",
+    "dwell_from_looks_s",
+    "looks_from_dwell",
+    "configured_looks",
 ]

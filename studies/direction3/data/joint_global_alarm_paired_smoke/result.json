@@ -1,0 +1,241 @@
+{
+  "protocol": "joint_global_alarm_real_tpuic_v2_paired_ablation",
+  "global_h0": "all candidate target echoes absent in one shared physical observation per receiver/scene",
+  "global_h1": "all candidate target echoes present; each target scored on the same observation",
+  "receivers": [
+    0,
+    1
+  ],
+  "targets": [
+    0,
+    1
+  ],
+  "bits_per_uav_per_target_payload": 3,
+  "total_payload_bits_per_scene": 12,
+  "communication_scope": "ideal error-free scalar payload; no header, coding, outage or latency model",
+  "quantizer": {
+    "type": "fixed_uniform_nearest",
+    "range": [
+      0,
+      8.0
+    ]
+  },
+  "alpha": 0.05,
+  "n_cal_independent_scenes": 1,
+  "n_test_independent_scenes": 1,
+  "variants": {
+    "pair_unquantized": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        0.0,
+        1.0
+      ]
+    },
+    "receiver_0_unquantized": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        0.0,
+        1.0
+      ]
+    },
+    "receiver_1_unquantized": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        1.0,
+        1.0
+      ]
+    },
+    "pair_3bit": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        0.0,
+        1.0
+      ]
+    },
+    "receiver_0_3bit": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        0.0,
+        1.0
+      ]
+    },
+    "receiver_1_3bit": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        0.5,
+        0.5
+      ]
+    }
+  },
+  "conformal_order": 2,
+  "threshold": Infinity,
+  "marginal_global_pfa_bound": 0,
+  "test_global_false_alarms": 0,
+  "test_per_target_detections": [
+    0,
+    0
+  ],
+  "records": [
+    {
+      "scene_id": 0,
+      "split": "calibration",
+      "raw_by_hypothesis_receiver_target": [
+        [
+          [
+            1.650847745141932,
+            0.8053071754264114
+          ],
+          [
+            1.7030922592340787,
+            0.7700727540433734
+          ]
+        ],
+        [
+          [
+            1.5756356314629738,
+            1.0836953814641652
+          ],
+          [
+            1.6234180681738029,
+            1.1326370116302773
+          ]
+        ]
+      ],
+      "reported_by_hypothesis_receiver_target": [
+        [
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ],
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ]
+        ],
+        [
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ],
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ]
+        ]
+      ],
+      "h0_per_target": [
+        2.2857142857142856,
+        2.2857142857142856
+      ],
+      "h1_per_target": [
+        2.2857142857142856,
+        2.2857142857142856
+      ],
+      "global_h0": 2.2857142857142856
+    },
+    {
+      "scene_id": 1,
+      "split": "test",
+      "raw_by_hypothesis_receiver_target": [
+        [
+          [
+            1.8933060868346927,
+            1.5889689683820758
+          ],
+          [
+            1.1311179284894737,
+            1.8782510819626617
+          ]
+        ],
+        [
+          [
+            1.2672061990076608,
+            2.6332916981977568
+          ],
+          [
+            1.181358492792562,
+            2.1222024688621577
+          ]
+        ]
+      ],
+      "reported_by_hypothesis_receiver_target": [
+        [
+          [
+            2.2857142857142856,
+            1.1428571428571428
+          ],
+          [
+            1.1428571428571428,
+            2.2857142857142856
+          ]
+        ],
+        [
+          [
+            1.1428571428571428,
+            2.2857142857142856
+          ],
+          [
+            1.1428571428571428,
+            2.2857142857142856
+          ]
+        ]
+      ],
+      "h0_per_target": [
+        3.4285714285714284,
+        3.4285714285714284
+      ],
+      "h1_per_target": [
+        2.2857142857142856,
+        4.571428571428571
+      ],
+      "global_h0": 3.4285714285714284
+    }
+  ],
+  "limitations": [
+    "fixed subset, not learned association",
+    "homogeneous target RCS",
+    "pilot PFA 0.05, not paper PFA 0.001"
+  ]
+}

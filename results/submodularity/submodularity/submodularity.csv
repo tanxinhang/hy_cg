@@ -1,2 +1,0 @@
-experiment,method,M,Q,n_samples,monotone_violation_rate,submodularity_violation_rate,min_marginal_ratio,curvature,greedy_guarantee
-submodularity,proposed_lagrangian,4,3,800,0.0,0.0,1.9002490283513813,0.8963685906955379,0.6603881947298896

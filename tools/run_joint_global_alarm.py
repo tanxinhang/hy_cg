@@ -82,7 +82,7 @@ def _learn_minimax_weight(train: list[dict], *, field: str,
                            "worst_target_train_deflection": min(per_target),
                            "per_target_train_deflection": per_target})
     selected = max(candidates, key=lambda v: (v["worst_target_train_deflection"],
-                                                -abs(v["weights"][0] - 0.5)))
+                                              -abs(v["weights"][0] - 0.5)))
     return {"selected": selected, "candidates": candidates,
             "covariance": "H0 sample covariance, 70% diagonal shrinkage plus quantization-step^2/12 diagonal floor",
             "selection": "maximin one-sided deflection on independent train scenes only"}
@@ -142,7 +142,7 @@ def run(args) -> dict:
         reported = np.zeros_like(raw)
         for i, receiver in enumerate(receivers):
             obs0, obs1 = joint_observation(cfg, truth, belief, base,
-                                            scene=scene, receiver=receiver)
+                                           scene=scene, receiver=receiver)
             for j, target in enumerate(targets):
                 for hypothesis, obs in enumerate((obs0, obs1)):
                     tested = replace(obs, weak_index=target)

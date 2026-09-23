@@ -12,6 +12,23 @@ if TYPE_CHECKING:  # pragma: no cover - 仅供类型检查
 
 def check_radio(cfg: Config) -> None:
     """射频链路预算、标定样本数与波形损伤 INR。"""
+    direct = (cfg.radio.P_sense_by_uav, cfg.radio.P_comm_by_uav)
+    if any(value is not None for value in direct):
+        if not all(value is not None for value in direct):
+            raise ValueError(
+                "radio.P_sense_by_uav and radio.P_comm_by_uav must be specified together"
+            )
+        if cfg.radio.P_by_uav is not None or cfg.radio.rho_by_uav is not None:
+            raise ValueError(
+                "direct sensing/communication powers cannot be mixed with legacy "
+                "P_by_uav/rho_by_uav"
+            )
+        for name, values in zip(("P_sense_by_uav", "P_comm_by_uav"), direct):
+            if (len(values) != cfg.scale.M or
+                    not all(math.isfinite(x) and x >= 0.0 for x in values)):
+                raise ValueError(
+                    f"radio.{name} must have M finite non-negative powers"
+                )
     if cfg.radio.rho_by_uav is not None:
         if (len(cfg.radio.rho_by_uav) != cfg.scale.M or
                 not all(math.isfinite(x) and 0.0 < x < 1.0 for x in cfg.radio.rho_by_uav)):

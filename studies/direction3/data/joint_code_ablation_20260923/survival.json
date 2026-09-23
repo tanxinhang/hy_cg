@@ -1,0 +1,1302 @@
+{
+  "summary": {
+    "budget_1_target_0": {
+      "median_eta_survive_q": 0.9998769977103545,
+      "median_direct_suppression_db": 12.708034793775717
+    },
+    "budget_1_target_1": {
+      "median_eta_survive_q": 0.9997560503428078,
+      "median_direct_suppression_db": 12.708034793775717
+    },
+    "budget_2_target_0": {
+      "median_eta_survive_q": 0.9999193391670315,
+      "median_direct_suppression_db": 12.706674183684347
+    },
+    "budget_2_target_1": {
+      "median_eta_survive_q": 0.9998478631521983,
+      "median_direct_suppression_db": 12.706674183684347
+    }
+  },
+  "rows": [
+    {
+      "scene": 40,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999796626260717,
+      "direct_suppression_db": 16.543772864367877
+    },
+    {
+      "scene": 40,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999554768761342,
+      "direct_suppression_db": 16.543772864367877
+    },
+    {
+      "scene": 40,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9998425333928211,
+      "direct_suppression_db": 16.210949108082374
+    },
+    {
+      "scene": 40,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999638025485099,
+      "direct_suppression_db": 16.210949108082374
+    },
+    {
+      "scene": 40,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 1.0000573847219418,
+      "direct_suppression_db": 16.543772687074178
+    },
+    {
+      "scene": 40,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999552409740646,
+      "direct_suppression_db": 16.543772687074178
+    },
+    {
+      "scene": 40,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999135509935846,
+      "direct_suppression_db": 16.210949165948943
+    },
+    {
+      "scene": 40,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999632787103371,
+      "direct_suppression_db": 16.210949165948943
+    },
+    {
+      "scene": 41,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.994671602276099,
+      "direct_suppression_db": 9.808711420529987
+    },
+    {
+      "scene": 41,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9998259756281932,
+      "direct_suppression_db": 9.808711420529987
+    },
+    {
+      "scene": 41,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9991370686659686,
+      "direct_suppression_db": 11.631974851563477
+    },
+    {
+      "scene": 41,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9994717942025142,
+      "direct_suppression_db": 11.631974851563477
+    },
+    {
+      "scene": 41,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9970777764617001,
+      "direct_suppression_db": 9.808679456093108
+    },
+    {
+      "scene": 41,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9998264729562965,
+      "direct_suppression_db": 9.808679456093108
+    },
+    {
+      "scene": 41,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9997396056550485,
+      "direct_suppression_db": 11.63183644586158
+    },
+    {
+      "scene": 41,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9994687512118371,
+      "direct_suppression_db": 11.63183644586158
+    },
+    {
+      "scene": 42,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999303013862093,
+      "direct_suppression_db": 11.121799575741036
+    },
+    {
+      "scene": 42,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9859658796443044,
+      "direct_suppression_db": 11.121799575741036
+    },
+    {
+      "scene": 42,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9934911088122579,
+      "direct_suppression_db": 13.781744553654772
+    },
+    {
+      "scene": 42,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9970600461025202,
+      "direct_suppression_db": 13.781744553654772
+    },
+    {
+      "scene": 42,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999439653292708,
+      "direct_suppression_db": 11.121542750519387
+    },
+    {
+      "scene": 42,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9947033009021691,
+      "direct_suppression_db": 11.121542750519387
+    },
+    {
+      "scene": 42,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9934793670866139,
+      "direct_suppression_db": 13.781732641436403
+    },
+    {
+      "scene": 42,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9975075426456823,
+      "direct_suppression_db": 13.781732641436403
+    },
+    {
+      "scene": 43,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.7096946790573613,
+      "direct_suppression_db": 13.781876608714281
+    },
+    {
+      "scene": 43,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999438439650115,
+      "direct_suppression_db": 13.781876608714281
+    },
+    {
+      "scene": 43,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9987512768132475,
+      "direct_suppression_db": 11.53615452515843
+    },
+    {
+      "scene": 43,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 1.0036265359909562,
+      "direct_suppression_db": 11.53615452515843
+    },
+    {
+      "scene": 43,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.7480339541544682,
+      "direct_suppression_db": 13.753348560493848
+    },
+    {
+      "scene": 43,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999430209975053,
+      "direct_suppression_db": 13.753348560493848
+    },
+    {
+      "scene": 43,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 1.0056733808711544,
+      "direct_suppression_db": 11.534318516962635
+    },
+    {
+      "scene": 43,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 1.0038408849454252,
+      "direct_suppression_db": 11.534318516962635
+    },
+    {
+      "scene": 44,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9887173521685514,
+      "direct_suppression_db": 7.348427695340495
+    },
+    {
+      "scene": 44,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9997408005106124,
+      "direct_suppression_db": 7.348427695340495
+    },
+    {
+      "scene": 44,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9988975677503269,
+      "direct_suppression_db": 12.41415508946739
+    },
+    {
+      "scene": 44,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999944598005268,
+      "direct_suppression_db": 12.41415508946739
+    },
+    {
+      "scene": 44,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9960766840285776,
+      "direct_suppression_db": 7.348325747353892
+    },
+    {
+      "scene": 44,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9997863705025031,
+      "direct_suppression_db": 7.348325747353892
+    },
+    {
+      "scene": 44,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9995414980095243,
+      "direct_suppression_db": 12.413653026333334
+    },
+    {
+      "scene": 44,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999989559817465,
+      "direct_suppression_db": 12.413653026333334
+    },
+    {
+      "scene": 45,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9986273745768277,
+      "direct_suppression_db": 17.923973263724704
+    },
+    {
+      "scene": 45,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9997433452283541,
+      "direct_suppression_db": 17.923973263724704
+    },
+    {
+      "scene": 45,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9990301815732193,
+      "direct_suppression_db": 12.786419138864453
+    },
+    {
+      "scene": 45,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9985488313957513,
+      "direct_suppression_db": 12.786419138864453
+    },
+    {
+      "scene": 45,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9995673363285602,
+      "direct_suppression_db": 17.923563022127837
+    },
+    {
+      "scene": 45,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 1.0000352307318425,
+      "direct_suppression_db": 17.923563022127837
+    },
+    {
+      "scene": 45,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9993883552507183,
+      "direct_suppression_db": 12.786363704253876
+    },
+    {
+      "scene": 45,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9985231523202674,
+      "direct_suppression_db": 12.786363704253876
+    },
+    {
+      "scene": 46,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9996153982947683,
+      "direct_suppression_db": 14.239157357708716
+    },
+    {
+      "scene": 46,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999029835442802,
+      "direct_suppression_db": 14.239157357708716
+    },
+    {
+      "scene": 46,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999685685604733,
+      "direct_suppression_db": 8.929957270562918
+    },
+    {
+      "scene": 46,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999970898428298,
+      "direct_suppression_db": 8.929957270562918
+    },
+    {
+      "scene": 46,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.999662920121293,
+      "direct_suppression_db": 14.239157394469355
+    },
+    {
+      "scene": 46,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999068601721878,
+      "direct_suppression_db": 14.239157394469355
+    },
+    {
+      "scene": 46,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999687540253965,
+      "direct_suppression_db": 8.929957263332867
+    },
+    {
+      "scene": 46,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999996024586103,
+      "direct_suppression_db": 8.929957263332867
+    },
+    {
+      "scene": 47,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999757105031272,
+      "direct_suppression_db": 12.629650448686983
+    },
+    {
+      "scene": 47,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9945220416968472,
+      "direct_suppression_db": 12.629650448686983
+    },
+    {
+      "scene": 47,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999335848013935,
+      "direct_suppression_db": 9.890998923076799
+    },
+    {
+      "scene": 47,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999121175129244,
+      "direct_suppression_db": 9.890998923076799
+    },
+    {
+      "scene": 47,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999773026570156,
+      "direct_suppression_db": 12.626984663114818
+    },
+    {
+      "scene": 47,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 1.000529162463773,
+      "direct_suppression_db": 12.626984663114818
+    },
+    {
+      "scene": 47,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.999933593331552,
+      "direct_suppression_db": 9.89099913817295
+    },
+    {
+      "scene": 47,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999863625537521,
+      "direct_suppression_db": 9.89099913817295
+    },
+    {
+      "scene": 48,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 1.0000074214413992,
+      "direct_suppression_db": 15.914670957805956
+    },
+    {
+      "scene": 48,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9990451871186407,
+      "direct_suppression_db": 15.914670957805956
+    },
+    {
+      "scene": 48,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999995923685764,
+      "direct_suppression_db": 11.063970638585497
+    },
+    {
+      "scene": 48,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.999335762429338,
+      "direct_suppression_db": 11.063970638585497
+    },
+    {
+      "scene": 48,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 1.000014552473747,
+      "direct_suppression_db": 15.914663003089922
+    },
+    {
+      "scene": 48,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9996345273605235,
+      "direct_suppression_db": 15.914663003089922
+    },
+    {
+      "scene": 48,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999995967554071,
+      "direct_suppression_db": 11.063970349920325
+    },
+    {
+      "scene": 48,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.999744831438167,
+      "direct_suppression_db": 11.063970349920325
+    },
+    {
+      "scene": 49,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9980883271474101,
+      "direct_suppression_db": 9.96363146083945
+    },
+    {
+      "scene": 49,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9987823017762366,
+      "direct_suppression_db": 9.96363146083945
+    },
+    {
+      "scene": 49,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999428490411436,
+      "direct_suppression_db": 16.48242447615867
+    },
+    {
+      "scene": 49,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999502839660661,
+      "direct_suppression_db": 16.48242447615867
+    },
+    {
+      "scene": 49,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9980668398014044,
+      "direct_suppression_db": 9.96362972792029
+    },
+    {
+      "scene": 49,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9988202748854257,
+      "direct_suppression_db": 9.96362972792029
+    },
+    {
+      "scene": 49,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999427482796147,
+      "direct_suppression_db": 16.48242414463755
+    },
+    {
+      "scene": 49,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 1.0000194687774278,
+      "direct_suppression_db": 16.48242414463755
+    },
+    {
+      "scene": 50,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9998820419446761,
+      "direct_suppression_db": 12.20490655402401
+    },
+    {
+      "scene": 50,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9998333307818753,
+      "direct_suppression_db": 12.20490655402401
+    },
+    {
+      "scene": 50,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9998719534760329,
+      "direct_suppression_db": 16.062272858509242
+    },
+    {
+      "scene": 50,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999995989305229,
+      "direct_suppression_db": 16.062272858509242
+    },
+    {
+      "scene": 50,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999062611671584,
+      "direct_suppression_db": 12.204897963267333
+    },
+    {
+      "scene": 50,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9998692533481003,
+      "direct_suppression_db": 12.204897963267333
+    },
+    {
+      "scene": 50,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9998931018842987,
+      "direct_suppression_db": 16.06227281737499
+    },
+    {
+      "scene": 50,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 1.0000004940961986,
+      "direct_suppression_db": 16.06227281737499
+    },
+    {
+      "scene": 51,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 1.0002757356212884,
+      "direct_suppression_db": 16.146003843959292
+    },
+    {
+      "scene": 51,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9994996717011753,
+      "direct_suppression_db": 16.146003843959292
+    },
+    {
+      "scene": 51,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999241759723588,
+      "direct_suppression_db": 7.590258836408914
+    },
+    {
+      "scene": 51,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9849086268175808,
+      "direct_suppression_db": 7.590258836408914
+    },
+    {
+      "scene": 51,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9998342753446674,
+      "direct_suppression_db": 16.145838874612345
+    },
+    {
+      "scene": 51,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9992988874148624,
+      "direct_suppression_db": 16.145838874612345
+    },
+    {
+      "scene": 51,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999257181797727,
+      "direct_suppression_db": 7.589966956827292
+    },
+    {
+      "scene": 51,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9920205270964499,
+      "direct_suppression_db": 7.589966956827292
+    },
+    {
+      "scene": 52,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 1.0519338514168355,
+      "direct_suppression_db": 15.143856459425367
+    },
+    {
+      "scene": 52,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9214106160550615,
+      "direct_suppression_db": 15.143856459425367
+    },
+    {
+      "scene": 52,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9998146181685329,
+      "direct_suppression_db": 14.211787250887149
+    },
+    {
+      "scene": 52,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.6394429103339717,
+      "direct_suppression_db": 14.211787250887149
+    },
+    {
+      "scene": 52,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 1.0504755920424194,
+      "direct_suppression_db": 15.144701156598462
+    },
+    {
+      "scene": 52,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9290462496988136,
+      "direct_suppression_db": 15.144701156598462
+    },
+    {
+      "scene": 52,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 1.000336847787322,
+      "direct_suppression_db": 13.129592703383729
+    },
+    {
+      "scene": 52,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 1.1695610528287494,
+      "direct_suppression_db": 13.129592703383729
+    },
+    {
+      "scene": 53,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999676859591152,
+      "direct_suppression_db": 15.00212635638743
+    },
+    {
+      "scene": 53,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999872989173261,
+      "direct_suppression_db": 15.00212635638743
+    },
+    {
+      "scene": 53,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9968761640926215,
+      "direct_suppression_db": 19.448978327830208
+    },
+    {
+      "scene": 53,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999605283778481,
+      "direct_suppression_db": 19.448978327830208
+    },
+    {
+      "scene": 53,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.999973788207849,
+      "direct_suppression_db": 15.00212626603732
+    },
+    {
+      "scene": 53,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999874124026074,
+      "direct_suppression_db": 15.00212626603732
+    },
+    {
+      "scene": 53,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9971723755652295,
+      "direct_suppression_db": 19.44832475397654
+    },
+    {
+      "scene": 53,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.999960817299378,
+      "direct_suppression_db": 19.44832475397654
+    },
+    {
+      "scene": 54,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.997355159206073,
+      "direct_suppression_db": 12.625955482738027
+    },
+    {
+      "scene": 54,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 1.000000051015825,
+      "direct_suppression_db": 12.625955482738027
+    },
+    {
+      "scene": 54,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9956687280876645,
+      "direct_suppression_db": 11.161994362032722
+    },
+    {
+      "scene": 54,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9984228975501126,
+      "direct_suppression_db": 11.161994362032722
+    },
+    {
+      "scene": 54,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9978467272943486,
+      "direct_suppression_db": 12.625928875720716
+    },
+    {
+      "scene": 54,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999966647872716,
+      "direct_suppression_db": 12.625928875720716
+    },
+    {
+      "scene": 54,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.997607677830066,
+      "direct_suppression_db": 11.161948508138934
+    },
+    {
+      "scene": 54,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9983785041133275,
+      "direct_suppression_db": 11.161948508138934
+    },
+    {
+      "scene": 55,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999948074397279,
+      "direct_suppression_db": 14.898967382857883
+    },
+    {
+      "scene": 55,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999858494573947,
+      "direct_suppression_db": 14.898967382857883
+    },
+    {
+      "scene": 55,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9996690471146615,
+      "direct_suppression_db": 13.28278086218714
+    },
+    {
+      "scene": 55,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9997506529346093,
+      "direct_suppression_db": 13.28278086218714
+    },
+    {
+      "scene": 55,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.999995779344748,
+      "direct_suppression_db": 14.898967390261959
+    },
+    {
+      "scene": 55,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999886078949373,
+      "direct_suppression_db": 14.898967390261959
+    },
+    {
+      "scene": 55,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9996982202630725,
+      "direct_suppression_db": 13.282780764539678
+    },
+    {
+      "scene": 55,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9998050909635541,
+      "direct_suppression_db": 13.282780764539678
+    },
+    {
+      "scene": 56,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.999960086123954,
+      "direct_suppression_db": 12.284253912044584
+    },
+    {
+      "scene": 56,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9997614477510062,
+      "direct_suppression_db": 12.284253912044584
+    },
+    {
+      "scene": 56,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9996649382186538,
+      "direct_suppression_db": 14.044089638458683
+    },
+    {
+      "scene": 56,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9999975924620206,
+      "direct_suppression_db": 14.044089638458683
+    },
+    {
+      "scene": 56,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.999959480796071,
+      "direct_suppression_db": 12.28425332080246
+    },
+    {
+      "scene": 56,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9997903099779898,
+      "direct_suppression_db": 12.28425332080246
+    },
+    {
+      "scene": 56,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.999664941870444,
+      "direct_suppression_db": 14.044089659677915
+    },
+    {
+      "scene": 56,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 1.0000002328281143,
+      "direct_suppression_db": 14.044089659677915
+    },
+    {
+      "scene": 57,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9962527142827967,
+      "direct_suppression_db": 7.855306833605697
+    },
+    {
+      "scene": 57,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9993353926895571,
+      "direct_suppression_db": 7.855306833605697
+    },
+    {
+      "scene": 57,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999837126646857,
+      "direct_suppression_db": 17.802476648357832
+    },
+    {
+      "scene": 57,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9998120683663003,
+      "direct_suppression_db": 17.802476648357832
+    },
+    {
+      "scene": 57,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9962336928546032,
+      "direct_suppression_db": 7.8552003499816925
+    },
+    {
+      "scene": 57,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9997499032887828,
+      "direct_suppression_db": 7.8552003499816925
+    },
+    {
+      "scene": 57,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999952089676678,
+      "direct_suppression_db": 17.802476675561138
+    },
+    {
+      "scene": 57,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9998150172065458,
+      "direct_suppression_db": 17.802476675561138
+    },
+    {
+      "scene": 58,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999251005012967,
+      "direct_suppression_db": 11.079912921635762
+    },
+    {
+      "scene": 58,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9998995330887881,
+      "direct_suppression_db": 11.079912921635762
+    },
+    {
+      "scene": 58,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999232182130975,
+      "direct_suppression_db": 11.748534808356874
+    },
+    {
+      "scene": 58,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.995580403907583,
+      "direct_suppression_db": 11.748534808356874
+    },
+    {
+      "scene": 58,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999251273404783,
+      "direct_suppression_db": 11.079912741495013
+    },
+    {
+      "scene": 58,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9999243668638962,
+      "direct_suppression_db": 11.079912741495013
+    },
+    {
+      "scene": 58,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999295260612155,
+      "direct_suppression_db": 11.748322758193453
+    },
+    {
+      "scene": 58,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9975721576633689,
+      "direct_suppression_db": 11.748322758193453
+    },
+    {
+      "scene": 59,
+      "budget": 1,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 0.9999829496667098,
+      "direct_suppression_db": 7.027126013094564
+    },
+    {
+      "scene": 59,
+      "budget": 1,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9760688129255947,
+      "direct_suppression_db": 7.027126013094564
+    },
+    {
+      "scene": 59,
+      "budget": 1,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 0.9999971245645305,
+      "direct_suppression_db": 17.482996989148113
+    },
+    {
+      "scene": 59,
+      "budget": 1,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.8960684022949644,
+      "direct_suppression_db": 17.482996989148113
+    },
+    {
+      "scene": 59,
+      "budget": 2,
+      "receiver": 0,
+      "target": 0,
+      "eta_survive_q": 1.0017450059535027,
+      "direct_suppression_db": 7.02710153171919
+    },
+    {
+      "scene": 59,
+      "budget": 2,
+      "receiver": 0,
+      "target": 1,
+      "eta_survive_q": 0.9808612101386134,
+      "direct_suppression_db": 7.02710153171919
+    },
+    {
+      "scene": 59,
+      "budget": 2,
+      "receiver": 1,
+      "target": 0,
+      "eta_survive_q": 1.000004659185126,
+      "direct_suppression_db": 17.47834671607595
+    },
+    {
+      "scene": 59,
+      "budget": 2,
+      "receiver": 1,
+      "target": 1,
+      "eta_survive_q": 0.9278490479117498,
+      "direct_suppression_db": 17.47834671607595
+    }
+  ]
+}

@@ -1,0 +1,499 @@
+{
+  "protocol": "joint_global_alarm_real_tpuic_v3_split_trained_fusion",
+  "global_h0": "all candidate target echoes absent in one shared physical observation per receiver/scene",
+  "global_h1": "all candidate target echoes present; each target scored on the same observation",
+  "receivers": [
+    0,
+    1
+  ],
+  "targets": [
+    0,
+    1
+  ],
+  "bits_per_uav_per_target_payload": 3,
+  "total_payload_bits_per_scene": 12,
+  "communication_scope": "ideal error-free scalar payload; no header, coding, outage or latency model",
+  "quantizer": {
+    "type": "fixed_uniform_nearest",
+    "range": [
+      0,
+      8.0
+    ]
+  },
+  "alpha": 0.05,
+  "n_train_independent_scenes": 3,
+  "n_cal_independent_scenes": 1,
+  "n_test_independent_scenes": 1,
+  "weight_learning": {
+    "selected": {
+      "weights": [
+        0.5,
+        0.5
+      ],
+      "worst_target_train_deflection": 0.0,
+      "per_target_train_deflection": [
+        0.0,
+        3.0000000000000004
+      ]
+    },
+    "candidates": [
+      {
+        "weights": [
+          0.0,
+          1.0
+        ],
+        "worst_target_train_deflection": 0.0,
+        "per_target_train_deflection": [
+          0.0,
+          580498866.2131518
+        ]
+      },
+      {
+        "weights": [
+          0.25,
+          0.75
+        ],
+        "worst_target_train_deflection": 0.0,
+        "per_target_train_deflection": [
+          0.0,
+          16.333333333333336
+        ]
+      },
+      {
+        "weights": [
+          0.5,
+          0.5
+        ],
+        "worst_target_train_deflection": 0.0,
+        "per_target_train_deflection": [
+          0.0,
+          3.0000000000000004
+        ]
+      },
+      {
+        "weights": [
+          0.75,
+          0.25
+        ],
+        "worst_target_train_deflection": 0.0,
+        "per_target_train_deflection": [
+          0.0,
+          0.925925925925926
+        ]
+      },
+      {
+        "weights": [
+          1.0,
+          0.0
+        ],
+        "worst_target_train_deflection": 0.0,
+        "per_target_train_deflection": [
+          0.0,
+          0.3333333333333333
+        ]
+      }
+    ],
+    "covariance": "H0 sample covariance, 70% diagonal shrinkage",
+    "selection": "maximin one-sided deflection on independent train scenes only"
+  },
+  "variants": {
+    "pair_unquantized": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        1.0,
+        1.0
+      ]
+    },
+    "receiver_0_unquantized": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        1.0,
+        1.0
+      ]
+    },
+    "receiver_1_unquantized": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        1.0,
+        0.0
+      ]
+    },
+    "pair_3bit": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        1.0,
+        0.5
+      ]
+    },
+    "receiver_0_3bit": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        1.0,
+        0.5
+      ]
+    },
+    "receiver_1_3bit": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        1.0,
+        0.5
+      ]
+    },
+    "trained_minimax_3bit": {
+      "threshold": Infinity,
+      "conformal_order": 2,
+      "marginal_global_pfa_bound": 0,
+      "test_global_false_alarms": 0,
+      "test_per_target_detections": [
+        0,
+        0
+      ],
+      "test_per_target_auc": [
+        1.0,
+        0.5
+      ]
+    }
+  },
+  "conformal_order": 2,
+  "threshold": Infinity,
+  "marginal_global_pfa_bound": 0,
+  "test_global_false_alarms": 0,
+  "test_per_target_detections": [
+    0,
+    0
+  ],
+  "records": [
+    {
+      "scene_id": 0,
+      "split": "train",
+      "raw_by_hypothesis_receiver_target": [
+        [
+          [
+            0.8975754367590572,
+            2.4496674584907714
+          ],
+          [
+            0.6473013262356624,
+            0.6145904756293497
+          ]
+        ],
+        [
+          [
+            1.7130504013223617,
+            2.2067690879517485
+          ],
+          [
+            2.3214715969332937,
+            1.8723251864219326
+          ]
+        ]
+      ],
+      "reported_by_hypothesis_receiver_target": [
+        [
+          [
+            1.1428571428571428,
+            2.2857142857142856
+          ],
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ]
+        ],
+        [
+          [
+            1.1428571428571428,
+            2.2857142857142856
+          ],
+          [
+            2.2857142857142856,
+            2.2857142857142856
+          ]
+        ]
+      ],
+      "h0_per_target": [
+        2.2857142857142856,
+        3.4285714285714284
+      ],
+      "h1_per_target": [
+        3.4285714285714284,
+        4.571428571428571
+      ],
+      "global_h0": 3.4285714285714284
+    },
+    {
+      "scene_id": 1,
+      "split": "train",
+      "raw_by_hypothesis_receiver_target": [
+        [
+          [
+            1.5102961687203034,
+            1.0237571228622595
+          ],
+          [
+            2.527762050494482,
+            1.4036445051875694
+          ]
+        ],
+        [
+          [
+            0.9643455989463288,
+            2.483409213390428
+          ],
+          [
+            1.5731862410380113,
+            0.7411667687518809
+          ]
+        ]
+      ],
+      "reported_by_hypothesis_receiver_target": [
+        [
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ],
+          [
+            2.2857142857142856,
+            1.1428571428571428
+          ]
+        ],
+        [
+          [
+            1.1428571428571428,
+            2.2857142857142856
+          ],
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ]
+        ]
+      ],
+      "h0_per_target": [
+        3.4285714285714284,
+        2.2857142857142856
+      ],
+      "h1_per_target": [
+        2.2857142857142856,
+        3.4285714285714284
+      ],
+      "global_h0": 3.4285714285714284
+    },
+    {
+      "scene_id": 2,
+      "split": "train",
+      "raw_by_hypothesis_receiver_target": [
+        [
+          [
+            1.4372834446497058,
+            1.30243081714529
+          ],
+          [
+            1.351547256028935,
+            1.1710115390393372
+          ]
+        ],
+        [
+          [
+            1.4541430276428404,
+            1.2824124477777281
+          ],
+          [
+            1.28882810011104,
+            2.429613191525738
+          ]
+        ]
+      ],
+      "reported_by_hypothesis_receiver_target": [
+        [
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ],
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ]
+        ],
+        [
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ],
+          [
+            1.1428571428571428,
+            2.2857142857142856
+          ]
+        ]
+      ],
+      "h0_per_target": [
+        2.2857142857142856,
+        2.2857142857142856
+      ],
+      "h1_per_target": [
+        2.2857142857142856,
+        3.4285714285714284
+      ],
+      "global_h0": 2.2857142857142856
+    },
+    {
+      "scene_id": 3,
+      "split": "calibration",
+      "raw_by_hypothesis_receiver_target": [
+        [
+          [
+            1.5554961884591771,
+            2.0905707447439843
+          ],
+          [
+            1.5214731372612318,
+            1.129185941842454
+          ]
+        ],
+        [
+          [
+            0.8532549765785344,
+            1.103016763419285
+          ],
+          [
+            0.8700831065651361,
+            2.2886291351919676
+          ]
+        ]
+      ],
+      "reported_by_hypothesis_receiver_target": [
+        [
+          [
+            1.1428571428571428,
+            2.2857142857142856
+          ],
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ]
+        ],
+        [
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ],
+          [
+            1.1428571428571428,
+            2.2857142857142856
+          ]
+        ]
+      ],
+      "h0_per_target": [
+        2.2857142857142856,
+        3.4285714285714284
+      ],
+      "h1_per_target": [
+        2.2857142857142856,
+        3.4285714285714284
+      ],
+      "global_h0": 3.4285714285714284
+    },
+    {
+      "scene_id": 4,
+      "split": "test",
+      "raw_by_hypothesis_receiver_target": [
+        [
+          [
+            1.626325016361725,
+            0.9537538267094418
+          ],
+          [
+            1.1541431050316422,
+            1.069864450316604
+          ]
+        ],
+        [
+          [
+            3.4614022812441787,
+            1.1222357024275553
+          ],
+          [
+            4.975524723535594,
+            0.9324445372579809
+          ]
+        ]
+      ],
+      "reported_by_hypothesis_receiver_target": [
+        [
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ],
+          [
+            1.1428571428571428,
+            1.1428571428571428
+          ]
+        ],
+        [
+          [
+            3.4285714285714284,
+            1.1428571428571428
+          ],
+          [
+            4.571428571428571,
+            1.1428571428571428
+          ]
+        ]
+      ],
+      "h0_per_target": [
+        2.2857142857142856,
+        2.2857142857142856
+      ],
+      "h1_per_target": [
+        8.0,
+        2.2857142857142856
+      ],
+      "global_h0": 2.2857142857142856
+    }
+  ],
+  "limitations": [
+    "fixed subset, not learned association",
+    "homogeneous target RCS",
+    "pilot PFA 0.05, not paper PFA 0.001"
+  ]
+}

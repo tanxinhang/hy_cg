@@ -1,0 +1,397 @@
+{
+  "protocol": "real_tpuic_global_pfa_screen_v1",
+  "input": "D:\\Desktop\\conference\\studies\\direction3\\data\\global_pfa_real_tpuic_rcs5_confirm\\records.csv",
+  "target_pfa": 0.1,
+  "injected_scale": null,
+  "receivers": [
+    0,
+    1,
+    3,
+    5
+  ],
+  "sample_counts": {
+    "calibration": 16,
+    "drift_estimation": 16,
+    "final_test": 16
+  },
+  "independent_scene_counts": {
+    "calibration": 8,
+    "drift_estimation": 8,
+    "final_test": 8
+  },
+  "scene_level_conformal_status": "not_calibrated: empirical row-level quantile treats multiple noise realizations in the same scene as independent; scale normalization and quantizer clip are also fitted on the threshold-calibration rows",
+  "estimated_positive_scale_ratios": [
+    2.00147291288993,
+    2.4383171321068957,
+    9.900779971254384,
+    2.5079813593827245
+  ],
+  "mean_abs_calibration_correlation": 0.13552951402431263,
+  "continuous_test_auc": {
+    "max": 0.6474609375,
+    "sum": 0.7041015625
+  },
+  "results": [
+    {
+      "bits_per_uav": 2,
+      "fusion": "max",
+      "method": "frozen_empirical",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "max",
+      "method": "global_worst_scale",
+      "threshold": 489.73644534390843,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "max",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "max",
+      "method": "log_shrink_0.25",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "max",
+      "method": "log_shrink_0.50",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "max",
+      "method": "log_shrink_0.75",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "sum",
+      "method": "frozen_empirical",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "sum",
+      "method": "global_worst_scale",
+      "threshold": 489.73644534390843,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "sum",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "sum",
+      "method": "log_shrink_0.25",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "sum",
+      "method": "log_shrink_0.50",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 2,
+      "fusion": "sum",
+      "method": "log_shrink_0.75",
+      "threshold": 49.46443075856589,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "max",
+      "method": "frozen_empirical",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.0625,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "max",
+      "method": "global_worst_scale",
+      "threshold": 209.88704800453215,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "max",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "max",
+      "method": "log_shrink_0.25",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.0625,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "max",
+      "method": "log_shrink_0.50",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "max",
+      "method": "log_shrink_0.75",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "sum",
+      "method": "frozen_empirical",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.1875,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "sum",
+      "method": "global_worst_scale",
+      "threshold": 209.88704800453215,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "sum",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "sum",
+      "method": "log_shrink_0.25",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.125,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "sum",
+      "method": "log_shrink_0.50",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 3,
+      "fusion": "sum",
+      "method": "log_shrink_0.75",
+      "threshold": 21.199041753671093,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "max",
+      "method": "frozen_empirical",
+      "threshold": 29.94645891964386,
+      "pfa": 0.0,
+      "pd": 0.0625,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "max",
+      "method": "global_worst_scale",
+      "threshold": 296.49330068160214,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "max",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 29.94645891964386,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "max",
+      "method": "log_shrink_0.25",
+      "threshold": 29.94645891964386,
+      "pfa": 0.0,
+      "pd": 0.0625,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "max",
+      "method": "log_shrink_0.50",
+      "threshold": 29.94645891964386,
+      "pfa": 0.0,
+      "pd": 0.0625,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "max",
+      "method": "log_shrink_0.75",
+      "threshold": 29.94645891964386,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "sum",
+      "method": "frozen_empirical",
+      "threshold": 41.22027930349398,
+      "pfa": 0.0,
+      "pd": 0.1875,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "sum",
+      "method": "global_worst_scale",
+      "threshold": 408.1129157375448,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "sum",
+      "method": "per_uav_scale_adaptive",
+      "threshold": 41.22027930349398,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "sum",
+      "method": "log_shrink_0.25",
+      "threshold": 41.22027930349398,
+      "pfa": 0.0,
+      "pd": 0.0625,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "sum",
+      "method": "log_shrink_0.50",
+      "threshold": 41.22027930349398,
+      "pfa": 0.0,
+      "pd": 0.0625,
+      "false_alarms": 0,
+      "tests": 16
+    },
+    {
+      "bits_per_uav": 16,
+      "fusion": "sum",
+      "method": "log_shrink_0.75",
+      "threshold": 41.22027930349398,
+      "pfa": 0.0,
+      "pd": 0.0,
+      "false_alarms": 0,
+      "tests": 16
+    }
+  ],
+  "warning": "Only 8 independent final scenes, each with 2 noise realizations; row-level PFA and thresholds are exploratory, not a scene-level conformal/CFAR guarantee."
+}

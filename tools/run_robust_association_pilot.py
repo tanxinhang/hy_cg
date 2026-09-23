@@ -11,14 +11,13 @@ import numpy as np
 from run_nonenum_association_pilot import _auc, _load
 
 
-def _pooled(h0, h1):
-    cov = (np.atleast_2d(np.cov(h0, rowvar=False, ddof=1)) +
-           np.atleast_2d(np.cov(h1, rowvar=False, ddof=1))) / 2.0
-    return cov
+def _h0_covariance(h0):
+    """Noise/residual dependence is estimated under H0 only (CFAR-consistent)."""
+    return np.atleast_2d(np.cov(h0, rowvar=False, ddof=1))
 
 
 def _shrunk_cov(h0, h1, shrink=0.7, diagonal=False):
-    cov = _pooled(h0, h1)
+    cov = _h0_covariance(h0)
     diag = np.diag(np.diag(cov))
     if diagonal:
         out = diag
@@ -64,6 +63,42 @@ def _greedy(receivers, k, utility):
             scores.append((utility(candidate), candidate))
         selected = max(scores, key=lambda item: (item[0], tuple(-v for v in item[1])))[1]
     return selected, evaluated
+
+
+def _conditional_gain(data, selected, candidate, shrink=0.7):
+    """Schur-complement detection information added by one receiver."""
+    idx = list(selected) + [candidate]
+    h0, h1 = data["train_h0"][:, idx], data["train_h1"][:, idx]
+    mu = h1.mean(0) - h0.mean(0)
+    cov = _shrunk_cov(h0, h1, shrink=shrink)
+    if not selected:
+        return float(mu[-1] ** 2 / max(cov[-1, -1], 1e-12))
+    r_ss, r_is = cov[:-1, :-1], cov[-1, :-1]
+    inv_mu = np.linalg.solve(r_ss, mu[:-1])
+    inv_r = np.linalg.solve(r_ss, cov[:-1, -1])
+    innovation = float(mu[-1] - r_is @ inv_mu)
+    conditional_var = float(cov[-1, -1] - r_is @ inv_r)
+    return innovation * innovation / max(conditional_var, 1e-12)
+
+
+def _cig_greedy(receivers, k, datasets, shrink=0.7):
+    selected = tuple()
+    evaluated = 0
+    trace = []
+    for _ in range(k):
+        scored = []
+        for receiver in receivers:
+            if receiver in selected:
+                continue
+            gains = [_conditional_gain(data, selected, receiver, shrink)
+                     for data in datasets.values()]
+            scored.append((min(gains), receiver, gains))
+            evaluated += 1
+        score, receiver, gains = max(scored, key=lambda item: (item[0], -item[1]))
+        selected = tuple(sorted((*selected, receiver)))
+        trace.append({"receiver": int(receiver), "worst_gain": float(score),
+                      "per_target_gain": [float(v) for v in gains]})
+    return selected, evaluated, trace
 
 
 def _one_swap(start, receivers, utility, evaluated):
@@ -129,6 +164,9 @@ def run(records, arm="tp_uic_full", boost=30.0, k=3, seed=20260922,
     )
     robust_subset, robust_seen = _greedy(receivers, k, robust_utility)
     robust_subset = _one_swap(robust_subset, receivers, robust_utility, robust_seen)
+    cig_subset, cig_evaluated, cig_trace = _cig_greedy(
+        receivers, k, datasets, shrink=shrink
+    )
 
     return {
         "protocol": "robust_common_subset_association_pilot_v1",
@@ -139,12 +177,15 @@ def run(records, arm="tp_uic_full", boost=30.0, k=3, seed=20260922,
             "common_sinr_topk": _evaluate(datasets, sinr_subset, shrink),
             "common_independent_greedy": _evaluate(datasets, independent_subset, shrink),
             "robust_corr_greedy_swap": _evaluate(datasets, robust_subset, shrink),
+            "h0_schur_cig_greedy": _evaluate(datasets, cig_subset, shrink),
         },
         "search_budget": {
             "independent_states": len(independent_seen),
             "robust_states": len(robust_seen),
             "robust_complete_k_subsets": sum(len(s) == k for s in robust_seen),
+            "cig_candidate_evaluations": cig_evaluated,
         },
+        "cig_trace": cig_trace,
         "limitations": [
             "only six calibration and six held-out samples per target",
             "fixed shrinkage is used because nested tuning is unsupported at this sample size",

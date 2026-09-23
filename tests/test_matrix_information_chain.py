@@ -22,6 +22,7 @@ from isac_sim.sensing.waveform.timing import (
 from _tpuic_common import make_cfg, make_observation
 from tools.run_matrix_information_chain import (
     _packet_erasure_fused_pd,
+    _stochastic_pd,
     _uav_centric_greedy_fusion,
     _geometry_maxmin_power_allocation,
     _uav_centric_fusion_search,
@@ -361,6 +362,11 @@ def test_joint_fusion_search_is_not_worse_than_best_local_fusion():
         receiver_modes, success, 8, 0.05, 1, 2, feasible
     )
     assert np.min(searched["delivered_pd"]) >= np.min(local["delivered_pd"])
+
+
+def test_zero_information_receiver_returns_false_alarm_operating_point():
+    pd = _stochastic_pd((np.zeros(0), np.zeros(3)), 8, 0.05)
+    np.testing.assert_allclose(pd, [0.05, 0.05])
 
 
 def test_geometry_power_allocation_is_heterogeneous_and_budget_feasible():

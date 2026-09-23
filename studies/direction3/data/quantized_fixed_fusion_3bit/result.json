@@ -1,0 +1,40 @@
+{
+  "protocol": "quantized_fixed_pair_postfusion_conformal_v1",
+  "receivers": [
+    0,
+    1
+  ],
+  "target": 1,
+  "boost_db": 30.0,
+  "bits_per_uav_payload": 3,
+  "total_payload_bits_per_target": 6,
+  "quantizer": {
+    "type": "fixed_uniform_nearest",
+    "range": [
+      0,
+      8.0
+    ]
+  },
+  "clipped_local_reports": {
+    "calibration": {
+      "h0": 0,
+      "h1": 0
+    },
+    "test": {
+      "h0": 0,
+      "h1": 1
+    }
+  },
+  "communication_scope": "error-free scalar payload only; no header, coding, outage, latency or transport model",
+  "selection": "fixed before calibration",
+  "alpha": 0.05,
+  "n_cal_independent_scenes": 20,
+  "n_test_independent_scenes": 40,
+  "conformal_order": 20,
+  "threshold": 4.571428571428571,
+  "marginal_pfa_bound": 0.047619047619047616,
+  "test_false_alarms": 0,
+  "test_detections": 3,
+  "test_auc": 0.7109375,
+  "scope": "one fixed target; not multi-target/global family-wise PFA"
+}

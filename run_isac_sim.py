@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """Thin entry point for the refactored simulator.
 
-All logic lives in the :mod:`isac_sim` package.  Run ``--help`` for the full
+All logic lives in the :mod:`isac_sim` (building blocks) and
+    :mod:`experiments` (flow) packages.  Run ``--help`` for the full
 (and deliberately small) option set::
 
     python run_isac_sim.py --help
@@ -14,7 +15,7 @@ the repository only as the frozen reference for the numbers already reported;
 new work should use this entry point.
 """
 
-from isac_sim.cli import main
+from experiments.app.cli import main
 
 if __name__ == "__main__":
     main()

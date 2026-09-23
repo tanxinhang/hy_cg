@@ -217,8 +217,14 @@ Single UAV、SINR Top-$K$、Proposed、All-UAV 和虚线 Oracle-$K$。任何主�
 
 ## 15. 非枚举关联 pilot（2026-09-22）
 
-固定 TP-UIC 后，在 $M=6,K=3$、强干扰条件下试验了 SINR Top-$K$、独立信息 Top-$K$、宽度 1 的相关性束搜索、单交换和少量随机候选。完整 $K$ 子集的实际访问比例为 40%--70%，未作全子集遍历。独立测试上，SINR Top-$K$ 的 mean AUC 为 0.509、worst AUC 为 0.444；相关性束搜索分别为 0.472 和 0.389，未显示优势。每个目标仅有 6 个校准和 6 个测试样本，结论仅用于筛查。详见 `NONENUM_ASSOCIATION_PILOT.md`。
+固定 TP-UIC 后，在 $M=6,K=3$、强干扰条件下试验了 SINR Top-$K$、独立信息 Top-$K$、宽度 1 的相关性束搜索、单交换和少量随机候选。完整 $K$ 子集的实际访问比例为 40%--70%，未作全子集遍历。独立测试上，SINR Top-$K$ 的 mean AUC 为 0.509、worst AUC 为 0.444；相关性束搜索分别为 0.472 和 0.389，未显示优势。每个目标虽有 6 条校准和 6 条测试记录，但各只来自 3 个独立场景（每场景 2 次噪声实现）；结论仅用于排序筛查，不支持场景级全局虚警率保证。详见 `NONENUM_ASSOCIATION_PILOT.md`。
 
 ## 16. 全局虚警校准候选方向（2026-09-22）
 
 受控相关 GLRT 代理模型显示：全局经验校准在同分布时可将目标 $P_{FA}=0.05$ 控制到 0.048，但测试期 $+20\%$ 残差尺度漂移会使其升至 0.079；使用准确已知的失配上界可恢复到 0.048，同时将 $P_D$ 从 0.186 降到 0.131。2/3 bit 上报还引入明显的阈值粒度限制。这一结果支持继续验证“有限样本、失配和有限通信下的全局虚警控制”是否构成缺口，但尚未使用真实 TP-UIC 残差，不能作为系统贡献结论。详见 `GLOBAL_PFA_CALIBRATION_PILOT.md`。
+
+## 17. 检测信息链整改（2026-09-23）
+
+直达 DD Jacobian 已以 $[X_0,\sigma_\tau J_\tau,\sigma_\nu J_\nu]$ 进入估计器，并与 mismatch covariance 开关解耦。四臂 paired screen 中，Jacobian 将结构对消深度由 13.9 dB 提高至 31.8 dB，combined 将 H0 全残差白化功率/维数中位数由 nominal 的 21.12 降至 1.29；但 AUC 仍约 0.52，没有接近 perfect-channel 的 0.574。因此该修复只被认定为估计器与校准改善，不认定为检测增益。
+
+协同端已改为 association/fusion 共用 H0 covariance，并实现 Schur 条件信息增益。旧 6/6 样本 pilot 上仍未超过 truth-assisted SINR，故 association 保持冻结。详见 `SYSTEM_REMEDIATION_V3.md`。

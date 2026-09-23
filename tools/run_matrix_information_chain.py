@@ -16,6 +16,7 @@ from isac_sim.cooperation.matrix_information_ao import (
     monotone_matrix_information_ao,
     protection_neighborhood,
 )
+from isac_sim.cooperation.power_ao import marginal_delivered_pd_power_ao
 from isac_sim.cooperation.formation import target_ring_formation
 from isac_sim.cooperation.scientific_validation import (
     belief_driven_target_ring_formation,
@@ -54,6 +55,12 @@ def _stochastic_pd(eigenvalues, looks: int, p_fa: float) -> np.ndarray:
         mu1 = constant + total_looks * float(np.sum(lam))
         var0 = total_looks * float(np.sum(beta**2))
         var1 = total_looks * float(np.sum(lam**2))
+        if var0 <= 0.0 or var1 <= 0.0:
+            # A real zero-power role can produce an empty/zero-information
+            # receiver statistic.  It has no detection power beyond the
+            # randomized false-alarm operating point; do not emit NaN.
+            out.append(float(p_fa))
+            continue
         threshold = mu0 + float(norm.ppf(1.0 - p_fa)) * np.sqrt(var0)
         out.append(float(norm.sf((threshold - mu1) / np.sqrt(var1))))
     return np.asarray(out)
@@ -419,6 +426,8 @@ def run(
     scenario_snapshot_out: str | None = None,
     master_seed: int = 2026,
     minimum_comm_power_w: float = 0.0,
+    power_ao_max_rounds: int = 4,
+    minimum_report_rate_bps: float = 1.0e6,
 ) -> dict:
     cfg = apply_preset(Config(), "paper-canonical")
     cfg = apply_overrides(cfg, {
@@ -427,6 +436,7 @@ def run(
         "scale.M": int(uav_count),
         "scale.Q": int(target_count),
         "comm.n_block": int(comm_n_block),
+        "comm.R_min": float(minimum_report_rate_bps),
         "radio.P_default": float(total_power_w),
         "radio.rho": float(sensing_power_fraction),
         "run.seed": int(master_seed),
@@ -443,6 +453,8 @@ def run(
             minimum_comm_power_w < 0.0 or
             minimum_comm_power_w > peak_power_w):
         raise ValueError("minimum_comm_power_w must lie in [0, peak_power_w]")
+    if not np.isfinite(minimum_report_rate_bps) or minimum_report_rate_bps <= 0.0:
+        raise ValueError("minimum_report_rate_bps must be finite and positive")
     cfg.detect.sensing_dwell_s = float(sensing_dwell_s)
     cfg.detect.n_looks = looks_from_dwell(cfg, sensing_dwell_s)
     rng = np.random.default_rng([cfg.run.seed, int(trial)])
@@ -501,32 +513,32 @@ def run(
         expected = (int(cfg.scale.M),)
         if sense.shape != expected or comm.shape != expected:
             raise ValueError("explicit sensing/communication powers must have M entries")
-        if np.any(sense <= 0.0) or np.any(comm <= 0.0):
-            raise ValueError("explicit powers must be positive")
+        if np.any(sense < 0.0) or np.any(comm < 0.0):
+            raise ValueError("explicit powers must be non-negative")
         if np.any(sense + comm > float(peak_power_w) + 1e-12):
             raise ValueError("explicit per-UAV power exceeds peak_power_w")
         if np.any(comm < float(minimum_comm_power_w) - 1e-12):
             raise ValueError("explicit communication power is below its UAV floor")
-        total = sense + comm
-        cfg.radio.P_by_uav = tuple(total.tolist())
-        cfg.radio.rho_by_uav = tuple((sense / total).tolist())
     elif power_policy == "geometry_maxmin":
         sense, comm = _geometry_maxmin_power_allocation(
             base_truth, total_power_w, sensing_power_fraction, peak_power_w,
             minimum_comm_power_w=minimum_comm_power_w,
         )
-        total = sense + comm
-        cfg.radio.P_by_uav = tuple(total.tolist())
-        cfg.radio.rho_by_uav = tuple((sense / total).tolist())
-    elif power_policy == "uniform":
+    elif power_policy in ("uniform", "marginal_pd"):
         sense = np.full(int(cfg.scale.M), cfg.radio.rho * cfg.radio.P_default)
         comm = np.full(int(cfg.scale.M), (1.0 - cfg.radio.rho) * cfg.radio.P_default)
         if np.any(comm < float(minimum_comm_power_w) - 1e-12):
             raise ValueError("uniform communication power is below its UAV floor")
     else:
         raise ValueError(
-            "power_policy must be uniform, geometry_maxmin or coordination_explicit"
+            "power_policy must be uniform, geometry_maxmin, coordination_explicit "
+            "or marginal_pd"
         )
+    if float(np.sum(sense + comm)) > (
+            int(cfg.scale.M) * float(total_power_w) + 1e-12):
+        raise ValueError("power vector exceeds the fleet power budget")
+    cfg.radio.P_sense_by_uav = tuple(sense.tolist())
+    cfg.radio.P_comm_by_uav = tuple(comm.tolist())
     belief = belief_state.as_geometry(truth)
     base_belief = build_base_gains(
         cfg, belief, rng, channel=base_truth,
@@ -650,6 +662,34 @@ def run(
     result = monotone_matrix_information_ao(
         active, baseline_z, active_candidates, candidates, evaluate, max_rounds=20
     )
+    power_ao_history = []
+    power_ao_initial_delivered_pd = None
+    if power_policy == "marginal_pd":
+        power_ao_initial_delivered_pd = evaluate_delivered(
+            result.active, result.protection
+        ).tolist()
+
+        def replay_power(candidate_sense, candidate_comm):
+            # Receiver evidence depends on the entire sensing vector.  Updating
+            # power therefore invalidates every TP-UIC result, not just the
+            # receiver belonging to the changed UAV.
+            nonlocal sense, comm
+            sense = np.asarray(candidate_sense, dtype=float)
+            comm = np.asarray(candidate_comm, dtype=float)
+            cfg.radio.P_sense_by_uav = tuple(sense.tolist())
+            cfg.radio.P_comm_by_uav = tuple(comm.tolist())
+            cache.clear()
+            return evaluate_delivered(result.active, result.protection)
+
+        power_result = marginal_delivered_pd_power_ao(
+            sense, comm, replay_power,
+            fleet_budget_w=int(cfg.scale.M) * float(total_power_w),
+            peak_power_w=float(peak_power_w),
+            max_rounds=int(power_ao_max_rounds),
+        )
+        sense = power_result.sense.copy()
+        comm = power_result.comm.copy()
+        power_ao_history = list(power_result.history)
     optimized_eigenvalues = combined_eigenvalues(result.active, result.protection)
     optimized_receiver_info = receiver_information(result.active, result.protection)
     receiver_eigenvalues = tuple(
@@ -794,6 +834,7 @@ def run(
             (1.0 - cfg.radio.rho) * cfg.radio.P_default
         ),
         "power_policy": str(power_policy),
+        "fleet_power_budget_w": int(m) * float(total_power_w),
         "peak_power_w_per_uav": float(peak_power_w),
         "minimum_communication_power_w_per_uav": float(minimum_comm_power_w),
         "communication_power_floor_satisfied": bool(np.all(
@@ -802,6 +843,9 @@ def run(
         "sensing_power_w_by_uav": sense.tolist(),
         "communication_power_w_by_uav": comm.tolist(),
         "total_power_w_by_uav": (sense + comm).tolist(),
+        "power_ao_initial_delivered_pd": power_ao_initial_delivered_pd,
+        "power_ao_history": power_ao_history,
+        "power_ao_max_rounds": int(power_ao_max_rounds),
         "preset": "paper-canonical",
         "aperture_enable": bool(cfg.aperture.enable),
         "m_rx": int(cfg.aperture.m_rx),
@@ -872,6 +916,7 @@ def run(
         ).tolist(),
         "uav_centric_policy": "best_local_then_maxmin_marginal_pd_greedy",
         "communication_reliability_model": str(cfg.comm.reliability_model),
+        "minimum_report_rate_bps": float(cfg.comm.R_min),
         "communication_blocklength": int(cfg.comm.n_block),
         "communication_mac_model": str(cfg.comm.mac_model),
         "communication_ack_model": "none_one_shot_erasure",
@@ -917,6 +962,8 @@ def run(
         "receiver_target_pd": receiver_pd.tolist(),
         "medium_view_mask": medium_mask.astype(int).tolist(),
         "medium_view_count_per_target": medium_count.astype(int).tolist(),
+        "minimum_medium_views_per_target": int(np.min(medium_count)),
+        "canonical_medium_view_gate_satisfied": bool(np.all(medium_count >= 1)),
         "medium_view_fraction_per_target": medium_fraction.tolist(),
         "worst_target_medium_view_fraction": float(np.min(medium_fraction)),
         "baseline_mode_count": [len(v) for v in baseline_eigenvalues],
@@ -988,11 +1035,16 @@ def main() -> None:
     parser.add_argument("--sensing-power-fraction", type=float, default=0.8)
     parser.add_argument(
         "--power-policy",
-        choices=("uniform", "geometry_maxmin", "coordination_explicit"),
+        choices=("uniform", "geometry_maxmin", "coordination_explicit", "marginal_pd"),
         default="uniform",
     )
     parser.add_argument("--peak-power-w", type=float, default=1.0)
     parser.add_argument("--minimum-comm-power-w", type=float, default=0.0)
+    parser.add_argument(
+        "--minimum-report-rate-mbps", type=float, default=1.0,
+        help="minimum feasible rate for every selected reporting edge",
+    )
+    parser.add_argument("--power-ao-max-rounds", type=int, default=4)
     parser.add_argument("--sense-power-by-uav")
     parser.add_argument("--comm-power-by-uav")
     parser.add_argument("--coordination-aware-ao", action="store_true")
@@ -1029,6 +1081,8 @@ def main() -> None:
         args.scenario_snapshot_out,
         args.master_seed,
         args.minimum_comm_power_w,
+        args.power_ao_max_rounds,
+        args.minimum_report_rate_mbps * 1e6,
     )
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)

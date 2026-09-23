@@ -1,0 +1,2 @@
+direct_gain_boost_db,receiver,target,arm,threshold,empirical_pfa,pfa_ci95_low,pfa_ci95_high,empirical_pd,pd_ci95_low,pd_ci95_high,auc,n_cal_h0,n_test_h0,n_test_h1,median_conflict_index,median_direct_inr_db,median_kappa_accounted_db,median_kappa_structural_db,median_eta_survive_q,median_eta_survive_risk_q,median_identifiable_fraction,median_protect_dim
+30.0,1,1,perfect_channel,13.034835917387463,0.0,0.0,0.08762160119728664,0.1,0.03957952868260638,0.23051775227522298,0.75875,20,40,40,0.022150525425771672,28.724617374462966,nan,nan,1.0,1.0,0.9961708651214708,0.0

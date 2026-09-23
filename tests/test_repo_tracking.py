@@ -58,7 +58,12 @@ def _is_repo() -> bool:
 
 
 def _status_lines(paths: tuple[str, ...]) -> list[tuple[str, str]]:
-    """``[(状态, 路径)]``，只保留未跟踪(??)与删除(D)，并剔除噪声。"""
+    """``[(状态, 路径)]``：未跟踪(``??``)与**未登记**的删除(`` D``)，剔除噪声。
+
+    porcelain 两列是 ``XY``：``X``=索引状态，``Y``=工作区状态。
+    `` D`` 是"文件删了但没 add"（违规），``D `` 是"删除已登记"（合规，正是我们要的），
+    所以只认 ``state[1] == "D"``。
+    """
     raw = _git("status", "--porcelain", "--", *paths) or ""
     out: list[tuple[str, str]] = []
     for line in raw.splitlines():
@@ -68,9 +73,9 @@ def _status_lines(paths: tuple[str, ...]) -> list[tuple[str, str]]:
         path = line[3:].strip().replace("\\", "/")
         if NOISE_DIR in path.split("/") or path.endswith(NOISE_SUFFIX):
             continue
-        if "?" in state:
+        if state == "??":
             out.append(("untracked", path))
-        elif "D" in state:
+        elif state[1] == "D":
             out.append(("deleted", path))
     return out
 

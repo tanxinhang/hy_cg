@@ -30,9 +30,10 @@ class Detect:
     #     也就是说**一个自由参数都没有**，逐链路的信息增益就是字面意义上的
     #     库尔贝克-莱布勒散度。
     soft_stat_model: str = "gaussian"
-    # 一个 CPI 内非相干积累的 OTFS 帧数。只被 ``soft_stat_model="llr"`` 使用，
-    # 那里的单链路偏转是 ``L * gamma^2``。这是物理参数（CPI 长度），不是旋钮。
+    # 旧实验直接给定的非相干 look 数；只为结果兼容保留。新实验应声明
+    # sensing_dwell_s，并由 floor(T_dwell / (N*T)) 得到 looks。
     n_looks: int = 16
+    sensing_dwell_s: float | None = None
     soft_mu_scale: float = 8.0
     soft_sigma0: float = 1.0
     soft_sigma_floor: float = 0.25
@@ -72,6 +73,10 @@ class Detect:
     #               RCS 等于重复计入。
     rcs_model: str = "iid"
     rcs_aspect_enable: bool = False
+    # Waveform-level complex target coefficient model.  ``unit_phase`` keeps
+    # the historical generator; the Swerling variants draw CN(0,1).  Their
+    # temporal distinction is consumed by the multi-frame detector.
+    target_response_model: str = "unit_phase"
 
 
 @dataclass

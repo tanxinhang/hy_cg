@@ -1,0 +1,67 @@
+{
+  "protocol": "joint_global_alarm_real_tpuic_v1",
+  "global_h0": "all candidate target echoes absent in one shared physical observation per receiver/scene",
+  "global_h1": "all candidate target echoes present; each target scored on the same observation",
+  "receivers": [
+    0,
+    1
+  ],
+  "targets": [
+    0,
+    1
+  ],
+  "bits_per_uav_per_target_payload": 3,
+  "total_payload_bits_per_scene": 12,
+  "communication_scope": "ideal error-free scalar payload; no header, coding, outage or latency model",
+  "quantizer": {
+    "type": "fixed_uniform_nearest",
+    "range": [
+      0,
+      8.0
+    ]
+  },
+  "alpha": 0.05,
+  "n_cal_independent_scenes": 1,
+  "n_test_independent_scenes": 1,
+  "conformal_order": 2,
+  "threshold": Infinity,
+  "marginal_global_pfa_bound": 0.0,
+  "test_global_false_alarms": 0,
+  "test_per_target_detections": [
+    0,
+    0
+  ],
+  "records": [
+    {
+      "scene_id": 0,
+      "split": "calibration",
+      "h0_per_target": [
+        2.2857142857142856,
+        3.4285714285714284
+      ],
+      "h1_per_target": [
+        3.4285714285714284,
+        3.4285714285714284
+      ],
+      "global_h0": 3.4285714285714284
+    },
+    {
+      "scene_id": 1,
+      "split": "test",
+      "h0_per_target": [
+        3.4285714285714284,
+        3.4285714285714284
+      ],
+      "h1_per_target": [
+        3.4285714285714284,
+        3.4285714285714284
+      ],
+      "global_h0": 3.4285714285714284
+    }
+  ],
+  "limitations": [
+    "fixed subset, not learned association",
+    "homogeneous target RCS",
+    "pilot PFA 0.05, not paper PFA 0.001"
+  ]
+}

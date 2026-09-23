@@ -1,0 +1,849 @@
+{
+  "trial": 32,
+  "area_xy_m": 600.0,
+  "target_count": 3,
+  "uav_count": 6,
+  "total_power_w_per_uav": 1.0,
+  "sensing_power_fraction": 0.8,
+  "sensing_power_w_per_uav": 0.8,
+  "communication_power_w_per_uav": 0.19999999999999996,
+  "power_policy": "coordination_explicit",
+  "peak_power_w_per_uav": 1.0,
+  "sensing_power_w_by_uav": [
+    0.001,
+    0.001,
+    0.999,
+    0.001,
+    0.899,
+    0.999
+  ],
+  "communication_power_w_by_uav": [
+    0.599,
+    0.599,
+    0.001,
+    0.599,
+    0.101,
+    0.001
+  ],
+  "total_power_w_by_uav": [
+    0.6,
+    0.6,
+    1.0,
+    0.6,
+    1.0,
+    1.0
+  ],
+  "preset": "paper-canonical",
+  "aperture_enable": true,
+  "m_rx": 4,
+  "target_response_model": "swerling2_fast",
+  "temporal_model": "independent_fast_scattering_looks",
+  "otfs_frame_duration_ms": 2.1333333333333333,
+  "declared_sensing_dwell_ms": 53.3333333333333,
+  "derived_n_looks": 25,
+  "p_fa": 0.05,
+  "cancellation_arm": "no_ic",
+  "formation_model": "truth_assisted_target_ring_structural_bound",
+  "requested_views_per_target": 2,
+  "formation_radius_m": 100.0,
+  "formation_max_movement_m": 400.0,
+  "movement_distance_m_per_uav": [
+    271.9601782630583,
+    400.00000000000006,
+    400.00000000000006,
+    400.00000000000017,
+    400.0,
+    366.71243115135496
+  ],
+  "total_movement_distance_m": 2238.6726094144137,
+  "rank_budget": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "baseline_protection": [
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ]
+  ],
+  "optimized_protection": [
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ]
+  ],
+  "baseline_active": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "optimized_active": [
+    0,
+    0,
+    1,
+    0,
+    1,
+    1
+  ],
+  "n_active_tx": 3,
+  "activation_search": "local",
+  "coordination_aware_ao": true,
+  "joint_fusion_search": false,
+  "baseline_information": [
+    0.999999999948212,
+    0.9683492903465489,
+    0.8722078913130337
+  ],
+  "optimized_information": [
+    0.9999999999480674,
+    0.9684820213864637,
+    0.8785826775485013
+  ],
+  "baseline_receiver_target_information": [
+    [
+      80.29116428337034,
+      6.090316264167544,
+      0.4492508947007429
+    ],
+    [
+      1269.738745341693,
+      1.6858540776383042,
+      0.9883949730879681
+    ],
+    [
+      375.78195926967175,
+      2.2006628451387193,
+      3.6027246210646418
+    ],
+    [
+      166.75219585188415,
+      7.190047829783072,
+      0.686446355015506
+    ],
+    [
+      356.68061489645686,
+      1.6696160356551062,
+      2.924682319198687
+    ],
+    [
+      660.2447463670377,
+      0.869856634363962,
+      1.3354894903277716
+    ]
+  ],
+  "optimized_receiver_target_information": [
+    [
+      80.30751924892034,
+      6.097993923046431,
+      0.4497372408208101
+    ],
+    [
+      1269.7507004365816,
+      1.6922150990108267,
+      0.9941255727211974
+    ],
+    [
+      375.792095698421,
+      2.2062916733462985,
+      3.673651945876995
+    ],
+    [
+      166.75693472253462,
+      7.200730622116628,
+      0.6871660274958326
+    ],
+    [
+      356.8545560608286,
+      1.6751127799665775,
+      3.0444513700828644
+    ],
+    [
+      660.1960133057878,
+      0.8705849714475165,
+      1.349919656582262
+    ]
+  ],
+  "optimized_receiver_information_share": [
+    [
+      0.027600331115039387,
+      0.3088697680954389,
+      0.04409598549366994
+    ],
+    [
+      0.436391761236903,
+      0.0857124640980221,
+      0.09747235241981285
+    ],
+    [
+      0.12915336407718048,
+      0.11175098009230672,
+      0.360195439049104
+    ],
+    [
+      0.05731152770147163,
+      0.3647245348942198,
+      0.067375481569853
+    ],
+    [
+      0.12264485317570893,
+      0.08484621375672094,
+      0.2985033732282054
+    ],
+    [
+      0.2268981626936965,
+      0.044096039063291355,
+      0.13235736823935476
+    ]
+  ],
+  "fusion_assumption": "perfect_central_fusion_no_reporting_loss",
+  "communication_message_mode": "local_sufficient_statistic_llr_packet",
+  "communication_fusion_rule": "max_in_rate",
+  "communication_fusion_node_per_target": [
+    0,
+    0,
+    0
+  ],
+  "communication_report_success_probability": [
+    [
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0
+    ]
+  ],
+  "communication_report_rate_bps": [
+    [
+      Infinity,
+      Infinity,
+      Infinity
+    ],
+    [
+      3740186.7591333846,
+      3740186.7591333846,
+      3740186.7591333846
+    ],
+    [
+      13030.058089416558,
+      13030.058089416558,
+      13030.058089416558
+    ],
+    [
+      9544253.844921777,
+      9544253.844921777,
+      9544253.844921777
+    ],
+    [
+      3914541.2445996515,
+      3914541.2445996515,
+      3914541.2445996515
+    ],
+    [
+      15814.294161566928,
+      15814.294161566928,
+      15814.294161566928
+    ]
+  ],
+  "communication_delivered_pd": [
+    0.9999999999999869,
+    0.9870538400057443,
+    0.7638286398930825
+  ],
+  "communication_delivered_worst_pd": 0.7638286398930825,
+  "communication_fusion_local_only_pd": [
+    0.9999230476804054,
+    0.8196934916214513,
+    0.19873702734265702
+  ],
+  "communication_cooperation_gain_pd": [
+    7.69523195814914e-05,
+    0.16736034838429292,
+    0.5650916125504255
+  ],
+  "uav_centric_policy": "best_local_then_maxmin_marginal_pd_greedy",
+  "communication_reliability_model": "fbl",
+  "communication_blocklength": 512,
+  "communication_reliability_sweep": [
+    {
+      "blocklength": 128,
+      "block_latency_ms": 0.06666666666666667,
+      "minimum_link_success": 0.0,
+      "median_link_success": 0.0,
+      "maximum_link_success": 0.4098985601620614,
+      "selected_report_count": 0,
+      "delivered_pd": [
+        0.9999999999480674,
+        0.8614677958676531,
+        0.664102722209605
+      ],
+      "worst_delivered_pd": 0.664102722209605
+    },
+    {
+      "blocklength": 256,
+      "block_latency_ms": 0.13333333333333333,
+      "minimum_link_success": 0.0,
+      "median_link_success": 0.0,
+      "maximum_link_success": 1.0,
+      "selected_report_count": 4,
+      "delivered_pd": [
+        0.9999999999480674,
+        0.9684820230664373,
+        0.734277552574838
+      ],
+      "worst_delivered_pd": 0.734277552574838
+    },
+    {
+      "blocklength": 512,
+      "block_latency_ms": 0.26666666666666666,
+      "minimum_link_success": 0.0,
+      "median_link_success": 0.9902761969033476,
+      "maximum_link_success": 1.0,
+      "selected_report_count": 3,
+      "delivered_pd": [
+        0.9999999999480674,
+        0.9684820213864637,
+        0.8785826775485013
+      ],
+      "worst_delivered_pd": 0.8785826775485013
+    },
+    {
+      "blocklength": 1024,
+      "block_latency_ms": 0.5333333333333333,
+      "minimum_link_success": 0.0,
+      "median_link_success": 1.0,
+      "maximum_link_success": 1.0,
+      "selected_report_count": 3,
+      "delivered_pd": [
+        0.9999999999480674,
+        0.9684820213864637,
+        0.8785826775485042
+      ],
+      "worst_delivered_pd": 0.8785826775485042
+    },
+    {
+      "blocklength": 2048,
+      "block_latency_ms": 1.0666666666666667,
+      "minimum_link_success": 0.0,
+      "median_link_success": 1.0,
+      "maximum_link_success": 1.0,
+      "selected_report_count": 3,
+      "delivered_pd": [
+        0.9999999999480674,
+        0.9684820213864637,
+        0.8785826775485042
+      ],
+      "worst_delivered_pd": 0.8785826775485042
+    }
+  ],
+  "uav_centric_max_reports_per_sender": 1,
+  "uav_centric_max_reports_per_fusion": 2,
+  "uav_centric_fusion_node_per_target": [
+    5,
+    3,
+    2
+  ],
+  "uav_centric_selected_reports": [
+    {
+      "source_uav": 4,
+      "target": 2,
+      "destination_uav": 2,
+      "success_probability": 0.9999999999999806
+    },
+    {
+      "source_uav": 1,
+      "target": 2,
+      "destination_uav": 2,
+      "success_probability": 1.0
+    },
+    {
+      "source_uav": 0,
+      "target": 1,
+      "destination_uav": 3,
+      "success_probability": 1.0
+    }
+  ],
+  "uav_centric_sender_load": [
+    1,
+    1,
+    0,
+    0,
+    1,
+    0
+  ],
+  "uav_centric_fusion_load": [
+    0,
+    0,
+    2,
+    1,
+    0,
+    0
+  ],
+  "uav_centric_best_local_pd": [
+    0.9999999999480674,
+    0.8614677958676531,
+    0.664102722209605
+  ],
+  "uav_centric_delivered_pd": [
+    0.9999999999480674,
+    0.9684820213864637,
+    0.8785826775485013
+  ],
+  "uav_centric_cooperation_gain_pd": [
+    0.0,
+    0.10701422551881057,
+    0.2144799553388963
+  ],
+  "uav_centric_minimum_looks_for_worst_pd_0.8": 19,
+  "uav_centric_minimum_dwell_ms_for_worst_pd_0.8": 40.53333333333334,
+  "uav_centric_pd_at_minimum_looks": [
+    0.9999999903915558,
+    0.9311525740284561,
+    0.8047219999338368
+  ],
+  "uav_centric_reports_at_minimum_looks": [
+    {
+      "source_uav": 4,
+      "target": 2,
+      "destination_uav": 2,
+      "success_probability": 0.9999999999999806
+    },
+    {
+      "source_uav": 1,
+      "target": 2,
+      "destination_uav": 2,
+      "success_probability": 1.0
+    },
+    {
+      "source_uav": 0,
+      "target": 1,
+      "destination_uav": 3,
+      "success_probability": 1.0
+    }
+  ],
+  "communication_loss_from_ideal_pd": [
+    1.3100631690576847e-14,
+    0.007391305565275119,
+    0.17342517672641844
+  ],
+  "medium_view_pd_threshold": 0.3,
+  "receiver_target_pd": [
+    [
+      0.9999230476804054,
+      0.8196934916214513,
+      0.19873702734265702
+    ],
+    [
+      0.9999999802452572,
+      0.43982544531737827,
+      0.31459349918774093
+    ],
+    [
+      0.999999149587823,
+      0.5138896236128458,
+      0.664102722209605
+    ],
+    [
+      0.9999954817622536,
+      0.8614677958676531,
+      0.25229811909480604
+    ],
+    [
+      0.9999991763757686,
+      0.43760493193561734,
+      0.6131540983704922
+    ],
+    [
+      0.9999999999480674,
+      0.2959420302231315,
+      0.3845477332441433
+    ]
+  ],
+  "medium_view_mask": [
+    [
+      1,
+      1,
+      0
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      0
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      0,
+      1
+    ]
+  ],
+  "medium_view_count_per_target": [
+    6,
+    5,
+    4
+  ],
+  "medium_view_fraction_per_target": [
+    1.0,
+    0.8333333333333334,
+    0.6666666666666666
+  ],
+  "worst_target_medium_view_fraction": 0.6666666666666666,
+  "baseline_mode_count": [
+    30,
+    30,
+    30
+  ],
+  "optimized_mode_count": [
+    15,
+    15,
+    15
+  ],
+  "information_gain_ratio": [
+    0.9999999999998554,
+    1.0001370693831637,
+    1.0073087922030504
+  ],
+  "ao_history": [
+    0.8722078913130337,
+    0.8767656802046957,
+    0.8778871173359661,
+    0.8785826775485013,
+    0.8785826775485013
+  ],
+  "baseline_pd_by_total_looks": {
+    "1": [
+      0.9790772885798693,
+      0.3437250738468487,
+      0.23353456118864363
+    ],
+    "2": [
+      0.9982129663766757,
+      0.4609499997250335,
+      0.30985537754910086
+    ],
+    "4": [
+      0.9999837924140416,
+      0.6301581322145715,
+      0.4326690267114877
+    ],
+    "8": [
+      0.9999999983171004,
+      0.8266031049887202,
+      0.6150127995214381
+    ],
+    "16": [
+      1.0,
+      0.9641841825758113,
+      0.8278652412191847
+    ],
+    "32": [
+      1.0,
+      0.9987301077081455,
+      0.9692404363346491
+    ],
+    "64": [
+      1.0,
+      0.9999989304181112,
+      0.9992545651230308
+    ],
+    "128": [
+      1.0,
+      0.9999999999996358,
+      0.9999997475226906
+    ],
+    "256": [
+      1.0,
+      1.0,
+      0.999999999999989
+    ],
+    "512": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "1024": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "optimized_pd_by_total_looks": {
+    "1": [
+      0.9790796552731648,
+      0.3440626960036498,
+      0.23661760964178752
+    ],
+    "2": [
+      0.9982133168591275,
+      0.46140758452286024,
+      0.3140873435917346
+    ],
+    "4": [
+      0.9999837981777423,
+      0.6307185254414047,
+      0.43845466741152506
+    ],
+    "8": [
+      0.9999999983182212,
+      0.8271035983522613,
+      0.6220870133927823
+    ],
+    "16": [
+      1.0,
+      0.9643899613300091,
+      0.833923194495732
+    ],
+    "32": [
+      1.0,
+      0.998744945658223,
+      0.9713814053596214
+    ],
+    "64": [
+      1.0,
+      0.9999989559270436,
+      0.9993571037516448
+    ],
+    "128": [
+      1.0,
+      0.9999999999996535,
+      0.9999998138014372
+    ],
+    "256": [
+      1.0,
+      1.0,
+      0.9999999999999941
+    ],
+    "512": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "1024": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "look_sweep": [
+    {
+      "total_looks": 1,
+      "sensing_dwell_ms": 2.1333333333333333,
+      "worst_pd": 0.23661760964178752,
+      "relative_energy": 1.0
+    },
+    {
+      "total_looks": 2,
+      "sensing_dwell_ms": 4.266666666666667,
+      "worst_pd": 0.3140873435917346,
+      "relative_energy": 2.0
+    },
+    {
+      "total_looks": 4,
+      "sensing_dwell_ms": 8.533333333333333,
+      "worst_pd": 0.43845466741152506,
+      "relative_energy": 4.0
+    },
+    {
+      "total_looks": 8,
+      "sensing_dwell_ms": 17.066666666666666,
+      "worst_pd": 0.6220870133927823,
+      "relative_energy": 8.0
+    },
+    {
+      "total_looks": 16,
+      "sensing_dwell_ms": 34.13333333333333,
+      "worst_pd": 0.833923194495732,
+      "relative_energy": 16.0
+    },
+    {
+      "total_looks": 32,
+      "sensing_dwell_ms": 68.26666666666667,
+      "worst_pd": 0.9713814053596214,
+      "relative_energy": 32.0
+    },
+    {
+      "total_looks": 64,
+      "sensing_dwell_ms": 136.53333333333333,
+      "worst_pd": 0.9993571037516448,
+      "relative_energy": 64.0
+    },
+    {
+      "total_looks": 128,
+      "sensing_dwell_ms": 273.06666666666666,
+      "worst_pd": 0.9999998138014372,
+      "relative_energy": 128.0
+    },
+    {
+      "total_looks": 256,
+      "sensing_dwell_ms": 546.1333333333333,
+      "worst_pd": 0.9999999999999941,
+      "relative_energy": 256.0
+    },
+    {
+      "total_looks": 512,
+      "sensing_dwell_ms": 1092.2666666666667,
+      "worst_pd": 1.0,
+      "relative_energy": 512.0
+    },
+    {
+      "total_looks": 1024,
+      "sensing_dwell_ms": 2184.5333333333333,
+      "worst_pd": 1.0,
+      "relative_energy": 1024.0
+    }
+  ],
+  "optimized_fixed_total_energy_pd": {
+    "1": [
+      0.9891210450168236,
+      0.9906824037576735,
+      0.987395755475921
+    ],
+    "2": [
+      0.9993775488344708,
+      0.9979707719797164,
+      0.9953789541412262
+    ],
+    "4": [
+      0.9999969606207797,
+      0.9994146671534677,
+      0.9969310717000309
+    ],
+    "8": [
+      0.9999999998450556,
+      0.9995235291064486,
+      0.9943131382838721
+    ],
+    "16": [
+      1.0,
+      0.9984333512604932,
+      0.9765813451113449
+    ],
+    "32": [
+      1.0,
+      0.9883036987092462,
+      0.89766111608007
+    ],
+    "64": [
+      1.0,
+      0.9252401379453244,
+      0.7112177675041221
+    ],
+    "128": [
+      1.0,
+      0.7471114063531831,
+      0.48414109451317044
+    ],
+    "256": [
+      1.0,
+      0.5127039860482633,
+      0.30962143490909766
+    ],
+    "512": [
+      1.0,
+      0.32727007279667475,
+      0.20292468896325538
+    ],
+    "1024": [
+      1.0,
+      0.21296089439422827,
+      0.14224701902511855
+    ]
+  },
+  "minimum_total_looks_for_worst_pd_0.8_fixed_per_look_energy": 15,
+  "minimum_sensing_dwell_ms_for_worst_pd_0.8": 32.0
+}

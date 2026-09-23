@@ -3,7 +3,9 @@
 > 适用：`isac_sim` / `experiments` 仓库（`D:\Desktop\conference`，ICC 2027 投稿线）。
 > 生效：V1（release `V1_STABLE_MANIFEST.json`，**95** 冻结键 —— κ 删除后由 96 减一）之后的所有迭代。
 > 用途：任何改动在动手前先按 §1 分诊，按 §9 checklist 逐卡通过，再提交。
-> 配套：**`docs/TEST_STANDARD.md` 是测试书写规范的唯一细节口径**（§7 只给指针）。
+> 配套：**`docs/TEST_STANDARD.md` 是测试书写规范的唯一细节口径**（§7 只给指针）；
+> **`docs/ITERATION_PLAYBOOK.md` 是操作流程**（迭代生命周期 / 五类改法落点 / 新建测试决策树 /
+> 文件管理与版本控制），本文件只给判定标准。
 
 ---
 
@@ -73,9 +75,10 @@ $PY tools/parity_check.py                       # ④ 重构逐位一致性（D 
 | **⑤** | `tests/test_test_inventory.py` + `tests/_test_inventory.py` | **防丢**：拆大文件时不得静默丢 `def test_*`（AST 比对 155 个基线名） |
 | **⑥** | `tests/test_study_docs_hygiene.py` | **归档卫生**：不得新增乱码文档、md 引用的 `data/<dir>` 必须存在、`scripts/` 每脚本须被 README 索引 |
 | **⑦** | `tests/test_test_file_hygiene.py` | **测试自身的结构卫生**：模块 docstring、ASCII 命名、`__main__` 守卫、脚手架 `_` 前缀、禁止从 `test_*` import（`docs/TEST_STANDARD.md` §1） |
+| **⑧** | `tests/test_repo_tracking.py` | **文件管理**（`docs/ITERATION_PLAYBOOK.md` §5.2）：源码/规范/测试/方向产物不得有未入库文件；删除必须登记 |
 
-**当前基线（2026-09-21）**：`pytest -q` ⇒ **716 passed / 7 xfailed / 6 subtests**，≈162 s；
-`tests/` 47 个文件、**0 个超 350 行**；`check_release_identity` CLEAN（95/95）；
+**当前基线（2026-09-21）**：`pytest -q` ⇒ **718 passed / 7 xfailed / 6 subtests**，≈167 s；
+`tests/` 48 个文件、**0 个超 350 行**；`check_release_identity` CLEAN（95/95）；
 `check_contract_refs` CLEAN（32/32）。
 跑出偏离先做环境与口径核对（见下），别直接归因于代码。
 
@@ -638,6 +641,7 @@ P2 钉契约不钉数字｜P3 新增即门禁（先想"怎么变成会 FAIL 的�
 | 文档 | 内容 |
 |---|---|
 | **`docs/TEST_STANDARD.md`** | **测试书写规范的唯一细节口径**（文件组织 / 骨架模板 / 断言档位 / 门控四项 / 拆分与防丢） |
+| **`docs/ITERATION_PLAYBOOK.md`** | **操作流程**：迭代 11 步生命周期、五类改法的落点模板、新建测试决策树、文件管理与版本控制规则 |
 | `.workbuddy/PERFORMANCE_ROOT_CAUSE_AUDIT.md` | 本轮性能根因审计（全量数字与脚本） |
 | **`studies/direction1/`** | **方向 1（TP-UIC 本体，已归档）全部探究产物**：`scripts/` 探针 + `data/` 实测 + `docs/` 审计 + `README.md` 汇总索引 |
 | **`studies/direction2/`** | **方向 2（协作融合）**：`scripts/`（`diag_fusion2_attribution.py` / `diag_fusion2_belief.py` / `run_robust_verdict.py`）+ `data/`（含 `robust_verdict_mc120`）+ `docs/AUDIT_DIRECTION2_ATTRIBUTION.md` |

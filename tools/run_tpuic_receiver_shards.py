@@ -87,6 +87,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--targets", default="0,1")
     p.add_argument("--direct-gain-boost-db", default="0,20,40")
     p.add_argument("--p-fa", type=float, default=0.05)
+    p.add_argument("--threshold-calibration",
+                   choices=("empirical_quantile", "split_conformal"),
+                   default="empirical_quantile")
     p.add_argument("--arms", default=None)
     p.add_argument("--workers", type=int, default=6)
     p.add_argument("--threads", type=int, default=2,
@@ -98,6 +101,24 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--area-xy", type=float, default=800.0)
     p.add_argument("--m-rx", type=int, default=4)
     p.add_argument("--direct-dd-sigma", type=float, default=0.10)
+    p.add_argument("--direct-error-scope", choices=("realisation", "scene"),
+                   default="realisation")
+    p.add_argument("--interference-tangent-order", type=int, choices=(0, 1), default=0)
+    p.add_argument("--interference-uncertainty-weighted", action="store_true")
+    p.add_argument("--no-direct-mismatch-in-cres", dest="direct_mismatch_in_cres",
+                   action="store_false")
+    p.set_defaults(direct_mismatch_in_cres=True)
+    p.add_argument("--direct-mismatch-covariance-model",
+                   choices=("first_order", "sigma_point"), default="first_order")
+    p.add_argument("--direct-mismatch-covariance-scale", type=float, default=1.0)
+    p.add_argument("--oracle-direct-residual-in-cres", action="store_true")
+    p.add_argument("--target-glrt-mode", choices=("centre", "neighbourhood_max"),
+                   default="centre")
+    p.add_argument("--target-dictionary", choices=("belief", "truth"), default="belief")
+    p.add_argument("--target-glrt-radius-bins", type=float, default=0.0)
+    p.add_argument("--target-glrt-grid-points", type=int, default=3)
+    p.add_argument("--target-statistic-normalization",
+                   choices=("none", "whitened_energy"), default="none")
     p.add_argument("--belief-pos-sigma", type=float, default=20.0)
     p.add_argument("--belief-vel-sigma", type=float, default=3.0)
     p.add_argument("--max-protected-targets", type=int, default=3)
@@ -138,6 +159,7 @@ def main() -> None:
         "--test-scenes", str(args.test_scenes),
         "--realisations", str(args.realisations),
         "--p-fa", str(args.p_fa),
+        "--threshold-calibration", str(args.threshold_calibration),
         "--master-seed", str(args.master_seed),
         "--uavs", str(args.uavs),
         "--targets-count", str(args.targets_count),
@@ -146,10 +168,29 @@ def main() -> None:
         "--m-rx", str(args.m_rx),
         "--direct-gain-boost-db", str(args.direct_gain_boost_db),
         "--direct-dd-sigma", str(args.direct_dd_sigma),
+        "--direct-error-scope", str(args.direct_error_scope),
         "--belief-pos-sigma", str(args.belief_pos_sigma),
         "--belief-vel-sigma", str(args.belief_vel_sigma),
         "--max-protected-targets", str(args.max_protected_targets),
     ]
+    common += ["--interference-tangent-order", str(args.interference_tangent_order)]
+    common += ["--direct-mismatch-covariance-scale",
+               str(args.direct_mismatch_covariance_scale)]
+    common += ["--direct-mismatch-covariance-model",
+               str(args.direct_mismatch_covariance_model)]
+    common += [
+        "--target-glrt-mode", str(args.target_glrt_mode),
+        "--target-dictionary", str(args.target_dictionary),
+        "--target-glrt-radius-bins", str(args.target_glrt_radius_bins),
+        "--target-glrt-grid-points", str(args.target_glrt_grid_points),
+        "--target-statistic-normalization", str(args.target_statistic_normalization),
+    ]
+    if args.interference_uncertainty_weighted:
+        common.append("--interference-uncertainty-weighted")
+    if not args.direct_mismatch_in_cres:
+        common.append("--no-direct-mismatch-in-cres")
+    if args.oracle_direct_residual_in_cres:
+        common.append("--oracle-direct-residual-in-cres")
     if args.arms:
         common += ["--arms", args.arms]
 
@@ -205,7 +246,9 @@ def main() -> None:
     sys.path.insert(0, str(HERE.parent))  # so the merge step can import isac_sim
     import run_tpuic_receiver_benchmark as bench
 
-    summaries, scene_rows = bench._summarise(rows, float(args.p_fa))
+    summaries, scene_rows = bench._summarise(
+        rows, float(args.p_fa), str(args.threshold_calibration)
+    )
     bench._write_csv(out_dir / "records.csv", rows)
     bench._write_csv(out_dir / "summary.csv", summaries)
     bench._write_csv(out_dir / "scene_summary.csv", scene_rows)

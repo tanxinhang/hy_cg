@@ -1,7 +1,7 @@
 """发射功率划分与整张表共用的常数。
 
-功率模型把每架 UAV 的功率分成**感知分量** ``rho * P`` 与**通信分量**
-``(1-rho) * P``。``rho_by_uav`` 允许逐机给不同的划分比例。
+新主线直接读取 ``P_sense_by_uav`` / ``P_comm_by_uav``。历史上的
+``P``/``rho`` 表示只作为未提供直接向量时的兼容路径。
 """
 
 from __future__ import annotations
@@ -49,17 +49,42 @@ def power_split(
     M = cfg.scale.M
     r, c = cfg.radio, cfg.comm
 
-    P = np.full(M, r.P_default, dtype=float)
-    if r.P_by_uav is not None:
-        P = np.asarray(r.P_by_uav, dtype=float)
-        if P.shape != (M,) or not np.all(np.isfinite(P)) or np.any(P <= 0.0):
-            raise ValueError(f"P_by_uav must contain {M} finite positive powers")
-    rho = r.rho
-    if r.rho_by_uav is not None:
-        rho = np.asarray(r.rho_by_uav, dtype=float)
-        if rho.shape != (M,) or not np.all(np.isfinite(rho)) or np.any((rho <= 0) | (rho >= 1)):
-            raise ValueError(f"rho_by_uav must contain {M} finite fractions in (0, 1)")
-    P_sense = rho * P
+    if (r.P_sense_by_uav is None) != (r.P_comm_by_uav is None):
+        raise ValueError(
+            "P_sense_by_uav and P_comm_by_uav must be specified together"
+        )
+    if r.P_sense_by_uav is not None:
+        if r.P_by_uav is not None or r.rho_by_uav is not None:
+            raise ValueError(
+                "direct powers cannot be mixed with P_by_uav/rho_by_uav"
+            )
+        P_sense = np.asarray(r.P_sense_by_uav, dtype=float)
+        P_comm = np.asarray(r.P_comm_by_uav, dtype=float)
+        if (P_sense.shape != (M,) or P_comm.shape != (M,)
+                or not np.all(np.isfinite(P_sense))
+                or not np.all(np.isfinite(P_comm))
+                or np.any(P_sense < 0.0) or np.any(P_comm < 0.0)):
+            raise ValueError(
+                f"direct sensing/communication powers must be finite, non-negative, "
+                f"and have shape ({M},)"
+            )
+        P = P_sense + P_comm
+        rho = np.divide(
+            P_sense, P, out=np.zeros_like(P_sense), where=P > 0.0
+        )
+    else:
+        P = np.full(M, r.P_default, dtype=float)
+        if r.P_by_uav is not None:
+            P = np.asarray(r.P_by_uav, dtype=float)
+            if P.shape != (M,) or not np.all(np.isfinite(P)) or np.any(P <= 0.0):
+                raise ValueError(f"P_by_uav must contain {M} finite positive powers")
+        rho = r.rho
+        if r.rho_by_uav is not None:
+            rho = np.asarray(r.rho_by_uav, dtype=float)
+            if rho.shape != (M,) or not np.all(np.isfinite(rho)) or np.any((rho <= 0) | (rho >= 1)):
+                raise ValueError(f"rho_by_uav must contain {M} finite fractions in (0, 1)")
+        P_sense = rho * P
+        P_comm = (1.0 - rho) * P
     if sensing_power_scale_by_uav is not None:
         power_scale = np.asarray(sensing_power_scale_by_uav, dtype=float)
         if power_scale.shape != (M,) or not np.all(np.isfinite(power_scale)):
@@ -67,8 +92,6 @@ def power_split(
         if np.any(power_scale <= 0.0):
             raise ValueError("sensing power scales must be strictly positive")
         P_sense = P_sense * power_scale
-    P_comm = (1.0 - rho) * P
-
     n0 = noise_power(cfg)
     eps_den = denominator_guard(cfg, n0)
     B = bandwidth(cfg)

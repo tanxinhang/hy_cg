@@ -103,11 +103,26 @@ def analyze(records, alpha=0.10, bits=(2, 3, 16), injected_scale=None):
         "injected_scale": None if injected_scale is None else injected_scale.tolist(),
         "receivers": receivers, "sample_counts": {
             "calibration": len(cal0), "drift_estimation": len(drift0), "final_test": len(final0)},
+        "independent_scene_counts": {
+            "calibration": len({int(r["scene_id"]) for r in cal_rows}),
+            "drift_estimation": len(drift_ids), "final_test": len(final_ids),
+        },
+        "scene_level_conformal_status": (
+            "not_calibrated: empirical row-level quantile treats multiple "
+            "noise realizations in the same scene as independent; scale "
+            "normalization and quantizer clip are also fitted on the "
+            "threshold-calibration rows"
+        ),
         "estimated_positive_scale_ratios": ratio.tolist(),
         "mean_abs_calibration_correlation": float(np.mean(np.abs(corr[~np.eye(len(receivers), dtype=bool)]))),
         "continuous_test_auc": continuous_auc,
         "results": rows_out,
-        "warning": f"Only {len(final0)} final H0 samples; PFA resolution is {1/len(final0):.4g}. Screening only.",
+        "warning": (
+            f"Only {len(final_ids)} independent final scenes, each with "
+            f"{len(final0) // max(len(final_ids), 1)} noise realizations; "
+            "row-level PFA and thresholds are exploratory, not a scene-level "
+            "conformal/CFAR guarantee."
+        ),
     }
 
 
