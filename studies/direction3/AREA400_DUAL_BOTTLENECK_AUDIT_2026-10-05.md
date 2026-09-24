@@ -314,5 +314,36 @@ Gamma/近正态尾部，而非重尾异常。
 H0 样本校验所选分位的覆盖率；本轮仅完成分布诊断，不改变 TP-UIC 主线。
 
 产物：`data/tpuic_noise_distribution_audit_20261011/`。
+
+#### Certificate 职责隔离与 reference coefficient MAP 筛查
+
+连续链路计算原先使用名为 `TrialCertificate` 的上下文广播 `(residual fraction,
+retention)`。该对象实际承担 nominal receiver state，而不是风险保证。现将正式名称
+改为 `TrialReceiverState` / `trial_receiver_state`；旧名称仅作为数值兼容别名保留。
+风险证书没有自动注入该上下文的入口，因此后续 nominal 与 certificate 可分别演进，
+默认 `production_wire=False` 和全部数值保持不变。
+
+随后实现真正的 reference-only protected MAP：从 1/2/4 个独立 reference CPI
+联合估计一组共享复直达系数，再应用到未参与拟合的 sensing CPI。首轮只测直达径
+真值残差和后验收缩，不改变 detector。协议复用 `(receiver=1,target=1)` 的 4 个
+test 场景及 `{+10,+30,+50}` dB 严格配对轴。
+
+结果否决“跨 CPI 静态共享复系数”假设。+10 dB 下 1/2/4-reference 的真实直达残差
+分别为 `2.17e-8/1.39e-8/1.52e-8`，而相同 DD 估计下的 sensing-CPI self-fit
+结构残差约为 `5.51e-12`，reference MAP 差约 2500--3900 倍；+30/+50 dB 以相同
+比例随直达功率缩放。把 reference 的观测替换为 oracle `x_direct` 后结果几乎不变，
+排除了 reference 噪声和目标污染作为主因。
+
+后验 trace 和传播后的 coefficient-error trace 确实近似按 `1/L` 收缩，但这只是
+错误静态模型内部的不确定性收缩。reference 与 sensing 的字典相对变化严格为 0，
+而 oracle 系数相对误差仍为 `1.16--1.41`、相干度仅 `0.30--0.43`。生成器为每个
+CPI 独立抽取直达复相位，因此不能把 `n_cpi` 的 `1/L` covariance 缩放解释成可实现
+的 coherent coefficient averaging。
+
+裁决：保留 reference MAP 模块作为实验反例，不接入默认 TP-UIC 或 detector。
+下一步若继续多 CPI，应先定义并验证跨 CPI 相位/信道演化模型；在当前 iid-phase
+场景中，只能用 reference 学习 DD、协方差或超参数，不能直接迁移瞬时复系数。
+
+产物：`data/reference_coefficient_map_screen_20261011/`。
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

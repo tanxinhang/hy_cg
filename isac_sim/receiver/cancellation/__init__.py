@@ -34,6 +34,8 @@ from isac_sim.receiver.cancellation.result import CancellationResult
 from isac_sim.receiver.cancellation.nonlinear_refinement import (
     apply_direct_dd, refine_direct_dd)
 from isac_sim.receiver.cancellation.joint_dd_map import refine_direct_dd_joint
+from isac_sim.receiver.cancellation.reference_map import (
+    ReferenceMAPEstimate, apply_reference_map, fit_reference_map)
 from isac_sim.receiver.cancellation.joint_dd_gn import (
     JointDDGNDiagnostics, refine_direct_dd_joint_gn,
     refine_direct_dd_joint_gn_diagnostics)
@@ -87,6 +89,7 @@ __all__ = [
     "kappa_from_budget", "ReceiverContext", "ReceiverMeasurement",
     "measure_receiver_context", "measure_residual_fraction", "refine_direct_dd",
     "refine_direct_dd_joint", "apply_direct_dd",
+    "ReferenceMAPEstimate", "fit_reference_map", "apply_reference_map",
     "JointDDGNDiagnostics", "refine_direct_dd_joint_gn",
     "refine_direct_dd_joint_gn_diagnostics",
 ]

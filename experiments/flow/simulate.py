@@ -1125,8 +1125,8 @@ def run_method_on_trial(
     )
 
 
-def _measure_trial_certificate(cfg, geom, geom_belief, base_truth, index):
-    """测量本 trial 的接收机证书；门控关闭时返回 ``None``。
+def _measure_trial_receiver_state(cfg, geom, geom_belief, base_truth, index):
+    """测量本 trial 的 nominal receiver state；门控关闭时返回 ``None``。
 
     测量走**独立**随机流（与 ``tools/run_receiver_closed_loop.py`` 一致），
     不消耗主 rng —— 门控关闭时连一次抽取都没有，因此逐位不变。
@@ -1134,7 +1134,7 @@ def _measure_trial_certificate(cfg, geom, geom_belief, base_truth, index):
     if not getattr(cfg.cancellation, "production_wire", False):
         return None
     from isac_sim.receiver import cancellation as cx
-    from isac_sim.sensing.model.link_tables.trial_certificate import TrialCertificate
+    from isac_sim.sensing.model.link_tables.trial_certificate import TrialReceiverState
 
     ctx = cx.ReceiverContext.from_trial(
         cfg, geom, geom_belief, base_truth,
@@ -1143,7 +1143,7 @@ def _measure_trial_certificate(cfg, geom, geom_belief, base_truth, index):
     meas = cx.measure_receiver_context(
         ctx, rng=np.random.default_rng([cfg.run.seed, 10 ** 6 + int(index)]),
     )
-    return TrialCertificate(
+    return TrialReceiverState(
         fraction=np.asarray(meas.fraction, dtype=float).copy(),
         retention=np.asarray(
             meas.as_retention(
@@ -1155,7 +1155,7 @@ def _measure_trial_certificate(cfg, geom, geom_belief, base_truth, index):
     )
 
 
-def _trial_certificate_scope(cfg, geom, geom_belief, base_truth, index):
+def _trial_receiver_state_scope(cfg, geom, geom_belief, base_truth, index):
     """包裹本 trial 的上下文管理器；门控关闭时是 no-op。
 
     证书必须覆盖**所有**方法：一个 trial 只测一次接收机，而方法之间的差异
@@ -1164,12 +1164,12 @@ def _trial_certificate_scope(cfg, geom, geom_belief, base_truth, index):
     """
     from contextlib import nullcontext
 
-    cert = _measure_trial_certificate(cfg, geom, geom_belief, base_truth, index)
-    if cert is None:
+    state = _measure_trial_receiver_state(cfg, geom, geom_belief, base_truth, index)
+    if state is None:
         return nullcontext()
-    from isac_sim.sensing.model.link_tables.trial_certificate import trial_certificate
+    from isac_sim.sensing.model.link_tables.trial_certificate import trial_receiver_state
 
-    return trial_certificate(cert)
+    return trial_receiver_state(state)
 
 
 def run_one_trial(
@@ -1204,7 +1204,7 @@ def run_one_trial(
         # 证书的世界里算出、而评估在证书世界里算，就是"两个世界" —— 链路
         # 照样跑通、数字照样合理，但接收机模型自相矛盾。所以从链路表开始
         # 就进作用域。``tables_truth`` 只是被移下来，它不消耗 rng。
-        with _trial_certificate_scope(
+        with _trial_receiver_state_scope(
             cfg, geom, geom_belief, base_truth, trial_index
         ):
             tables_truth = compute_link_tables(cfg, base_truth)
@@ -1270,7 +1270,7 @@ def run_one_trial(
 
     # ---- Default (shared state) -----------------------------------------
     base = build_base_gains(cfg, geom, rng)
-    with _trial_certificate_scope(cfg, geom, geom, base, trial_index):
+    with _trial_receiver_state_scope(cfg, geom, geom, base, trial_index):
         tables = compute_link_tables(cfg, base)
 
         plan = _build_plan(cfg, base, tables, geom)

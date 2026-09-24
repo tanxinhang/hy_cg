@@ -1,0 +1,142 @@
+{
+  "protocol": {
+    "source": "studies\\direction3\\data\\tpuic_residual_component_audit_20261010",
+    "out": "studies\\direction3\\data\\reference_coefficient_map_screen_20261011",
+    "scenes": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "boost_db": [
+      10.0,
+      30.0,
+      50.0
+    ],
+    "reference_counts": [
+      1,
+      2,
+      4
+    ],
+    "receiver": 1,
+    "target": 1,
+    "master_seed": 20261010,
+    "gn_max_nfev": 4
+  },
+  "summary": {
+    "10.0": {
+      "1": {
+        "reference_direct_residual": 2.165239136660016e-08,
+        "oracle_reference_direct_residual": 2.165542962500189e-08,
+        "self_fit_structural_residual": 5.514847698762571e-12,
+        "self_fit_noise_energy": 6.005886739978586e-13,
+        "posterior_trace": 0.02154859946060046,
+        "coefficient_error_trace": 5.738100406289139e-13,
+        "oracle_coefficient_relative_error": 1.405990353225175,
+        "oracle_coefficient_coherence": 0.29926865399455294,
+        "dictionary_relative_change": 0.0,
+        "output_residual_power": 2.233150742303772e-08
+      },
+      "2": {
+        "reference_direct_residual": 1.3922954705036619e-08,
+        "oracle_reference_direct_residual": 1.392423484751966e-08,
+        "self_fit_structural_residual": 5.513013252267832e-12,
+        "self_fit_noise_energy": 5.997264553234958e-13,
+        "posterior_trace": 0.010841933505165716,
+        "coefficient_error_trace": 2.8711010134261565e-13,
+        "oracle_coefficient_relative_error": 1.203046560744427,
+        "oracle_coefficient_coherence": 0.42592910428350766,
+        "dictionary_relative_change": 0.0,
+        "output_residual_power": 1.457527405986954e-08
+      },
+      "4": {
+        "reference_direct_residual": 1.5196280795825407e-08,
+        "oracle_reference_direct_residual": 1.5207820750651446e-08,
+        "self_fit_structural_residual": 5.515775272010702e-12,
+        "self_fit_noise_energy": 5.99919891093758e-13,
+        "posterior_trace": 0.005438384511492207,
+        "coefficient_error_trace": 1.436068018601434e-13,
+        "oracle_coefficient_relative_error": 1.1558334154916308,
+        "oracle_coefficient_coherence": 0.41641736088039827,
+        "dictionary_relative_change": 0.0,
+        "output_residual_power": 1.584199425487698e-08
+      }
+    },
+    "30.0": {
+      "1": {
+        "reference_direct_residual": 2.165547825677983e-06,
+        "oracle_reference_direct_residual": 2.1655832848658815e-06,
+        "self_fit_structural_residual": 5.514096743500016e-10,
+        "self_fit_noise_energy": 6.012981060505825e-13,
+        "posterior_trace": 0.00021793364686826543,
+        "coefficient_error_trace": 5.746271978830154e-13,
+        "oracle_coefficient_relative_error": 1.4070579754704526,
+        "oracle_coefficient_coherence": 0.2997524634156478,
+        "dictionary_relative_change": 0.0,
+        "output_residual_power": 2.1666628184592913e-06
+      },
+      "2": {
+        "reference_direct_residual": 1.3924171122965533e-06,
+        "oracle_reference_direct_residual": 1.3924329193441902e-06,
+        "self_fit_structural_residual": 5.513118065774916e-10,
+        "self_fit_noise_energy": 6.006518225324085e-13,
+        "posterior_trace": 0.00010904056293419435,
+        "coefficient_error_trace": 2.873156847360714e-13,
+        "oracle_coefficient_relative_error": 1.203345161982075,
+        "oracle_coefficient_coherence": 0.42596603714918896,
+        "dictionary_relative_change": 0.0,
+        "output_residual_power": 1.3932657668490192e-06
+      },
+      "4": {
+        "reference_direct_residual": 1.520668580254134e-06,
+        "oracle_reference_direct_residual": 1.5207855103138863e-06,
+        "self_fit_structural_residual": 5.51534144303473e-10,
+        "self_fit_noise_energy": 6.009010204015749e-13,
+        "posterior_trace": 5.451869928663005e-05,
+        "coefficient_error_trace": 1.4365836453804947e-13,
+        "oracle_coefficient_relative_error": 1.155806719691002,
+        "oracle_coefficient_coherence": 0.4165839131066028,
+        "dictionary_relative_change": 0.0,
+        "output_residual_power": 1.5214500460684928e-06
+      }
+    },
+    "50.0": {
+      "1": {
+        "reference_direct_residual": 0.0002165580104477876,
+        "oracle_reference_direct_residual": 0.0002165583701315417,
+        "self_fit_structural_residual": 5.514049681709171e-08,
+        "self_fit_noise_energy": 6.012688639183069e-13,
+        "posterior_trace": 2.1799888145761833e-06,
+        "coefficient_error_trace": 5.746354631977664e-13,
+        "oracle_coefficient_relative_error": 1.4070977487856993,
+        "oracle_coefficient_coherence": 0.29979929939103644,
+        "dictionary_relative_change": 0.0,
+        "output_residual_power": 0.00021656348419484724
+      },
+      "2": {
+        "reference_direct_residual": 0.00013924314005198514,
+        "oracle_reference_direct_residual": 0.00013924330112962004,
+        "self_fit_structural_residual": 5.513147336025396e-08,
+        "self_fit_noise_energy": 6.006443665576684e-13,
+        "posterior_trace": 1.0905758230342784e-06,
+        "coefficient_error_trace": 2.8731775246606183e-13,
+        "oracle_coefficient_relative_error": 1.2033482885243203,
+        "oracle_coefficient_coherence": 0.4259599572624153,
+        "dictionary_relative_change": 0.0,
+        "output_residual_power": 0.0001392459520557297
+      },
+      "4": {
+        "reference_direct_residual": 0.00015207738468859166,
+        "oracle_reference_direct_residual": 0.0001520785555198179,
+        "self_fit_structural_residual": 5.515310914376915e-08,
+        "self_fit_noise_energy": 6.008985209330917e-13,
+        "posterior_trace": 5.452073700656391e-07,
+        "coefficient_error_trace": 1.4365888145616795e-13,
+        "oracle_coefficient_relative_error": 1.1558068795521763,
+        "oracle_coefficient_coherence": 0.41659587790527663,
+        "dictionary_relative_change": 0.0,
+        "output_residual_power": 0.00015207952367593704
+      }
+    }
+  }
+}
