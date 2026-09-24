@@ -39,14 +39,14 @@ def _role(scene, args):
     return "test"
 
 
-def _pair(cfg, truth, belief, base, args, scene, look, boost_index):
+def _pair(cfg, truth, belief, base, args, scene, look):
     m = int(cfg.scale.M)
     power = np.full(m, float(cfg.radio.P_default) * float(cfg.radio.rho))
     rng = np.random.default_rng([
-        int(cfg.run.seed), scene, args.receiver, args.target, look, boost_index, 601,
+        int(cfg.run.seed), scene, args.receiver, args.target, look, 601,
     ])
     direct_rng = np.random.default_rng([
-        int(cfg.run.seed), scene, args.receiver, args.target, boost_index, 602,
+        int(cfg.run.seed), scene, args.receiver, args.target, 602,
     ])
     return cx.build_observation_pair(
         cfg, truth, belief.as_geometry(truth), base, args.receiver,
@@ -108,13 +108,13 @@ def main():
     cfg = _cfg(args)
     total = args.train_scenes + args.calibration_scenes + args.test_scenes
     records = []
-    for boost_index, boost in enumerate(boosts):
+    for boost in boosts:
         for scene in range(total):
             truth, belief, base0 = bench._scene(
                 cfg, scene, args.out / "scenes" / f"scene_{scene:05d}.npz"
             )
             base = bench._boost_direct(base0, boost)
-            pairs = [_pair(cfg, truth, belief, base, args, scene, look, boost_index)
+            pairs = [_pair(cfg, truth, belief, base, args, scene, look)
                      for look in range(2)]
             h1 = [pair[0] for pair in pairs]
             h0 = [pair[1] for pair in pairs]

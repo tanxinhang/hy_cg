@@ -14,6 +14,8 @@ import numpy as np
 from isac_sim.detection.evaluation_split import EvaluationPartition
 from tools import gate_crossfit_hierarchical_map as single
 from tools import run_tpuic_receiver_benchmark as bench
+from tools.tpuic_generalization_diagnostics import (
+    crossfit_gn, observation_diagnostics, prefix, score_looks)
 
 
 NAMES = ("two_cpi", "crossfit_map", "perfect_two_cpi")
@@ -82,24 +84,31 @@ def run(args):
     for scene in range(total):
         truth, belief, base0 = bench._scene(
             cfg, scene, args.out / "scenes" / f"scene_{scene:05d}.npz")
-        for boost_index, boost in enumerate(boosts):
+        for boost in boosts:
             base = bench._boost_direct(base0, boost)
             for receiver in receivers:
                 for target in targets:
                     pair_args = copy(args)
                     pair_args.receiver, pair_args.target = receiver, target
-                    pairs = [single._pair(cfg, truth, belief, base, pair_args, scene, look,
-                                          boost_index) for look in range(2)]
+                    pairs = [single._pair(
+                        cfg, truth, belief, base, pair_args, scene, look
+                    ) for look in range(2)]
                     row = {"split": single._role(scene, args), "scene_id": scene,
                            "boost_db": boost, "receiver": receiver, "target": target}
                     for arm, name in (("tp_uic_full", "two_cpi"),
                                       ("perfect_channel", "perfect_two_cpi")):
-                        row[f"{name}_h1"] = sum(single._score(cfg, p[0], target, arm) for p in pairs)
-                        row[f"{name}_h0"] = sum(single._score(cfg, p[1], target, arm) for p in pairs)
-                    row["crossfit_map_h1"], _ = single._crossfit(
-                        cfg, [p[0] for p in pairs], target, "gn", args.gn_max_nfev)
-                    row["crossfit_map_h0"], _ = single._crossfit(
-                        cfg, [p[1] for p in pairs], target, "gn", args.gn_max_nfev)
+                        for index, hypothesis in ((0, "h1"), (1, "h0")):
+                            detail = score_looks(
+                                cfg, [p[index] for p in pairs], target, arm)
+                            row.update(prefix(detail, f"{name}_{hypothesis}"))
+                            row[f"{name}_{hypothesis}"] = detail["statistic"]
+                    for index, hypothesis in ((0, "h1"), (1, "h0")):
+                        detail = crossfit_gn(
+                            cfg, [p[index] for p in pairs], target,
+                            args.gn_max_nfev)
+                        row.update(prefix(detail, f"crossfit_map_{hypothesis}"))
+                        row[f"crossfit_map_{hypothesis}"] = detail["statistic"]
+                    row.update(observation_diagnostics(cfg, pairs[0][0], target))
                     records.append(row)
     evaluated, aggregate, decision = _evaluate(records, args)
     with (args.out / "records.csv").open("w", newline="", encoding="utf-8") as handle:

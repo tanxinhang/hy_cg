@@ -63,3 +63,18 @@ def test_joint_gn_refinement_is_truth_free_and_stays_inside_grid_box():
         assert abs(left.doppler_bin - initial.doppler_bin) <= 0.2 + 1e-12
         assert left.delay_bin == right.delay_bin
         assert left.doppler_bin == right.doppler_bin
+
+
+def test_joint_gn_diagnostics_are_truth_free_and_report_the_same_solve():
+    cfg, obs = _case()
+    changed_truth = deepcopy(obs)
+    changed_truth.x_direct = 1000.0 * changed_truth.x_direct
+    changed_truth.h_true = 1000.0 * changed_truth.h_true
+    sources, diagnostic = cx.refine_direct_dd_joint_gn_diagnostics(
+        cfg, [obs], max_nfev=4)
+    altered, altered_diagnostic = cx.refine_direct_dd_joint_gn_diagnostics(
+        cfg, [changed_truth], max_nfev=4)
+    assert sources == altered
+    assert diagnostic == altered_diagnostic
+    assert diagnostic.final_cost <= diagnostic.initial_cost
+    assert diagnostic.nfev <= 4

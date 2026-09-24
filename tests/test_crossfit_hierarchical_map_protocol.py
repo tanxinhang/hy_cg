@@ -17,3 +17,11 @@ def test_crossfit_gate_fits_only_the_opposite_look():
     assert '"test_pfa"' in text
     assert '"test_pd"' in text
     assert '"oracle_auc_gap"' in text
+
+
+def test_boost_sweep_reuses_the_same_random_realisation():
+    text = Path("tools/gate_crossfit_hierarchical_map.py").read_text(encoding="utf-8")
+    pair_body = text.split("def _pair", 1)[1].split("def _score", 1)[0]
+    assert "boost_index" not in pair_body
+    assert "scene, args.receiver, args.target, look, 601" in pair_body
+    assert "scene, args.receiver, args.target, 602" in pair_body

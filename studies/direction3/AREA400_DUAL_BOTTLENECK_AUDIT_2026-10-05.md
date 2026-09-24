@@ -201,5 +201,22 @@ Machine evidence:
 40 test。扩样前先补增量落盘、断点恢复和受控并行，避免直接运行全笛卡尔 40/40。
 
 产物：`data/tpuic_generalization_screen_20261010/summary.json`。
+
+#### 原因审计协议修复
+
+后续泛化实验不再把 `boost_index` 放入观测噪声或直达 DD 误差的随机种子。
+同一 `(scene, receiver, target, look)` 在不同 boost 下复用同一随机 realization，
+只改变直达径增益，从而把干扰强度变成严格配对的因果轴。
+
+泛化门禁同时记录四层诊断，但不改变 GN4、保护预算、残差协方差或 GLRT 参数：
+
+1. 几何/保护：被测目标是否受保护、保护秩、直达字典条件数；
+2. GN：初末 MAP 代价、迭代数、最优性、边界命中，以及仅供离线审计的
+   delay/Doppler 真值 RMSE；
+3. TP-UIC：实测/预测残差功率、结构残差、目标存活率及风险下界；
+4. 检测：raw/最终 GLRT、白化残差功率、`rho_weighted`、`xi_rel_q` 和阶段耗时。
+
+GN 求解器的原 API 与返回值保持不变；新增诊断 API 只暴露接收机可见的优化器状态。
+真值 RMSE 仅在 `tools/` 实验层计算，不参与任何估计、对消或检测决策。
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

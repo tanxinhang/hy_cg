@@ -43,7 +43,7 @@ def main():
             cfg, scene, args.out / "scenes" / f"scene_{scene:05d}.npz")
         base = bench._boost_direct(base0, args.boost_db)
         pair = gate._pair(cfg, truth, belief, base,
-                          SimpleNamespace(receiver=0, target=1), scene, 0, 0)
+                          SimpleNamespace(receiver=0, target=1), scene, 0)
         for hypothesis, obs in (("h1", pair[0]), ("h0", pair[1])):
             solved = {}
             solvers = (
