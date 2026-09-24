@@ -7,8 +7,8 @@ import numpy as np
 
 from isac_sim.receiver import cancellation as cx
 from isac_sim.receiver import cancellation_glrt as gl
-from isac_sim.receiver.cancellation_glrt.arm_table import arm_plans
-from isac_sim.receiver.cancellation_glrt.probe import _low_rank_form
+from tools.tpuic_residual_decomposition import (
+    decompose_residual, operator_noise_floor, target_basis)
 
 
 def _score(cfg, obs, target, arm="tp_uic_full"):
@@ -17,31 +17,8 @@ def _score(cfg, obs, target, arm="tp_uic_full"):
     model = gl.residual_model(cfg, obs, arm, results)
     detector = gl.target_neighbourhood_glrt(
         cfg, obs, result, model, target=target, aggregation="max")
-    return result, detector, _noise_floor(cfg, obs, results, arm)
-
-
-def _target_basis(obs):
-    target = np.asarray(obs.A, dtype=complex)
-    if not target.shape[1]:
-        return np.zeros((obs.y.size, 0), dtype=complex)
-    basis, singular, _ = np.linalg.svd(target, full_matrices=False)
-    keep = singular > 1e-10 * max(float(singular[0]), np.finfo(float).tiny)
-    return basis[:, keep]
-
-
-def _noise_floor(cfg, obs, results, arm):
-    """Exact sigma^2 ||(I-P_A)(I-F)||_F^2 from low-rank F."""
-    target = _target_basis(obs)
-    plan = arm_plans(cfg, obs, results)[arm]
-    basis, small, _ = _low_rank_form(cfg, obs, plan)
-    remaining = int(obs.y.size) - int(target.shape[1])
-    if not basis.shape[1]:
-        return float(obs.sigma2) * remaining
-    tb = basis - target @ (target.conj().T @ basis)
-    core = basis.conj().T @ tb
-    cross = float(np.real(np.trace(core @ small)))
-    correction = float(np.linalg.norm(tb @ small, "fro") ** 2)
-    return float(obs.sigma2) * max(remaining - 2.0 * cross + correction, 0.0)
+    return (result, detector, operator_noise_floor(cfg, obs, results, arm),
+            decompose_residual(cfg, obs, results, arm))
 
 
 def _dd_rmse(estimated, truth):
@@ -75,7 +52,7 @@ def _summary(results, detectors, elapsed):
 
 def _heldout_certificate(obs, result, noise_floor=None):
     """Truth-free residual energy outside the full believed target subspace."""
-    basis = _target_basis(obs)
+    basis = target_basis(obs)
     if basis.shape[1]:
         residual = result.residual - basis @ (basis.conj().T @ result.residual)
         dof = max(int(obs.y.size) - int(basis.shape[1]), 0)
@@ -96,7 +73,7 @@ def score_looks(cfg, observations, target, arm="tp_uic_full"):
 
 def crossfit_gn(cfg, observations, target, max_nfev):
     started = time.perf_counter()
-    results, detectors, optimizer = [], [], []
+    results, detectors, optimizer, audits = [], [], [], []
     initial_delay, initial_doppler = [], []
     final_delay, final_doppler = [], []
     heldout_raw, heldout_corrected = [], []
@@ -105,8 +82,9 @@ def crossfit_gn(cfg, observations, target, max_nfev):
         sources, diagnostic = cx.refine_direct_dd_joint_gn_diagnostics(
             cfg, [reference], max_nfev=max_nfev)
         held = cx.apply_direct_dd(cfg, observations[held_index], sources)
-        result, detector, noise_floor = _score(cfg, held, target)
+        result, detector, noise_floor, audit = _score(cfg, held, target)
         results.append(result); detectors.append(detector); optimizer.append(diagnostic)
+        audits.append(audit)
         raw, corrected = _heldout_certificate(held, result, noise_floor)
         heldout_raw.append(raw); heldout_corrected.append(corrected)
         before = _dd_rmse(reference.direct_est or [], reference.direct)
@@ -128,6 +106,8 @@ def crossfit_gn(cfg, observations, target, max_nfev):
         "oracle_final_delay_rmse": mean(final_delay),
         "oracle_initial_doppler_rmse": mean(initial_doppler),
         "oracle_final_doppler_rmse": mean(final_doppler),
+        **{f"oracle_component_{key}": mean([item[key] for item in audits])
+           for key in audits[0]},
     })
     return out
 

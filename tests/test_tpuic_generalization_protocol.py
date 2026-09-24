@@ -5,8 +5,10 @@ from argparse import Namespace
 import pytest
 import numpy as np
 
+from isac_sim.receiver import cancellation as cx
 from tools.gate_tpuic_generalization import _evaluate, _pairs
 from tools.tpuic_generalization_diagnostics import _heldout_certificate, _score
+from tools.tpuic_residual_decomposition import decompose_residual
 from _tpuic_common import make_cfg, make_observation
 
 
@@ -48,5 +50,16 @@ def test_heldout_certificate_removes_target_span_and_noise_floor():
 def test_operator_aware_noise_floor_is_physical():
     cfg = make_cfg()
     obs = make_observation(cfg)
-    _, _, floor = _score(cfg, obs, target=0)
+    _, _, floor, _ = _score(cfg, obs, target=0)
     assert 0.0 <= floor <= obs.sigma2 * obs.y.size
+
+
+def test_oracle_residual_components_close_under_one_frozen_operator():
+    cfg = make_cfg()
+    obs = make_observation(cfg)
+    results = cx.cancellation_arms(cfg, obs, weak_target=0)
+    audit = decompose_residual(cfg, obs, results, "tp_uic_full")
+    assert audit["closure_error"] < 1e-10
+    assert audit["total"] == pytest.approx(
+        audit["direct"] + audit["target"] + audit["noise"] + audit["cross"])
+    assert min(audit[key] for key in ("direct", "target", "noise")) >= 0.0
