@@ -1,0 +1,201 @@
+{
+  "protocol": {
+    "input": "studies\\direction3\\data\\distributed_detector_subset_formal_20261017",
+    "out": "studies\\direction3\\data\\distributed_detector_subset_formal_20261017\\receiver_consistent_c2f.json",
+    "train_scenes": 20,
+    "calibration_scenes": 40,
+    "test_scenes": 40,
+    "target": 1,
+    "boost_db": 50.0,
+    "shortlist_size": 4,
+    "p_fa": 0.05
+  },
+  "coarse_proxy": "median log10(sum target_gain*eta_fine*valid / boosted direct_gain)",
+  "coarse_scores": [
+    -12.368517006611619,
+    -12.468991530567592,
+    -12.38881715933979,
+    -12.441664215816328,
+    -12.26965382068833,
+    -12.546760791061686
+  ],
+  "shortlist": [
+    4,
+    0,
+    2,
+    3
+  ],
+  "evaluation": {
+    "c2f_k1": {
+      "train_auc": 0.78,
+      "subset": [
+        0
+      ],
+      "threshold": 14.398522741429284,
+      "auc": 0.729375,
+      "pfa": 0.0,
+      "pd": 0.1
+    },
+    "c2f_k2": {
+      "train_auc": 0.8575,
+      "subset": [
+        0,
+        3
+      ],
+      "threshold": 19.8998688910049,
+      "auc": 0.781875,
+      "pfa": 0.15,
+      "pd": 0.425
+    },
+    "c2f_k3": {
+      "train_auc": 0.87,
+      "subset": [
+        0,
+        2,
+        3
+      ],
+      "threshold": 28.78063799038798,
+      "auc": 0.805,
+      "pfa": 0.075,
+      "pd": 0.5
+    },
+    "all_6": {
+      "subset": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "threshold": 53.09488274470878,
+      "auc": 0.861875,
+      "pfa": 0.05,
+      "pd": 0.675
+    }
+  },
+  "fine_train_tables": {
+    "c2f_k1": [
+      {
+        "subset": [
+          4
+        ],
+        "train_auc": 0.675
+      },
+      {
+        "subset": [
+          0
+        ],
+        "train_auc": 0.78
+      },
+      {
+        "subset": [
+          2
+        ],
+        "train_auc": 0.69
+      },
+      {
+        "subset": [
+          3
+        ],
+        "train_auc": 0.7175
+      }
+    ],
+    "c2f_k2": [
+      {
+        "subset": [
+          4,
+          0
+        ],
+        "train_auc": 0.74
+      },
+      {
+        "subset": [
+          4,
+          2
+        ],
+        "train_auc": 0.78
+      },
+      {
+        "subset": [
+          4,
+          3
+        ],
+        "train_auc": 0.7825
+      },
+      {
+        "subset": [
+          0,
+          2
+        ],
+        "train_auc": 0.82
+      },
+      {
+        "subset": [
+          0,
+          3
+        ],
+        "train_auc": 0.8575
+      },
+      {
+        "subset": [
+          2,
+          3
+        ],
+        "train_auc": 0.8475
+      }
+    ],
+    "c2f_k3": [
+      {
+        "subset": [
+          4,
+          0,
+          2
+        ],
+        "train_auc": 0.835
+      },
+      {
+        "subset": [
+          4,
+          0,
+          3
+        ],
+        "train_auc": 0.8025
+      },
+      {
+        "subset": [
+          4,
+          2,
+          3
+        ],
+        "train_auc": 0.825
+      },
+      {
+        "subset": [
+          0,
+          2,
+          3
+        ],
+        "train_auc": 0.87
+      }
+    ]
+  },
+  "paired_auc_delta_vs_c2f_k1_ci95": {
+    "c2f_k2": [
+      -0.028124999999999956,
+      0.05312499999999998,
+      0.13812499999999994
+    ],
+    "c2f_k3": [
+      -0.015000000000000013,
+      0.07874999999999999,
+      0.17812499999999998
+    ],
+    "all_6": [
+      0.02562500000000001,
+      0.135625,
+      0.25625
+    ]
+  },
+  "status": "exploratory reuse of frozen test; no promotion"
+}

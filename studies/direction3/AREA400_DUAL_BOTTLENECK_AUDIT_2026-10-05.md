@@ -604,5 +604,32 @@ H0 尺度统一也没有改善排序。All-UAV 仍稳定在约 `0.86 AUC`、`0.6
 
 产物：`data/distributed_detector_subset_formal_20261017/calibrated_greedy.json`。
 
+#### Receiver-consistent C2F 首版迁移筛查
+
+为复用旧 C2F 的粗筛--精评结构，首版粗阶段只使用 20 train 场景的可部署物理
+代理：对每个接收 UAV 计算
+`median log10(sum(target_gain * eta_fine * valid) / sum(boosted direct_gain))`，
+取 top-4 shortlist；精阶段只在 shortlist 内按真实 GN-TP-UIC/GLRT train AUC
+选择 K=1/2/3，calibration 与 test 沿用冻结 split。
+
+粗阶段得到 shortlist `{4,0,2,3}`，排除了 train 单节点 AUC 最高的 receiver 1。
+精阶段选择 K1 `{0}`、K2 `{0,3}`、K3 `{0,2,3}`，test AUC 分别为
+`0.7294/0.7819/0.8050`。K3 虽相对其自身较弱 K1 提高 `0.0756`，但明显低于
+不做粗筛的 train-selected K3 `{0,1,2}` 的 `0.8494`，也没有逼近 All-UAV
+`0.8619`。其 PFA `0.075` 还显示门限端没有额外优势。
+
+失败原因不是 C2F 搜索结构，而是粗代理语义错配：传播目标增益/直达功率比没有
+反映 GN 直达径估计、TP-UIC 残差协方差、目标邻域最大统计量和场景排序。特别是
+receiver 1 的粗物理排名靠后，但真实 train/test AUC 都最强。若改用 train 本地
+AUC作为粗评分，shortlist 会恢复 `{1,0,3,2}` 并重现无粗筛的 K3；这只能节省
+搜索，不能构成新选择增益。
+
+裁决：拒绝首版物理比值 C2F，不运行新确认集。旧 C2F 在解析链路表上的历史证据
+不因此失效，但不能直接迁移到当前真实接收链。后续只有在构造出不读取 H1、同时
+包含 receiver residual/covariance 的 coarse quality 后才值得重启；否则保持完整
+6-UAV 小规模候选评估更可靠。
+
+产物：`data/distributed_detector_subset_formal_20261017/receiver_consistent_c2f.json`。
+
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`
