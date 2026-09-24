@@ -1,0 +1,70 @@
+{
+  "protocol": {
+    "source": "studies\\direction3\\data\\tpuic_residual_component_audit_20261010",
+    "out": "studies\\direction3\\data\\tpuic_noise_distribution_audit_20261011",
+    "scenes": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "boost_db": [
+      10.0,
+      30.0,
+      50.0
+    ],
+    "receiver": 1,
+    "target": 1,
+    "master_seed": 20261010,
+    "gn_max_nfev": 4,
+    "draws": 100000,
+    "seed": 20261011
+  },
+  "summary_by_boost": {
+    "10.0": {
+      "dimension": 16384.0,
+      "exceptional_rank": 60.0,
+      "mean": 6.254888456426037e-10,
+      "std": 4.8949238604231374e-12,
+      "cv": 0.007825757288018636,
+      "effective_shape": 16328.536303820561,
+      "skewness": 0.01565218807326951,
+      "probability_above_mean": 0.49975500000000006,
+      "mean_positive_excess": 1.9570548424168577e-12,
+      "positive_excess_over_mean": 0.0031288403507694386,
+      "q90_over_mean": 1.0100407187234977,
+      "q95_over_mean": 1.012905661179241,
+      "q99_over_mean": 1.0182979976762723
+    },
+    "30.0": {
+      "dimension": 16384.0,
+      "exceptional_rank": 60.0,
+      "mean": 6.254889370559146e-10,
+      "std": 4.894924085765814e-12,
+      "cv": 0.007825756504651981,
+      "effective_shape": 16328.539573235044,
+      "skewness": 0.01565218596268915,
+      "probability_above_mean": 0.4987825,
+      "mean_positive_excess": 1.9526096225661215e-12,
+      "positive_excess_over_mean": 0.003121733544702414,
+      "q90_over_mean": 1.0100417297940973,
+      "q95_over_mean": 1.012930328472549,
+      "q99_over_mean": 1.0183305188154033
+    },
+    "50.0": {
+      "dimension": 16384.0,
+      "exceptional_rank": 60.0,
+      "mean": 6.254889484729767e-10,
+      "std": 4.894924119858816e-12,
+      "cv": 0.007825756416325868,
+      "effective_shape": 16328.539941871839,
+      "skewness": 0.015652185724009823,
+      "probability_above_mean": 0.49828875,
+      "mean_positive_excess": 1.9506798512018917e-12,
+      "positive_excess_over_mean": 0.003118648545008256,
+      "q90_over_mean": 1.0100269503603398,
+      "q95_over_mean": 1.0129065493040001,
+      "q99_over_mean": 1.0183633054233003
+    }
+  }
+}

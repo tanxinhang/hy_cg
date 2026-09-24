@@ -36,6 +36,31 @@ def operator_noise_floor(cfg, obs, results, arm):
     return float(obs.sigma2) * max(remaining - 2.0 * cross + correction, 0.0)
 
 
+def noise_energy_spectrum(cfg, obs, results, arm):
+    """Eigenvalues of L L^H for L=(I-P_A)(I-F), in compressed form."""
+    target = target_basis(obs)
+    basis, small = _operator(cfg, obs, results, arm)
+    joined = np.column_stack((target, basis))
+    if not joined.shape[1]:
+        return np.ones(0), int(obs.y.size)
+    singular, values, _ = np.linalg.svd(joined, full_matrices=False)
+    keep = values > 1e-10 * max(float(values[0]), np.finfo(float).tiny)
+    subspace = singular[:, keep]
+
+    def apply(vectors):
+        mapped = vectors
+        if basis.shape[1]:
+            mapped = mapped - basis @ (small @ (basis.conj().T @ mapped))
+        if target.shape[1]:
+            mapped = mapped - target @ (target.conj().T @ mapped)
+        return mapped
+
+    restricted = subspace.conj().T @ apply(subspace)
+    eigenvalues = np.linalg.svd(restricted, compute_uv=False) ** 2
+    eigenvalues[eigenvalues < 1e-14] = 0.0
+    return eigenvalues, int(obs.y.size - subspace.shape[1])
+
+
 def decompose_residual(cfg, obs, results, arm):
     """Apply one frozen receiver operator to oracle additive components."""
     target = target_basis(obs)
@@ -69,4 +94,7 @@ def decompose_residual(cfg, obs, results, arm):
     }
 
 
-__all__ = ["decompose_residual", "operator_noise_floor", "target_basis"]
+__all__ = [
+    "decompose_residual", "noise_energy_spectrum", "operator_noise_floor",
+    "target_basis",
+]

@@ -8,7 +8,8 @@ import numpy as np
 from isac_sim.receiver import cancellation as cx
 from tools.gate_tpuic_generalization import _evaluate, _pairs
 from tools.tpuic_generalization_diagnostics import _heldout_certificate, _score
-from tools.tpuic_residual_decomposition import decompose_residual
+from tools.tpuic_residual_decomposition import (
+    decompose_residual, noise_energy_spectrum, operator_noise_floor)
 from _tpuic_common import make_cfg, make_observation
 
 
@@ -63,3 +64,14 @@ def test_oracle_residual_components_close_under_one_frozen_operator():
     assert audit["total"] == pytest.approx(
         audit["direct"] + audit["target"] + audit["noise"] + audit["cross"])
     assert min(audit[key] for key in ("direct", "target", "noise")) >= 0.0
+
+
+def test_noise_spectrum_reproduces_exact_operator_mean():
+    cfg = make_cfg()
+    obs = make_observation(cfg)
+    results = cx.cancellation_arms(cfg, obs, weak_target=0)
+    weights, unit_count = noise_energy_spectrum(
+        cfg, obs, results, "tp_uic_full")
+    spectral_mean = obs.sigma2 * (unit_count + np.sum(weights))
+    assert spectral_mean == pytest.approx(
+        operator_noise_floor(cfg, obs, results, "tp_uic_full"), rel=1e-10)
