@@ -510,5 +510,35 @@ selection bias 或 test 泄漏。
 
 产物：`data/full_observation_detector_calibration_fine_20261015/`。
 
+#### 最小分布式检测信息上限筛查
+
+冻结 +50 dB one-block GN-MAP、TP-UIC、sigma-point covariance 与 detector，
+在同一物理场景中分别生成 6 个接收 UAV 的本地分数。所有接收机共享 truth、
+belief、base 和 scene ID，但保留各自接收噪声与直达径估计。筛查为 1 train /
+2 calibration / 8 test；由于 calibration 不足以支持 5% 有限 conformal 门限，
+本节只报告 AUC，不作 PD/PFA 结论。
+
+| 固定接收集合 | sum AUC | max AUC |
+|---|---:|---:|
+| receiver 1 | 0.7813 | 0.7813 |
+| UAV {0,1} | 0.8750 | 0.8125 |
+| UAV {0,1,2} | 0.8906 | 0.8125 |
+| All 6 | 0.8906 | 0.7969 |
+
+同一 8-test 上遍历子集得到的诊断天花板为：最佳单 UAV `{0}` AUC `0.9063`，
+最佳双 UAV `{0,3}` 为 `0.9219`，最佳三 UAV `{0,1,4}` 为 `0.9375`。这些子集
+直接使用 test 选择，绝不能作为 Proposed 或可部署关联结果；它们只表明三节点
+相对 test-best 单节点的剩余信息上限约为 `0.031`。四节点不再提高，五/六节点
+分别降至 `0.9219/0.8906`，所以“更多 UAV 自动更好”不成立，原始 max 融合也
+系统性差于 sum。
+
+裁决：最小分布式方向通过“存在信息”筛查，但尚未通过“关联有价值”门禁。
+正式下一步必须在独立 train 上冻结子集或低维融合规则，再使用充足 H0 calibration
+和至少 40--100 个 test；核心基线应是最佳单 UAV 和 SINR Top-K，而不是较弱的
+receiver 1。若独立 test 上相对最佳单 UAV的增益不能稳定达到预注册最小效应，
+则不应把关联列为核心贡献。
+
+产物：`data/distributed_detector_headroom_screen_20261016/`。
+
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

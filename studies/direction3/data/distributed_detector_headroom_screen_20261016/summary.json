@@ -1,0 +1,89 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\distributed_detector_headroom_screen_20261016",
+    "train_scenes": 1,
+    "calibration_scenes": 2,
+    "test_scenes": 8,
+    "master_seed": 20261016,
+    "target": 1,
+    "boost_db": 50.0,
+    "gn_max_nfev": 4
+  },
+  "shared_scene_contract": true,
+  "evaluation": {
+    "receiver_1": {
+      "sum": 0.78125,
+      "max": 0.78125
+    },
+    "pair_0_1": {
+      "sum": 0.875,
+      "max": 0.8125
+    },
+    "triple_0_1_2": {
+      "sum": 0.890625,
+      "max": 0.8125
+    },
+    "all_6": {
+      "sum": 0.890625,
+      "max": 0.796875
+    }
+  },
+  "test_selected_oracle_sum": {
+    "1": {
+      "subset": [
+        0
+      ],
+      "test_auc": 0.90625
+    },
+    "2": {
+      "subset": [
+        0,
+        3
+      ],
+      "test_auc": 0.921875
+    },
+    "3": {
+      "subset": [
+        0,
+        1,
+        4
+      ],
+      "test_auc": 0.9375
+    },
+    "4": {
+      "subset": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "test_auc": 0.9375
+    },
+    "5": {
+      "subset": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "test_auc": 0.921875
+    },
+    "6": {
+      "subset": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "test_auc": 0.890625
+    }
+  },
+  "limitations": [
+    "AUC-only screen",
+    "oracle subsets use test and are ceilings only",
+    "no communication loss or report budget"
+  ]
+}
