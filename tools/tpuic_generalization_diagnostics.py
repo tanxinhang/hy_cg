@@ -7,6 +7,8 @@ import numpy as np
 
 from isac_sim.receiver import cancellation as cx
 from isac_sim.receiver import cancellation_glrt as gl
+from isac_sim.receiver.cancellation_glrt.arm_table import arm_plans
+from isac_sim.receiver.cancellation_glrt.probe import _low_rank_form
 
 
 def _score(cfg, obs, target, arm="tp_uic_full"):
@@ -15,7 +17,31 @@ def _score(cfg, obs, target, arm="tp_uic_full"):
     model = gl.residual_model(cfg, obs, arm, results)
     detector = gl.target_neighbourhood_glrt(
         cfg, obs, result, model, target=target, aggregation="max")
-    return result, detector
+    return result, detector, _noise_floor(cfg, obs, results, arm)
+
+
+def _target_basis(obs):
+    target = np.asarray(obs.A, dtype=complex)
+    if not target.shape[1]:
+        return np.zeros((obs.y.size, 0), dtype=complex)
+    basis, singular, _ = np.linalg.svd(target, full_matrices=False)
+    keep = singular > 1e-10 * max(float(singular[0]), np.finfo(float).tiny)
+    return basis[:, keep]
+
+
+def _noise_floor(cfg, obs, results, arm):
+    """Exact sigma^2 ||(I-P_A)(I-F)||_F^2 from low-rank F."""
+    target = _target_basis(obs)
+    plan = arm_plans(cfg, obs, results)[arm]
+    basis, small, _ = _low_rank_form(cfg, obs, plan)
+    remaining = int(obs.y.size) - int(target.shape[1])
+    if not basis.shape[1]:
+        return float(obs.sigma2) * remaining
+    tb = basis - target @ (target.conj().T @ basis)
+    core = basis.conj().T @ tb
+    cross = float(np.real(np.trace(core @ small)))
+    correction = float(np.linalg.norm(tb @ small, "fro") ** 2)
+    return float(obs.sigma2) * max(remaining - 2.0 * cross + correction, 0.0)
 
 
 def _dd_rmse(estimated, truth):
@@ -47,19 +73,17 @@ def _summary(results, detectors, elapsed):
     }
 
 
-def _heldout_certificate(obs, result):
+def _heldout_certificate(obs, result, noise_floor=None):
     """Truth-free residual energy outside the full believed target subspace."""
-    target = np.asarray(obs.A, dtype=complex)
-    if target.shape[1]:
-        basis, singular, _ = np.linalg.svd(target, full_matrices=False)
-        keep = singular > 1e-10 * max(float(singular[0]), np.finfo(float).tiny)
-        basis = basis[:, keep]
+    basis = _target_basis(obs)
+    if basis.shape[1]:
         residual = result.residual - basis @ (basis.conj().T @ result.residual)
         dof = max(int(obs.y.size) - int(basis.shape[1]), 0)
     else:
         residual, dof = result.residual, int(obs.y.size)
     raw = float(np.vdot(residual, residual).real)
-    corrected = max(raw - float(obs.sigma2) * dof, 0.0)
+    floor = float(obs.sigma2) * dof if noise_floor is None else float(noise_floor)
+    corrected = max(raw - floor, 0.0)
     return raw, corrected
 
 
@@ -81,9 +105,9 @@ def crossfit_gn(cfg, observations, target, max_nfev):
         sources, diagnostic = cx.refine_direct_dd_joint_gn_diagnostics(
             cfg, [reference], max_nfev=max_nfev)
         held = cx.apply_direct_dd(cfg, observations[held_index], sources)
-        result, detector = _score(cfg, held, target)
+        result, detector, noise_floor = _score(cfg, held, target)
         results.append(result); detectors.append(detector); optimizer.append(diagnostic)
-        raw, corrected = _heldout_certificate(held, result)
+        raw, corrected = _heldout_certificate(held, result, noise_floor)
         heldout_raw.append(raw); heldout_corrected.append(corrected)
         before = _dd_rmse(reference.direct_est or [], reference.direct)
         after = _dd_rmse(sources, reference.direct)

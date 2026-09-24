@@ -256,5 +256,14 @@ calibration 的 PD/PFA 作正式结论，也不修改 GN4、保护预算、残�
 held-out 独立性。
 
 产物：`data/tpuic_heldout_certificate_screen_20261010/`。
+
+进一步把噪声扣除改为实际低秩 TP-UIC 算子下的精确
+`sigma^2 ||(I-P_A)(I-F)||_F^2`。同种子重复实验中，+10/+30/+50 dB 的证书/
+真实残差均值比由 `29.7/1.05/0.82` 变为 `37.8/1.13/0.82`。精确算子会消除
+部分噪声，因而正确的噪声 floor 更低；低干扰偏高反而扩大。这否定了“噪声自由度
+扣错是主因”，将污染定位到信念目标子空间之外的目标失配/未建模回波。下一步应
+估计并扣除 target-model residual，而不是继续修改噪声 trace。
+
+产物：`data/tpuic_heldout_operator_noise_screen_20261010/`。
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

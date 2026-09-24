@@ -6,7 +6,8 @@ import pytest
 import numpy as np
 
 from tools.gate_tpuic_generalization import _evaluate, _pairs
-from tools.tpuic_generalization_diagnostics import _heldout_certificate
+from tools.tpuic_generalization_diagnostics import _heldout_certificate, _score
+from _tpuic_common import make_cfg, make_observation
 
 
 def test_small_runs_cannot_claim_formal_generalization():
@@ -42,3 +43,10 @@ def test_heldout_certificate_removes_target_span_and_noise_floor():
     raw, corrected = _heldout_certificate(Obs(), Result())
     assert raw == pytest.approx(12.0)
     assert corrected == pytest.approx(6.0)
+
+
+def test_operator_aware_noise_floor_is_physical():
+    cfg = make_cfg()
+    obs = make_observation(cfg)
+    _, _, floor = _score(cfg, obs, target=0)
+    assert 0.0 <= floor <= obs.sigma2 * obs.y.size
