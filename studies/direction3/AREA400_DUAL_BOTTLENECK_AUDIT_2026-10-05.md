@@ -540,5 +540,39 @@ receiver 1。若独立 test 上相对最佳单 UAV的增益不能稳定达到预
 
 产物：`data/distributed_detector_headroom_screen_20261016/`。
 
+#### Train-frozen 分布式子集正式门禁
+
+在新的 master seed `20261017` 上运行 +50 dB、单目标、共享场景的
+20 train / 40 calibration / 40 test 门禁。只在 train 上按 sum-statistic AUC
+分别选择 K=1/2/3 子集；每个冻结子集在独立 calibration 上得到自己的 5%
+split-conformal 门限，test 只评估一次。未学习连续权重，也未使用 test 选择子集。
+
+| 方法 | 冻结子集 | train AUC | test AUC | test PFA | test PD |
+|---|---|---:|---:|---:|---:|
+| train-best K=1 | {1} | 0.8150 | 0.7881 | 0.100 | 0.275 |
+| train-best K=2 | {1,3} | 0.8725 | 0.8213 | 0.075 | 0.400 |
+| train-best K=3 | {0,1,2} | 0.9025 | 0.8494 | 0.025 | 0.325 |
+| All-UAV | {0,1,2,3,4,5} | 0.8500 | 0.8619 | 0.050 | 0.675 |
+
+相对 train-best 单 UAV，test AUC 点增益为 K2 `+0.0331`、K3 `+0.0613`、
+All-UAV `+0.0738`。但同场景 bootstrap 的 95% 配对区间分别为
+`[-0.0438,0.1069]`、`[-0.0038,0.1344]` 和 `[-0.0088,0.1594]`，均跨 0。
+因此点估计支持分布式信息增益，但 40-test 尚未把它与零增益区分开。K1/K2 的
+实现 PFA 为 0.10/0.075；calibration--test H0 KS 统计量为 0.20/0.125，未显示
+巨大整体漂移，但再次表明 40-calibration 的 5% 尾部 operating point 不稳定。
+
+All-UAV 是当前唯一同时实现目标 PFA `0.05` 且将 PD 提高到 `0.675` 的臂，明显
+高于单 UAV 的 `0.275`，但它是假设理想中央融合且没有报告带宽、误包或时延成本的
+信息上限。K3 虽有较高 AUC，却因自身门限只得到 PD `0.325`，说明关联裁决仍应
+以 AUC 为主、PD 为校准敏感的次指标。
+
+裁决：独立 train 冻结后，分布式增益方向没有消失，值得继续；但尚未达到正式
+“关联优于单 UAV”的统计门禁，更没有比较 SINR Top-K。下一步应保持这些分数和
+test 不再参与开发，另开新种子：扩大 test 或做独立确认，并在 train 上加入可部署
+SINR Top-K。只有 K2/K3 在新 test 上稳定超过 train-best 单 UAV 且效应不低于
+`0.02 AUC`，才接有限块长通信模型；All-UAV 继续只作无预算上限。
+
+产物：`data/distributed_detector_subset_formal_20261017/`。
+
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

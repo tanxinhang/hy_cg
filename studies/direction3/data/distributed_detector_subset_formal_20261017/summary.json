@@ -1,0 +1,410 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\distributed_detector_subset_formal_20261017",
+    "train_scenes": 20,
+    "calibration_scenes": 40,
+    "test_scenes": 40,
+    "master_seed": 20261017,
+    "target": 1,
+    "boost_db": 50.0,
+    "gn_max_nfev": 4,
+    "p_fa": 0.05
+  },
+  "shared_scene_contract": true,
+  "selection": "train AUC, sum statistic",
+  "evaluation": {
+    "train_selected_k1": {
+      "train_auc": 0.815,
+      "subset": [
+        1
+      ],
+      "threshold": 12.09893334503925,
+      "auc": 0.788125,
+      "pfa": 0.1,
+      "pd": 0.275,
+      "h0_cal_test_ks": 0.2
+    },
+    "train_selected_k2": {
+      "train_auc": 0.8725,
+      "subset": [
+        1,
+        3
+      ],
+      "threshold": 20.67962078824658,
+      "auc": 0.82125,
+      "pfa": 0.075,
+      "pd": 0.4,
+      "h0_cal_test_ks": 0.125
+    },
+    "train_selected_k3": {
+      "train_auc": 0.9025,
+      "subset": [
+        0,
+        1,
+        2
+      ],
+      "threshold": 32.16164487352208,
+      "auc": 0.849375,
+      "pfa": 0.025,
+      "pd": 0.325,
+      "h0_cal_test_ks": 0.125
+    },
+    "receiver_1": {
+      "train_auc": 0.815,
+      "subset": [
+        1
+      ],
+      "threshold": 12.09893334503925,
+      "auc": 0.788125,
+      "pfa": 0.1,
+      "pd": 0.275,
+      "h0_cal_test_ks": 0.2
+    },
+    "all_6": {
+      "train_auc": 0.85,
+      "subset": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "threshold": 53.09488274470878,
+      "auc": 0.861875,
+      "pfa": 0.05,
+      "pd": 0.675,
+      "h0_cal_test_ks": 0.175
+    }
+  },
+  "train_candidate_tables": {
+    "1": [
+      {
+        "subset": [
+          0
+        ],
+        "auc": 0.78
+      },
+      {
+        "subset": [
+          1
+        ],
+        "auc": 0.815
+      },
+      {
+        "subset": [
+          2
+        ],
+        "auc": 0.69
+      },
+      {
+        "subset": [
+          3
+        ],
+        "auc": 0.7175
+      },
+      {
+        "subset": [
+          4
+        ],
+        "auc": 0.675
+      },
+      {
+        "subset": [
+          5
+        ],
+        "auc": 0.6425
+      }
+    ],
+    "2": [
+      {
+        "subset": [
+          0,
+          1
+        ],
+        "auc": 0.86
+      },
+      {
+        "subset": [
+          0,
+          2
+        ],
+        "auc": 0.82
+      },
+      {
+        "subset": [
+          0,
+          3
+        ],
+        "auc": 0.8575
+      },
+      {
+        "subset": [
+          0,
+          4
+        ],
+        "auc": 0.74
+      },
+      {
+        "subset": [
+          0,
+          5
+        ],
+        "auc": 0.8
+      },
+      {
+        "subset": [
+          1,
+          2
+        ],
+        "auc": 0.775
+      },
+      {
+        "subset": [
+          1,
+          3
+        ],
+        "auc": 0.8725
+      },
+      {
+        "subset": [
+          1,
+          4
+        ],
+        "auc": 0.7975
+      },
+      {
+        "subset": [
+          1,
+          5
+        ],
+        "auc": 0.79
+      },
+      {
+        "subset": [
+          2,
+          3
+        ],
+        "auc": 0.8475
+      },
+      {
+        "subset": [
+          2,
+          4
+        ],
+        "auc": 0.78
+      },
+      {
+        "subset": [
+          2,
+          5
+        ],
+        "auc": 0.69
+      },
+      {
+        "subset": [
+          3,
+          4
+        ],
+        "auc": 0.7825
+      },
+      {
+        "subset": [
+          3,
+          5
+        ],
+        "auc": 0.725
+      },
+      {
+        "subset": [
+          4,
+          5
+        ],
+        "auc": 0.715
+      }
+    ],
+    "3": [
+      {
+        "subset": [
+          0,
+          1,
+          2
+        ],
+        "auc": 0.9025
+      },
+      {
+        "subset": [
+          0,
+          1,
+          3
+        ],
+        "auc": 0.8875
+      },
+      {
+        "subset": [
+          0,
+          1,
+          4
+        ],
+        "auc": 0.8325
+      },
+      {
+        "subset": [
+          0,
+          1,
+          5
+        ],
+        "auc": 0.86
+      },
+      {
+        "subset": [
+          0,
+          2,
+          3
+        ],
+        "auc": 0.87
+      },
+      {
+        "subset": [
+          0,
+          2,
+          4
+        ],
+        "auc": 0.835
+      },
+      {
+        "subset": [
+          0,
+          2,
+          5
+        ],
+        "auc": 0.7975
+      },
+      {
+        "subset": [
+          0,
+          3,
+          4
+        ],
+        "auc": 0.8025
+      },
+      {
+        "subset": [
+          0,
+          3,
+          5
+        ],
+        "auc": 0.81
+      },
+      {
+        "subset": [
+          0,
+          4,
+          5
+        ],
+        "auc": 0.7825
+      },
+      {
+        "subset": [
+          1,
+          2,
+          3
+        ],
+        "auc": 0.8725
+      },
+      {
+        "subset": [
+          1,
+          2,
+          4
+        ],
+        "auc": 0.8025
+      },
+      {
+        "subset": [
+          1,
+          2,
+          5
+        ],
+        "auc": 0.775
+      },
+      {
+        "subset": [
+          1,
+          3,
+          4
+        ],
+        "auc": 0.84
+      },
+      {
+        "subset": [
+          1,
+          3,
+          5
+        ],
+        "auc": 0.84
+      },
+      {
+        "subset": [
+          1,
+          4,
+          5
+        ],
+        "auc": 0.785
+      },
+      {
+        "subset": [
+          2,
+          3,
+          4
+        ],
+        "auc": 0.825
+      },
+      {
+        "subset": [
+          2,
+          3,
+          5
+        ],
+        "auc": 0.7725
+      },
+      {
+        "subset": [
+          2,
+          4,
+          5
+        ],
+        "auc": 0.755
+      },
+      {
+        "subset": [
+          3,
+          4,
+          5
+        ],
+        "auc": 0.7375
+      }
+    ]
+  },
+  "paired_auc_delta_vs_train_selected_k1_ci95": {
+    "train_selected_k2": [
+      -0.04375000000000007,
+      0.032500000000000084,
+      0.10689062499999982
+    ],
+    "train_selected_k3": [
+      -0.003750000000000031,
+      0.06125000000000003,
+      0.13437500000000002
+    ],
+    "all_6": [
+      -0.008750000000000036,
+      0.07374999999999998,
+      0.15937500000000004
+    ]
+  },
+  "limitations": [
+    "single target and +50 dB only",
+    "ideal central score fusion without communication loss"
+  ]
+}
