@@ -1,0 +1,188 @@
+{
+  "protocol": {
+    "source": "studies\\direction3\\data\\tpuic_residual_component_audit_20261010",
+    "out": "studies\\direction3\\data\\pilot_coefficient_map_screen_20261012",
+    "scenes": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "boost_db": [
+      10.0,
+      30.0,
+      50.0
+    ],
+    "pilot_fractions": [
+      0.125,
+      0.25,
+      0.5
+    ],
+    "receiver": 1,
+    "target": 1,
+    "master_seed": 20261010,
+    "gn_max_nfev": 4,
+    "seed": 20261012
+  },
+  "summary": {
+    "10.0": {
+      "0.125": {
+        "pilot_rows": 2048.0,
+        "sensing_rows": 14336.0,
+        "pilot_direct_fraction": 0.010198085806965308,
+        "oracle_pilot_direct_fraction": 0.0018510114952457026,
+        "self_fit_direct_fraction": 0.0012361113185988047,
+        "posterior_trace": 1.0838527838829446,
+        "coefficient_error_trace": 1.1701149009403292e-10,
+        "sensing_target_energy_fraction": 0.829936502820623,
+        "output_residual_power": 6.125133577315234e-10,
+        "h1_statistic": 15.584005528426989,
+        "h0_statistic": 9.926334817122473,
+        "oracle_h1_statistic": 15.825872585979223,
+        "oracle_h0_statistic": 9.577709351128748,
+        "auc": 0.3125,
+        "oracle_direct_auc": 0.375
+      },
+      "0.25": {
+        "pilot_rows": 4096.0,
+        "sensing_rows": 12288.0,
+        "pilot_direct_fraction": 0.003578144843394344,
+        "oracle_pilot_direct_fraction": 7.539968171421846e-05,
+        "self_fit_direct_fraction": 0.0013473420360453389,
+        "posterior_trace": 0.40866992125547486,
+        "coefficient_error_trace": 1.7182688283566128e-11,
+        "sensing_target_energy_fraction": 0.6845126764819016,
+        "output_residual_power": 4.94182316902934e-10,
+        "h1_statistic": 16.156042124888852,
+        "h0_statistic": 9.897679161332121,
+        "oracle_h1_statistic": 16.867586240942224,
+        "oracle_h0_statistic": 9.604440472782528,
+        "auc": 0.3125,
+        "oracle_direct_auc": 0.4375
+      },
+      "0.5": {
+        "pilot_rows": 8192.0,
+        "sensing_rows": 8192.0,
+        "pilot_direct_fraction": 0.0006451472852900223,
+        "oracle_pilot_direct_fraction": 2.2576251798722967e-05,
+        "self_fit_direct_fraction": 0.0016242475238169383,
+        "posterior_trace": 0.10088026676326106,
+        "coefficient_error_trace": 4.006743851214575e-12,
+        "sensing_target_energy_fraction": 0.44511584702663104,
+        "output_residual_power": 3.185402375783921e-10,
+        "h1_statistic": 13.00748501869622,
+        "h0_statistic": 9.369635727073337,
+        "oracle_h1_statistic": 13.30102255600135,
+        "oracle_h0_statistic": 8.381344487136348,
+        "auc": 0.25,
+        "oracle_direct_auc": 0.375
+      }
+    },
+    "30.0": {
+      "0.125": {
+        "pilot_rows": 2048.0,
+        "sensing_rows": 14336.0,
+        "pilot_direct_fraction": 9.256296399890723e-05,
+        "oracle_pilot_direct_fraction": 0.0001150880713373663,
+        "self_fit_direct_fraction": 0.0010824051781889825,
+        "posterior_trace": 0.02071458601007891,
+        "coefficient_error_trace": 2.5231120686689807e-10,
+        "sensing_target_energy_fraction": 0.829936502820623,
+        "output_residual_power": 6.125599377240878e-10,
+        "h1_statistic": 21.58503355905022,
+        "h0_statistic": 17.42258190845147,
+        "oracle_h1_statistic": 16.331233841192677,
+        "oracle_h0_statistic": 9.616276819588453,
+        "auc": 0.3125,
+        "oracle_direct_auc": 0.3125
+      },
+      "0.25": {
+        "pilot_rows": 4096.0,
+        "sensing_rows": 12288.0,
+        "pilot_direct_fraction": 6.20708865252903e-05,
+        "oracle_pilot_direct_fraction": 1.5086764583127948e-05,
+        "self_fit_direct_fraction": 0.0011741976527931157,
+        "posterior_trace": 0.005293957390700463,
+        "coefficient_error_trace": 2.1730125375100946e-11,
+        "sensing_target_energy_fraction": 0.6845126764819016,
+        "output_residual_power": 5.09695893541523e-10,
+        "h1_statistic": 23.515180432790064,
+        "h0_statistic": 14.716238412029476,
+        "oracle_h1_statistic": 17.690825814429978,
+        "oracle_h0_statistic": 9.646657494566838,
+        "auc": 0.3125,
+        "oracle_direct_auc": 0.4375
+      },
+      "0.5": {
+        "pilot_rows": 8192.0,
+        "sensing_rows": 8192.0,
+        "pilot_direct_fraction": 1.8234448675056945e-05,
+        "oracle_pilot_direct_fraction": 1.0197540388781053e-05,
+        "self_fit_direct_fraction": 0.0015600659149426735,
+        "posterior_trace": 0.0010841296794891144,
+        "coefficient_error_trace": 4.359427732394744e-12,
+        "sensing_target_energy_fraction": 0.44511584702663104,
+        "output_residual_power": 3.209900032168274e-10,
+        "h1_statistic": 19.667751105234704,
+        "h0_statistic": 12.521853746947311,
+        "oracle_h1_statistic": 13.676097832130676,
+        "oracle_h0_statistic": 8.442537865012177,
+        "auc": 0.25,
+        "oracle_direct_auc": 0.375
+      }
+    },
+    "50.0": {
+      "0.125": {
+        "pilot_rows": 2048.0,
+        "sensing_rows": 14336.0,
+        "pilot_direct_fraction": 0.00010623101512970899,
+        "oracle_pilot_direct_fraction": 0.000130585994648874,
+        "self_fit_direct_fraction": 0.0010820789164687323,
+        "posterior_trace": 0.0002095539458088985,
+        "coefficient_error_trace": 2.5613214879192607e-10,
+        "sensing_target_energy_fraction": 0.829936502820623,
+        "output_residual_power": 6.830184958986372e-09,
+        "h1_statistic": 914.8260870811953,
+        "h0_statistic": 894.6489694854934,
+        "oracle_h1_statistic": 16.45480793544129,
+        "oracle_h0_statistic": 9.632048517296433,
+        "auc": 0.3125,
+        "oracle_direct_auc": 0.3125
+      },
+      "0.25": {
+        "pilot_rows": 4096.0,
+        "sensing_rows": 12288.0,
+        "pilot_direct_fraction": 1.4994184049393916e-05,
+        "oracle_pilot_direct_fraction": 1.5089229788574647e-05,
+        "self_fit_direct_fraction": 0.001173346682812918,
+        "posterior_trace": 5.311637626194441e-05,
+        "coefficient_error_trace": 2.1780091060513586e-11,
+        "sensing_target_energy_fraction": 0.6845126764819016,
+        "output_residual_power": 1.2350169734027378e-09,
+        "h1_statistic": 860.979470405626,
+        "h0_statistic": 794.3317629113458,
+        "oracle_h1_statistic": 17.8895839419125,
+        "oracle_h0_statistic": 9.63851026173404,
+        "auc": 0.25,
+        "oracle_direct_auc": 0.4375
+      },
+      "0.5": {
+        "pilot_rows": 8192.0,
+        "sensing_rows": 8192.0,
+        "pilot_direct_fraction": 1.0483084650073327e-05,
+        "oracle_pilot_direct_fraction": 1.018166553717538e-05,
+        "self_fit_direct_fraction": 0.001567253792632816,
+        "posterior_trace": 1.0852148515293393e-05,
+        "coefficient_error_trace": 4.363632951925527e-12,
+        "sensing_target_energy_fraction": 0.44511584702663104,
+        "output_residual_power": 5.266912698018163e-10,
+        "h1_statistic": 332.9301707841368,
+        "h0_statistic": 284.90827378651096,
+        "oracle_h1_statistic": 13.784197702291564,
+        "oracle_h0_statistic": 8.449615649515582,
+        "auc": 0.4375,
+        "oracle_direct_auc": 0.375
+      }
+    }
+  }
+}

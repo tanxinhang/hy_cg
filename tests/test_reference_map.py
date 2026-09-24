@@ -28,3 +28,24 @@ def test_more_identical_references_contract_posterior_covariance():
     information_one = np.linalg.inv(one.covariance) - prior
     information_four = np.linalg.inv(four.covariance) - prior
     assert np.allclose(information_four, 4.0 * information_one)
+
+
+def test_pilot_estimate_is_independent_of_disjoint_sensing_rows():
+    cfg = make_cfg()
+    obs = make_observation(cfg, seed=4)
+    pilot = np.arange(0, obs.y.size, 2)
+    sensing = np.arange(1, obs.y.size, 2)
+    before = cx.fit_pilot_map(obs, pilot, cfg.cancellation.prior_variance)
+    obs.y[sensing] += 100.0
+    after = cx.fit_pilot_map(obs, pilot, cfg.cancellation.prior_variance)
+    assert np.array_equal(before.h_hat, after.h_hat)
+
+
+def test_nested_pilot_rows_contract_posterior_covariance():
+    cfg = make_cfg()
+    obs = make_observation(cfg, seed=5)
+    small = cx.fit_pilot_map(
+        obs, np.arange(0, obs.y.size, 4), cfg.cancellation.prior_variance)
+    large = cx.fit_pilot_map(
+        obs, np.arange(0, obs.y.size, 2), cfg.cancellation.prior_variance)
+    assert np.trace(large.covariance).real < np.trace(small.covariance).real

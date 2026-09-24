@@ -345,5 +345,35 @@ CPI 独立抽取直达复相位，因此不能把 `n_cpi` 的 `1/L` covariance �
 场景中，只能用 reference 学习 DD、协方差或超参数，不能直接迁移瞬时复系数。
 
 产物：`data/reference_coefficient_map_screen_20261011/`。
+
+#### 同 CPI、资源隔离的 pilot coefficient MAP
+
+在不改变 iid 跨 CPI 相位模型的前提下，将同一 CPI 的观测行按固定随机置换严格
+拆成 pilot 与 sensing 两部分。pilot 占比取 `12.5%/25%/50%`，只在 pilot 行上
+做目标保护 MAP；得到的瞬时复系数应用到完全未参与拟合的 sensing 行。检测协方差
+使用 reference-fit 语义：sensing 热噪声为 `sigma^2 I`，另加
+`X_s C_h X_s^H`，不使用 residual certificate。
+
+对消层面方案在中高干扰有效。+30 dB 时 pilot 的直达残差比例为
+`9.26e-5/6.21e-5/1.82e-5`，对应 sensing self-fit 约
+`1.08e-3/1.17e-3/1.56e-3`；+50 dB 结果为
+`1.06e-4/1.50e-5/1.05e-5`。但 +10 dB 的 12.5%/25% pilot 受估计噪声影响，
+分别为 `1.02e-2/3.58e-3`，差于 self-fit，50% pilot 才降至 `6.45e-4`。
+资源代价也清晰：三个占比留下的目标能量约为 `83.0%/68.5%/44.5%`。
+
+检测端采用与现有 GN-MAP 相同的 3x3 局部 DD 最大统计量。4-test 筛查的 nominal
+AUC 在 12.5%/25%/50% pilot 下为 `0.3125/0.3125/0.25`（+10 dB）、
+`0.3125/0.3125/0.25`（+30 dB）和 `0.3125/0.25/0.4375`（+50 dB），没有形成
+随干扰增强的净检测收益。+50 dB nominal H0/H1 统计量同时膨胀，说明仅传播系数
+后验漏掉了结构/DD 残差方向；加入 simulator-truth 直达残差 rank-one covariance
+后，统计量恢复到与低干扰同一尺度，但 oracle AUC 仍仅 `0.3125--0.4375`。
+
+因此首版 pilot MAP 的裁决是“对消通过、检测不通过”：它成功隔离了瞬时系数估计，
+却未改善弱目标可分性，且以目标观测资源为代价。oracle covariance 也不能恢复 AUC，
+说明继续单独优化 pilot covariance 不足以解决当前检测瓶颈。该路径保持实验状态，
+不进入默认 TP-UIC；若后续重启，应先提高完整观测下的 perfect/nominal detector
+能力，再比较结构化 pilot 设计，而不是继续扩大 pilot 比例。
+
+产物：`data/pilot_coefficient_map_screen_20261012/`。
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`
