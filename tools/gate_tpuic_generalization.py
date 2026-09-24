@@ -30,6 +30,17 @@ def _indices(value: str, size: int) -> tuple[int, ...]:
     return result
 
 
+def _pairs(value: str | None, receivers, targets):
+    if value is None:
+        return tuple((receiver, target) for receiver in receivers for target in targets)
+    result = tuple(tuple(map(int, item.split(":"))) for item in value.split(","))
+    if any(len(item) != 2 for item in result):
+        raise ValueError("pairs must use receiver:target syntax")
+    if any(j not in receivers or q not in targets for j, q in result):
+        raise ValueError("pairs must be subsets of --receivers and --targets")
+    return result
+
+
 def _metrics(rows, name, threshold):
     h0 = np.asarray([row[f"{name}_h0"] for row in rows], dtype=float)
     h1 = np.asarray([row[f"{name}_h1"] for row in rows], dtype=float)
@@ -77,6 +88,7 @@ def run(args):
     cfg = single._cfg(args)
     receivers = _indices(args.receivers, int(cfg.scale.M))
     targets = _indices(args.targets, int(cfg.scale.Q))
+    pairs_to_run = _pairs(args.pairs, receivers, targets)
     boosts = tuple(float(value) for value in args.boost_db.split(","))
     total = args.train_scenes + args.calibration_scenes + args.test_scenes
     args.out.mkdir(parents=True, exist_ok=True)
@@ -86,30 +98,29 @@ def run(args):
             cfg, scene, args.out / "scenes" / f"scene_{scene:05d}.npz")
         for boost in boosts:
             base = bench._boost_direct(base0, boost)
-            for receiver in receivers:
-                for target in targets:
-                    pair_args = copy(args)
-                    pair_args.receiver, pair_args.target = receiver, target
-                    pairs = [single._pair(
-                        cfg, truth, belief, base, pair_args, scene, look
-                    ) for look in range(2)]
-                    row = {"split": single._role(scene, args), "scene_id": scene,
-                           "boost_db": boost, "receiver": receiver, "target": target}
-                    for arm, name in (("tp_uic_full", "two_cpi"),
-                                      ("perfect_channel", "perfect_two_cpi")):
-                        for index, hypothesis in ((0, "h1"), (1, "h0")):
-                            detail = score_looks(
-                                cfg, [p[index] for p in pairs], target, arm)
-                            row.update(prefix(detail, f"{name}_{hypothesis}"))
-                            row[f"{name}_{hypothesis}"] = detail["statistic"]
+            for receiver, target in pairs_to_run:
+                pair_args = copy(args)
+                pair_args.receiver, pair_args.target = receiver, target
+                pairs = [single._pair(
+                    cfg, truth, belief, base, pair_args, scene, look
+                ) for look in range(2)]
+                row = {"split": single._role(scene, args), "scene_id": scene,
+                       "boost_db": boost, "receiver": receiver, "target": target}
+                for arm, name in (("tp_uic_full", "two_cpi"),
+                                  ("perfect_channel", "perfect_two_cpi")):
                     for index, hypothesis in ((0, "h1"), (1, "h0")):
-                        detail = crossfit_gn(
-                            cfg, [p[index] for p in pairs], target,
-                            args.gn_max_nfev)
-                        row.update(prefix(detail, f"crossfit_map_{hypothesis}"))
-                        row[f"crossfit_map_{hypothesis}"] = detail["statistic"]
-                    row.update(observation_diagnostics(cfg, pairs[0][0], target))
-                    records.append(row)
+                        detail = score_looks(
+                            cfg, [p[index] for p in pairs], target, arm)
+                        row.update(prefix(detail, f"{name}_{hypothesis}"))
+                        row[f"{name}_{hypothesis}"] = detail["statistic"]
+                for index, hypothesis in ((0, "h1"), (1, "h0")):
+                    detail = crossfit_gn(
+                        cfg, [p[index] for p in pairs], target,
+                        args.gn_max_nfev)
+                    row.update(prefix(detail, f"crossfit_map_{hypothesis}"))
+                    row[f"crossfit_map_{hypothesis}"] = detail["statistic"]
+                row.update(observation_diagnostics(cfg, pairs[0][0], target))
+                records.append(row)
     evaluated, aggregate, decision = _evaluate(records, args)
     with (args.out / "records.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(records[0])); writer.writeheader(); writer.writerows(records)
@@ -128,11 +139,11 @@ def main():
     parser.add_argument("--master-seed", type=int, default=20261010)
     parser.add_argument("--receivers", default="0,1,2,3")
     parser.add_argument("--targets", default="0,1,2")
+    parser.add_argument("--pairs", default=None, help="receiver:target pairs")
     parser.add_argument("--boost-db", default="10,30,50")
     parser.add_argument("--gn-max-nfev", type=int, default=4)
     parser.add_argument("--p-fa", type=float, default=0.05)
-    args = parser.parse_args()
-    print(json.dumps(run(args), indent=2))
+    print(json.dumps(run(parser.parse_args()), indent=2))
 
 
 if __name__ == "__main__":

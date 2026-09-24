@@ -2,7 +2,9 @@
 
 from argparse import Namespace
 
-from tools.gate_tpuic_generalization import _evaluate
+import pytest
+
+from tools.gate_tpuic_generalization import _evaluate, _pairs
 
 
 def test_small_runs_cannot_claim_formal_generalization():
@@ -17,3 +19,10 @@ def test_small_runs_cannot_claim_formal_generalization():
         rows.append(row)
     _, _, decision = _evaluate(rows, args)
     assert decision == {"eligible": False, "status": "screen_only"}
+
+
+def test_preregistered_pairs_are_validated_against_selected_axes():
+    assert _pairs("0:1,3:2,1:1", (0, 1, 3), (1, 2)) == (
+        (0, 1), (3, 2), (1, 1))
+    with pytest.raises(ValueError, match="subsets"):
+        _pairs("2:1", (0, 1, 3), (1, 2))
