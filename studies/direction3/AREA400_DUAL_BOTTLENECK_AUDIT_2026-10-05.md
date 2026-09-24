@@ -240,5 +240,21 @@ calibration 的 PD/PFA 作正式结论，也不修改 GN4、保护预算、残�
 不继续调整 GN 或保护预算。
 
 产物：`data/tpuic_mechanism_audit_paired_20261010/`。
+
+#### Held-out 残差证书筛查
+
+直接把 sigma-point factor trace 写进 `i_res_pred` 的候选实现未通过功率缩放测试，
+已撤回且未进入主线：估计器映射 `F(X)` 随直达字典幅度变化，不能把物理功率增长
+和高 SNR 下更精确的投影混为一个 trace。
+
+替代方案仅作为实验诊断：在 cross-fit 后的 held-out CPI 上，将 TP-UIC 残差投影到
+全部信念目标子空间之外，再扣除名义噪声地板。`(receiver=1,target=1)` 的 4-test
+严格配对筛查中，held-out 均值/真实结构残差均值在 +10/+30/+50 dB 分别约为
+`29.7/1.05/0.82`；旧 `i_res_pred` 在 +50 dB 仅为真实残差的约 `0.0017`。
+因此新量恢复了高干扰功率缩放，但低干扰下受噪声自由度和目标字典失配污染而过于
+保守，暂不替换生产证书。下一步应改进实际对消算子下的噪声 trace 核算，并保持
+held-out 独立性。
+
+产物：`data/tpuic_heldout_certificate_screen_20261010/`。
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

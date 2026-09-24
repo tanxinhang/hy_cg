@@ -3,8 +3,10 @@
 from argparse import Namespace
 
 import pytest
+import numpy as np
 
 from tools.gate_tpuic_generalization import _evaluate, _pairs
+from tools.tpuic_generalization_diagnostics import _heldout_certificate
 
 
 def test_small_runs_cannot_claim_formal_generalization():
@@ -26,3 +28,17 @@ def test_preregistered_pairs_are_validated_against_selected_axes():
         (0, 1), (3, 2), (1, 1))
     with pytest.raises(ValueError, match="subsets"):
         _pairs("2:1", (0, 1, 3), (1, 2))
+
+
+def test_heldout_certificate_removes_target_span_and_noise_floor():
+    class Obs:
+        A = np.eye(4, 1, dtype=complex)
+        y = np.zeros(4, dtype=complex)
+        sigma2 = 2.0
+
+    class Result:
+        residual = np.array([9.0, 2.0, 2.0, 2.0], dtype=complex)
+
+    raw, corrected = _heldout_certificate(Obs(), Result())
+    assert raw == pytest.approx(12.0)
+    assert corrected == pytest.approx(6.0)

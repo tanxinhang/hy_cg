@@ -47,6 +47,22 @@ def _summary(results, detectors, elapsed):
     }
 
 
+def _heldout_certificate(obs, result):
+    """Truth-free residual energy outside the full believed target subspace."""
+    target = np.asarray(obs.A, dtype=complex)
+    if target.shape[1]:
+        basis, singular, _ = np.linalg.svd(target, full_matrices=False)
+        keep = singular > 1e-10 * max(float(singular[0]), np.finfo(float).tiny)
+        basis = basis[:, keep]
+        residual = result.residual - basis @ (basis.conj().T @ result.residual)
+        dof = max(int(obs.y.size) - int(basis.shape[1]), 0)
+    else:
+        residual, dof = result.residual, int(obs.y.size)
+    raw = float(np.vdot(residual, residual).real)
+    corrected = max(raw - float(obs.sigma2) * dof, 0.0)
+    return raw, corrected
+
+
 def score_looks(cfg, observations, target, arm="tp_uic_full"):
     started = time.perf_counter()
     pairs = [_score(cfg, obs, target, arm) for obs in observations]
@@ -59,6 +75,7 @@ def crossfit_gn(cfg, observations, target, max_nfev):
     results, detectors, optimizer = [], [], []
     initial_delay, initial_doppler = [], []
     final_delay, final_doppler = [], []
+    heldout_raw, heldout_corrected = [], []
     for held_index in range(2):
         reference = observations[1 - held_index]
         sources, diagnostic = cx.refine_direct_dd_joint_gn_diagnostics(
@@ -66,6 +83,8 @@ def crossfit_gn(cfg, observations, target, max_nfev):
         held = cx.apply_direct_dd(cfg, observations[held_index], sources)
         result, detector = _score(cfg, held, target)
         results.append(result); detectors.append(detector); optimizer.append(diagnostic)
+        raw, corrected = _heldout_certificate(held, result)
+        heldout_raw.append(raw); heldout_corrected.append(corrected)
         before = _dd_rmse(reference.direct_est or [], reference.direct)
         after = _dd_rmse(sources, reference.direct)
         initial_delay.append(before[0]); initial_doppler.append(before[1])
@@ -79,6 +98,8 @@ def crossfit_gn(cfg, observations, target, max_nfev):
         "gn_optimality": mean([item.optimality for item in optimizer]),
         "gn_active_bound_count": mean(
             [item.active_bound_count for item in optimizer]),
+        "heldout_residual_power_raw": mean(heldout_raw),
+        "heldout_residual_power_noise_corrected": mean(heldout_corrected),
         "oracle_initial_delay_rmse": mean(initial_delay),
         "oracle_final_delay_rmse": mean(final_delay),
         "oracle_initial_doppler_rmse": mean(initial_doppler),
