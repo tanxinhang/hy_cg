@@ -420,5 +420,37 @@ test PFA `0.000`、PD `0.375`；perfect-channel AUC 为 `0.7431`，阈值
 同规模正式复核，不能由本结果外推。
 
 产物：`data/full_observation_detector_formal_boost50_20261014/`。
+
+#### +50 dB operating-point 原因审计
+
+在不改变接收机、统计量或门限的前提下，复算 40 calibration / 40 test 的完整
+样本级分布。5% split-conformal 门限是 calibration H0 的第 39/40 个次序统计量，
+即第二大值。nominal 门限为 `11.4388`，但 test H0 最大值为 `11.1521`，只低
+`0.2866`；若真实超限率恰为 5%，40 次测试观察到零超限的概率仍为
+`0.95^40=0.1285`。因此 `PFA=0` 本身不是失配证据。
+
+calibration 与 test H0 的主体分布也未显示可见漂移：nominal 的两样本 KS 统计量
+为 `0.10`（诊断 p 值 `0.990`），perfect 为 `0.15`（`0.766`）。nominal 与
+perfect 在 test 上的 Spearman 相关为 H0 `0.775`、H1 `0.863`，表明主要场景
+难度排序相同。对 calibration 场景重采样后，nominal 门限 95% 诊断区间为
+`[8.8522,12.1631]`，对应固定 test 的 PD 区间为 `[0.350,0.525]`；40 个尾部
+校准样本不足以稳定地区分当前 `0.375` 与 `0.45`。
+
+最直接的反事实是交换两个接收机独立得到的门限：nominal 使用 perfect 门限
+`10.6098` 时得到 `PFA=0.05, PD=0.45`；perfect 使用 nominal 门限时得到
+`PFA=0, PD=0.45`。所以本次 nominal 相对 perfect 的 `0.075` PD 差额由两个
+独立的有限样本尾部门限实现解释，并非 TP-UIC 分数整体退化。AUC 不依赖门限，
+nominal `0.7681` 的场景 bootstrap 95% 诊断区间为 `[0.6625,0.8625]`，与
+perfect 的 `[0.6419,0.8363]` 大量重叠，也不支持二者存在稳定优劣。
+
+裁决：将上一节“nominal operating point 过于保守”收窄为“该次 nominal 门限
+实现偏高，但尚无系统性过保守证据”。当前首先要解决的是尾部样本量导致的门限
+不确定性，而不是修改 TP-UIC 或 GLRT。下一步应保持算法冻结，以相同场景 ID 完成
++10/+30 dB 配对复核，并扩大 calibration H0 或重复独立 calibration split；只有
+反复出现 nominal H0 尾部膨胀后，才审计 covariance/最大统计量的结构性失配。
+
+机器可读原因审计：
+`data/full_observation_detector_formal_boost50_20261014/cause_audit.json`。
+
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`
