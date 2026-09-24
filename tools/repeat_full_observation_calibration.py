@@ -14,6 +14,7 @@ from isac_sim.receiver import cancellation as cx
 from tools import gate_crossfit_hierarchical_map as single
 from tools import gate_full_observation_detector as gate
 from tools import run_tpuic_receiver_benchmark as bench
+from tools.audit_full_observation_detector_cause import _threshold_sensitivity
 
 
 def _read(path):
@@ -54,26 +55,36 @@ def run(args):
             rows.append(row)
         _write(repeat_path, rows)
     evaluation = {}
+    prior_rows = [_read(path) for path in args.prior_h0]
     for boost in args.boosts:
         original = _read(Path(str(args.original_pattern).format(boost=f"{boost:g}")))
         cal = [float(r["nominal_h0"]) for r in original if r["split"] == "calibration"]
+        for batch in prior_rows:
+            cal += [float(r[f"nominal_{boost:g}_h0"]) for r in batch]
         cal += [float(r[f"nominal_{boost:g}_h0"]) for r in rows]
         perfect = [float(r["perfect_h0"]) for r in original
                    if r["split"] == "calibration"]
+        for batch in prior_rows:
+            perfect += [float(r[f"perfect_{boost:g}_h0"]) for r in batch]
         perfect += [float(r[f"perfect_{boost:g}_h0"]) for r in rows]
         test = [r for r in original if r["split"] == "test"]
-        nt = bench._calibrated_threshold(np.asarray(cal), args.p_fa, "split_conformal")
-        pt = bench._calibrated_threshold(np.asarray(perfect), args.p_fa, "split_conformal")
+        cal, perfect = np.asarray(cal), np.asarray(perfect)
+        nt = bench._calibrated_threshold(cal, args.p_fa, "split_conformal")
+        pt = bench._calibrated_threshold(perfect, args.p_fa, "split_conformal")
         old_n = np.asarray([float(r["nominal_h0"]) for r in original
                             if r["split"] == "calibration"])
         old_p = np.asarray([float(r["perfect_h0"]) for r in original
                             if r["split"] == "calibration"])
         new_n = np.asarray([float(r[f"nominal_{boost:g}_h0"]) for r in rows])
         new_p = np.asarray([float(r[f"perfect_{boost:g}_h0"]) for r in rows])
+        t0 = np.asarray([float(r["nominal_h0"]) for r in test])
+        t1 = np.asarray([float(r["nominal_h1"]) for r in test])
+        uncertainty = _threshold_sensitivity(cal, t0, t1, args.p_fa)
         evaluation[f"{boost:g}"] = {
             "nominal": {"threshold": nt, **gate._metrics(test, "nominal", nt)},
             "perfect": {"threshold": pt, **gate._metrics(test, "perfect", pt)},
             "calibration_scenes": len(cal),
+            "nominal_threshold_uncertainty": uncertainty,
             "independent_batch_thresholds": {
                 "original_nominal": bench._calibrated_threshold(
                     old_n, args.p_fa, "split_conformal"),
@@ -87,7 +98,8 @@ def run(args):
         }
     payload = {"protocol": vars(args) | {"out": str(args.out)},
                "evaluation": evaluation}
-    (args.out / "summary.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    (args.out / "summary.json").write_text(
+        json.dumps(payload, indent=2, default=str), encoding="utf-8")
     return payload
 
 
@@ -98,6 +110,7 @@ def main():
         "studies/direction3/data/full_observation_detector_formal_"
         "boost{boost}_20261014/records.csv"))
     parser.add_argument("--boosts", type=float, nargs="+", default=[10, 30, 50])
+    parser.add_argument("--prior-h0", type=Path, nargs="*", default=[])
     parser.add_argument("--start-scene", type=int, default=81)
     parser.add_argument("--repeat-scenes", type=int, default=40)
     parser.add_argument("--master-seed", type=int, default=20261014)
@@ -105,7 +118,7 @@ def main():
     parser.add_argument("--target", type=int, default=1)
     parser.add_argument("--gn-max-nfev", type=int, default=4)
     parser.add_argument("--p-fa", type=float, default=.05)
-    print(json.dumps(run(parser.parse_args()), indent=2))
+    print(json.dumps(run(parser.parse_args()), indent=2, default=str))
 
 
 if __name__ == "__main__":

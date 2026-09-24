@@ -483,5 +483,32 @@ H0 并让三档 boost 共用几何。原批次中 nominal 门限在三档均高�
 `data/full_observation_detector_formal_boost30_20261014/` 和
 `data/full_observation_detector_calibration_repeat_20261014/`。
 
+#### 纯 H0 粗校准与精校准
+
+采用两阶段但保持同分布的 H0-only 协议。粗阶段使用原 40 calibration 加第一次
+独立 repeat 40，共 80 个 H0，用于确认批次方向会反转并冻结后续协议；精阶段新增
+scene 121--240 的 120 个独立 H0，最终以全部 200 个样本计算 5% split-conformal
+门限。没有根据粗阶段分数挑选精阶段场景，也没有读取新 H1，因此不产生 tail
+selection bias 或 test 泄漏。
+
+| boost | 80-H0 门限 | 80-H0 bootstrap 95% | 200-H0 门限 | 200-H0 bootstrap 95% | test PFA | test PD | PD 区间 |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| +10 dB | 11.6978 | [9.6262, 12.9983] | 11.1858 | [10.4818, 12.1241] | 0.025 | 0.375 | [0.350, 0.400] |
+| +30 dB | 11.4774 | [10.1024, 11.8023] | 11.5202 | [10.5690, 12.0185] | 0.025 | 0.350 | [0.350, 0.425] |
+| +50 dB | 11.4582 | [9.8131, 12.1631] | 11.5009 | [10.9025, 12.1631] | 0.000 | 0.375 | [0.350, 0.450] |
+
+精阶段使 +10 dB 门限区间明显收窄；+30/+50 dB 的区间仍宽但彼此高度重叠，且
+200-H0 点估计仅差 `0.0193`，不支持高干扰导致 H0 尾部继续膨胀。固定 40-test
+上，门限不确定性传播后的 PD 区间仍跨越 2--4 个样本台阶；因此 calibration
+扩容解决了“单一第二大值定门限”的问题，却不能消除 test 仅有 40 场景带来的
+`0.025` 分辨率限制。
+
+裁决：200-H0 可作为当前 operating-point 校准版本；继续增加 calibration 的
+边际价值已经低于扩大独立 test。TP-UIC、covariance 与 GLRT 继续冻结。若下一步
+要裁决 `PD=0.35--0.375` 是否达标，应扩大严格隔离的 H0/H1 test，而非继续围绕
+门限调参。
+
+产物：`data/full_observation_detector_calibration_fine_20261015/`。
+
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`
