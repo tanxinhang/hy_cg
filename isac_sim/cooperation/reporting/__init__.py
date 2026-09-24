@@ -28,6 +28,11 @@ from isac_sim.cooperation.reporting.solvers import (
 from isac_sim.cooperation.reporting.view import (
     ReportingView,
 )
+from isac_sim.cooperation.reporting.detection_quality import ReceiverDetectionQuality
+from isac_sim.cooperation.reporting.detection_policy import (
+    DetectionReportingPlan,
+    select_detection_reports,
+)
 
 __all__ = [
     "EPS",
@@ -44,4 +49,7 @@ __all__ = [
     "_solve_capacity_assignment",
     "_solve_bottleneck_capacity_assignment",
     "ReportingView",
+    "ReceiverDetectionQuality",
+    "DetectionReportingPlan",
+    "select_detection_reports",
 ]

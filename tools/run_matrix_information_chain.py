@@ -10,7 +10,11 @@ import numpy as np
 from scipy.stats import norm
 from scipy.optimize import linprog
 
-from isac_sim.cooperation.reporting import assign_fusion_nodes
+from isac_sim.cooperation.reporting import (
+    ReceiverDetectionQuality,
+    assign_fusion_nodes,
+    select_detection_reports,
+)
 from isac_sim.cooperation.matrix_information_ao import (
     activation_neighborhood,
     monotone_matrix_information_ao,
@@ -118,6 +122,41 @@ def _uav_centric_greedy_fusion(
     second.  This is an auditable scheduling baseline, not a distributed-game
     claim.
     """
+    quality = ReceiverDetectionQuality(
+        tuple(tuple(np.asarray(modes, dtype=float) for modes in row)
+              for row in receiver_eigenvalues),
+        n_looks=int(looks),
+        p_fa=float(p_fa),
+    )
+    formal = select_detection_reports(
+        quality,
+        link_success,
+        link_feasible=link_feasible,
+        max_reports_per_sender=max_reports_per_sender,
+        max_reports_per_fusion=max_reports_per_fusion,
+        report_latency_s=report_latency_s,
+        max_total_latency_s=max_total_latency_s,
+        receiver_correlation=receiver_correlation,
+        fusion_nodes=fixed_fusion_nodes,
+    )
+    return {
+        "fusion_nodes": formal.fusion_nodes,
+        "selected_success": formal.delivery_probability,
+        "selected_reports": [{
+            "source_uav": source,
+            "target": target,
+            "destination_uav": destination,
+            "success_probability": float(link_success[source, destination]),
+        } for source, target, destination in formal.selected_reports],
+        "sender_load": formal.sender_load,
+        "fusion_load": formal.fusion_load,
+        "local_pd": formal.local_pd,
+        "delivered_pd": formal.delivered_pd,
+        "total_reporting_latency_s": formal.total_latency_s,
+    }
+
+    # Legacy implementation retained temporarily below as burn-down reference;
+    # the executable path above now belongs to the reporting domain module.
     success = np.asarray(link_success, dtype=float)
     m = len(receiver_eigenvalues)
     q = len(receiver_eigenvalues[0])
