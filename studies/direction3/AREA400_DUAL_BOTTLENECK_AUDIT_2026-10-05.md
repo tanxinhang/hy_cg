@@ -375,5 +375,32 @@ AUC 在 12.5%/25%/50% pilot 下为 `0.3125/0.3125/0.25`（+10 dB）、
 能力，再比较结构化 pilot 设计，而不是继续扩大 pilot 比例。
 
 产物：`data/pilot_coefficient_map_screen_20261012/`。
+
+#### 完整观测 detector headroom 与两 block 累积
+
+为判断 pilot 失败是否源于 detector 本身，在不扣除任何观测资源的条件下，对困难
+单元 `(receiver=1,target=1)` 运行新的严格配对筛查。每个 block 独立执行完整的
+`GN-DD -> TP-UIC -> sigma-point covariance -> 3x3 neighbourhood GLRT`；增强候选
+仅把两个 block 的最终统计量非相干相加。perfect-channel 使用完全相同的观测和
+detector。协议为 1 train / 2 calibration / 8 test，仅裁决 AUC 信息上限，不解释
+有限 calibration 下的 PD/PFA。
+
+结果表明无需先修 detector 才能获得高 AUC。perfect one-block 在三个 boost 上均为
+`0.9375`；nominal one-block 在 +10/+30/+50 dB 分别为
+`0.9063/0.9219/0.8906`，oracle gap 仅约 `0.016--0.047`。这与旧 4-test 小样本的
+低 AUC 相反，说明后者不能代表该几何的稳定信息上限。
+
+两 block 简单求和没有增强：perfect 降至 `0.9063`，nominal 为
+`0.9063/0.8750/0.8594`。第二 block 单独仍有约 `0.89` perfect AUC 和
+`0.84--0.88` nominal AUC，但其 H0/H1 尺度与第一 block 有有限样本差异，直接
+相加会扰动排序。当前 one-block 已接近 perfect 上限，因此不再为该单元增加 CPI
+或融合复杂度。若系统级仍需要多 block，应在独立 train/calibration 上冻结尺度
+校准或似然融合，并使用至少 40 test；不能在这 8 个 test 上继续选融合权重。
+
+裁决：完整观测 detector 在本次独立种子筛查中达到预期；首版 two-block sum 不
+推广。下一主瓶颈回到检测稳定性/跨场景泛化和完整系统 PD，而不是该单元的一 block
+AUC 或 coefficient cancellation depth。
+
+产物：`data/full_observation_detector_screen_20261013/`。
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

@@ -1,0 +1,41 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\full_observation_detector_screen_20261013",
+    "train_scenes": 1,
+    "calibration_scenes": 2,
+    "test_scenes": 8,
+    "master_seed": 20261013,
+    "receiver": 1,
+    "target": 1,
+    "boost_db": [
+      10.0,
+      30.0,
+      50.0
+    ],
+    "gn_max_nfev": 4
+  },
+  "test_auc": {
+    "10.0": {
+      "perfect_one": 0.9375,
+      "perfect_two": 0.90625,
+      "nominal_one": 0.90625,
+      "nominal_two": 0.90625,
+      "two_block_oracle_gap": 0.0
+    },
+    "30.0": {
+      "perfect_one": 0.9375,
+      "perfect_two": 0.90625,
+      "nominal_one": 0.921875,
+      "nominal_two": 0.875,
+      "two_block_oracle_gap": 0.03125
+    },
+    "50.0": {
+      "perfect_one": 0.9375,
+      "perfect_two": 0.90625,
+      "nominal_one": 0.890625,
+      "nominal_two": 0.859375,
+      "two_block_oracle_gap": 0.046875
+    }
+  },
+  "decision_scope": "screen_only_auc"
+}
