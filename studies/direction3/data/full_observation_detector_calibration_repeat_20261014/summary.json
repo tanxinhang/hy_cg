@@ -1,0 +1,83 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\full_observation_detector_calibration_repeat_20261014",
+    "original_pattern": "studies/direction3/data/full_observation_detector_formal_boost{boost}_20261014/records.csv",
+    "boosts": [
+      10,
+      30,
+      50
+    ],
+    "start_scene": 81,
+    "repeat_scenes": 40,
+    "master_seed": 20261014,
+    "receiver": 1,
+    "target": 1,
+    "gn_max_nfev": 4,
+    "p_fa": 0.05
+  },
+  "evaluation": {
+    "10": {
+      "nominal": {
+        "threshold": 11.697817278684719,
+        "auc": 0.7425,
+        "pfa": 0.025,
+        "pd": 0.35
+      },
+      "perfect": {
+        "threshold": 10.85403401655423,
+        "auc": 0.743125,
+        "pfa": 0.05,
+        "pd": 0.45
+      },
+      "calibration_scenes": 80,
+      "independent_batch_thresholds": {
+        "original_nominal": 11.18576872298085,
+        "original_perfect": 10.609835002622177,
+        "repeat_nominal": 12.99832951437297,
+        "repeat_perfect": 13.469564792574282
+      }
+    },
+    "30": {
+      "nominal": {
+        "threshold": 11.477398128662589,
+        "auc": 0.76875,
+        "pfa": 0.025,
+        "pd": 0.35
+      },
+      "perfect": {
+        "threshold": 10.854034016554216,
+        "auc": 0.743125,
+        "pfa": 0.05,
+        "pd": 0.45
+      },
+      "calibration_scenes": 80,
+      "independent_batch_thresholds": {
+        "original_nominal": 11.477398128662589,
+        "original_perfect": 10.609835002622223,
+        "repeat_nominal": 11.802273810951766,
+        "repeat_perfect": 13.46956479257428
+      }
+    },
+    "50": {
+      "nominal": {
+        "threshold": 11.458162037236308,
+        "auc": 0.768125,
+        "pfa": 0.0,
+        "pd": 0.375
+      },
+      "perfect": {
+        "threshold": 10.854034016554234,
+        "auc": 0.743125,
+        "pfa": 0.05,
+        "pd": 0.45
+      },
+      "calibration_scenes": 80,
+      "independent_batch_thresholds": {
+        "original_nominal": 11.438762995105666,
+        "original_perfect": 10.609835002622141,
+        "repeat_nominal": 11.815229207718305,
+        "repeat_perfect": 13.469564792574282
+      }
+    }
+  }
+}

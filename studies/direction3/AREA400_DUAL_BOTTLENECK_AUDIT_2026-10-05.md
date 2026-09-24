@@ -452,5 +452,36 @@ perfect 的 `[0.6419,0.8363]` 大量重叠，也不支持二者存在稳定优�
 机器可读原因审计：
 `data/full_observation_detector_formal_boost50_20261014/cause_audit.json`。
 
+#### +10/+30 dB 配对复核与独立 calibration repeat
+
+冻结 one-block GN-MAP、TP-UIC、sigma-point covariance 和 3x3 GLRT，使用与
++50 dB 完全相同的 master seed、scene ID 和 split，补齐 +10/+30 dB 的
+1 train / 40 calibration / 40 test 正式配对门禁。+10 dB nominal 为
+`AUC=0.7425, PFA=0.025, PD=0.375`，+30 dB nominal 为
+`AUC=0.7688, PFA=0.025, PD=0.350`；对应门限为 `11.1858/11.4774`。
+perfect-channel 在三档 boost 下逐位保持同一结果：`AUC=0.7431, PFA=0.05,
+PD=0.45`、门限 `10.6098`，验证了 boost 配对实现。
+
+为判断 nominal 门限偏高是否稳定复现，另生成完全独立的 scene 81--120，只使用
+H0 并让三档 boost 共用几何。原批次中 nominal 门限在三档均高于 perfect；但新增
+批次发生反转：perfect 门限为 `13.4696`，nominal 的 +10/+30/+50 dB 门限分别为
+`12.9983/11.8023/11.8152`。因此 nominal H0 尾部膨胀没有跨 calibration 批次
+复现，也没有随干扰强度单调增大。
+
+合并两批得到 80 个 calibration H0 后，nominal 的 +10/+30/+50 dB 门限为
+`11.6978/11.4774/11.4582`，固定 test 上分别得到 PFA
+`0.025/0.025/0.000`、PD `0.350/0.350/0.375`；perfect 合并门限为
+`10.8540`，PFA `0.05`、PD `0.45`。这些 operating-point 差异仍存在，但独立
+批次反转表明不能归因于 nominal covariance 的稳定结构性尾部失配。
+
+裁决：当前不修改残差协方差、最大统计量或 TP-UIC。三档 AUC 没有显示随 boost
+恶化，主要未决问题是 5% 极端次序统计量在 40--80 calibration 下仍不稳定。
+若需要精确 PD operating point，应继续增加只含 H0 的 calibration 或报告门限
+不确定性；不能把单批次门限差异包装成抗干扰算法缺陷。
+
+产物：`data/full_observation_detector_formal_boost10_20261014/`、
+`data/full_observation_detector_formal_boost30_20261014/` 和
+`data/full_observation_detector_calibration_repeat_20261014/`。
+
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`
