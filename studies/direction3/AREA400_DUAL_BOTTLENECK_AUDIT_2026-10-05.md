@@ -574,5 +574,35 @@ SINR Top-K。只有 K2/K3 在新 test 上稳定超过 train-best 单 UAV 且效�
 
 产物：`data/distributed_detector_subset_formal_20261017/`。
 
+#### Train-only 尺度校准与相关性贪心筛查
+
+在不生成新数据、不改变接收机的条件下，只用上述 20 train 的 H0 中位数与 IQR
+对各 UAV 分数作稳健尺度统一。随后预先固定两类规则：按 train 单节点 AUC 排序的
+information Top-K，以及使用 70% 对角收缩 H0 covariance 的边际 deflection
+贪心。等权 sum 与最终 calibration 门限保持不变。原 40-test 仅作探索性复核，
+不用于推广方法。
+
+| 规则 | 子集 | test AUC | PFA | PD |
+|---|---|---:|---:|---:|
+| 标准化 information K2 | {1,0} | 0.7869 | 0.025 | 0.225 |
+| 标准化 information K3 | {1,0,3} | 0.8256 | 0.025 | 0.400 |
+| 相关性贪心 K2 | {0,3} | 0.7838 | 0.100 | 0.375 |
+| 相关性贪心 K3 | {0,3,4} | 0.7944 | 0.050 | 0.450 |
+| 标准化 All-UAV | all 6 | 0.8581 | 0.025 | 0.650 |
+
+所有有限 K 候选的 paired AUC 增益区间均跨 0；相关性贪心甚至没有产生正的点
+增益。与上一节未标准化的 train-selected K2/K3 (`0.8213/0.8494`) 相比，简单
+H0 尺度统一也没有改善排序。All-UAV 仍稳定在约 `0.86 AUC`、`0.65--0.675 PD`
+的信息上限附近，说明多节点联合信息存在，但 20-train 下的低维选择规则尚未可靠
+识别其互补部分。
+
+裁决：拒绝将该稳健尺度或 covariance-deflection 贪心升级为 Proposed。当前不应
+继续在已使用的 40-test 上扫描收缩系数、归一化或融合权重。主线回到未标准化的
+固定 sum 与独立确认：新种子应直接确认 train-selected K3 和 All-UAV 上限，同时
+加入预先定义的可部署 SINR Top-K；若 K3 不能稳定超过最佳单 UAV/SINR 至少
+`0.02 AUC`，停止关联优化。
+
+产物：`data/distributed_detector_subset_formal_20261017/calibrated_greedy.json`。
+
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`
