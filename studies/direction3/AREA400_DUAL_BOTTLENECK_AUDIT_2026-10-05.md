@@ -402,5 +402,23 @@ detector。协议为 1 train / 2 calibration / 8 test，仅裁决 AUC 信息上�
 AUC 或 coefficient cancellation depth。
 
 产物：`data/full_observation_detector_screen_20261013/`。
+
+#### 完整观测 detector 正式 +50 dB 门禁
+
+冻结上述 one-block proposed，在 `(receiver=1,target=1)`、+50 dB 上运行
+1 train / 40 calibration / 40 test 的独立正式门禁（master seed `20261014`）。
+nominal GN-MAP TP-UIC 的 AUC 为 `0.7681`，split-conformal 阈值 `11.4388`，
+test PFA `0.000`、PD `0.375`；perfect-channel AUC 为 `0.7431`，阈值
+`10.6098`，PFA `0.050`、PD `0.450`。nominal-minus-perfect AUC 为 `+0.025`，
+在 40-test 规模下不解释为超越 oracle；两者使用不同残差与协方差，有限样本排序
+允许反转。
+
+该结果推翻 8-test 下 `0.89--0.94` AUC 已经稳定的乐观判断。完整观测仍提供中等
+偏强排序能力，但 nominal 的 H0 阈值更高且本批次零虚警，显示其 operating point
+过于保守并损失 PD。下一 detector 优化应针对 nominal H0 尾部校准和阈值稳定性，
+而不是继续增加 TP-UIC stage、pilot 比例或直接叠加 block。+10/+30 dB 尚未完成
+同规模正式复核，不能由本结果外推。
+
+产物：`data/full_observation_detector_formal_boost50_20261014/`。
 - `data/joint_dd_solver_benchmark_nfev4_20261009/`
 - `tools/gate_area400_dual_axis.py`

@@ -1,0 +1,30 @@
+{
+  "protocol": {
+    "out": "studies\\direction3\\data\\full_observation_detector_formal_boost50_20261014",
+    "train_scenes": 1,
+    "calibration_scenes": 40,
+    "test_scenes": 40,
+    "master_seed": 20261014,
+    "receiver": 1,
+    "target": 1,
+    "boost_db": 50.0,
+    "gn_max_nfev": 4,
+    "p_fa": 0.05
+  },
+  "evaluation": {
+    "nominal": {
+      "threshold": 11.438762995105666,
+      "auc": 0.768125,
+      "pfa": 0.0,
+      "pd": 0.375
+    },
+    "perfect": {
+      "threshold": 10.609835002622141,
+      "auc": 0.743125,
+      "pfa": 0.05,
+      "pd": 0.45
+    }
+  },
+  "oracle_gap_auc": -0.02499999999999991,
+  "eligible": true
+}
