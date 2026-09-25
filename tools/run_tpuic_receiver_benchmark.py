@@ -278,6 +278,9 @@ def _make_cfg(args) -> Config:
     cfg = apply_preset(Config(), "paper-canonical")
     cfg = apply_overrides(cfg, {
         "geometry.area_xy": float(args.area_xy),
+        "geometry.min_uav_separation_m": float(
+            getattr(args, "min_uav_separation_m", 20.0)
+        ),
         "scale.M": int(args.uavs),
         "scale.Q": int(args.targets_count),
         "detect.target_rcs": float(args.target_rcs),
@@ -802,6 +805,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--uavs", type=int, default=6)
     p.add_argument("--targets-count", type=int, default=3)
     p.add_argument("--area-xy", type=float, default=800.0)
+    p.add_argument("--min-uav-separation-m", type=float, default=20.0)
     p.add_argument("--target-rcs", type=float, default=0.05)
     p.add_argument("--m-rx", type=int, default=4)
 

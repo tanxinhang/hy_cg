@@ -22,6 +22,8 @@ class Geometry:
     area_xy: float = 4000.0
     h_uav_min: float = 800.0
     h_uav_max: float = 1200.0
+    # Hard 3-D centre-to-centre safety distance used by geometry sampling.
+    min_uav_separation_m: float = 20.0
     h_target_min: float = 700.0
     h_target_max: float = 1500.0
     comm_range: float = 2500.0

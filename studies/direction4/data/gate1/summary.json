@@ -1,0 +1,194 @@
+{
+  "protocol": {
+    "master_seed": 20261007,
+    "target": 2,
+    "receivers": "all",
+    "error_radius_m": [
+      150.0
+    ],
+    "arms": [
+      "nominal",
+      "self_fit",
+      "local_crossfit",
+      "shared_crossfit",
+      "oracle"
+    ],
+    "arm": "tp_uic_full",
+    "looks": 2,
+    "solver": "coarse_to_fine",
+    "search_sigma": 3.0,
+    "prior_sigma_m": 150.0,
+    "target_rcs": 0.5,
+    "p_fa": 0.05,
+    "bootstrap": 400,
+    "train_scenes": 1,
+    "calibration_scenes": 20,
+    "test_scenes": 20,
+    "note": "other targets' belief means are pinned to truth; only the tested target carries the injected offset"
+  },
+  "evaluation": [
+    {
+      "error_radius_m": 150.0,
+      "method": "nominal",
+      "threshold": 88.9517788862195,
+      "test_auc": 0.8875,
+      "empirical_pfa": 0.15,
+      "pfa_ci95": [
+        0.052368745896216595,
+        0.36041886474075696
+      ],
+      "test_pd": 0.75,
+      "pd_ci95": [
+        0.531299122381256,
+        0.8881382985923343
+      ],
+      "n_calibration": 20,
+      "n_test": 20,
+      "oracle_auc_gap": 0.10000000000000009,
+      "oracle_pd_gap": 0.19999999999999996,
+      "state_rmse_m": 150.0,
+      "state_median_m": 150.0,
+      "median_runtime_s": 1186.432786899968,
+      "p95_runtime_s": 1190.3607495850652
+    },
+    {
+      "error_radius_m": 150.0,
+      "method": "self_fit",
+      "threshold": 127.28596793225785,
+      "test_auc": 0.9575,
+      "empirical_pfa": 0.05,
+      "pfa_ci95": [
+        0.008881448800795402,
+        0.23613119344674205
+      ],
+      "test_pd": 0.85,
+      "pd_ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "n_calibration": 20,
+      "n_test": 20,
+      "oracle_auc_gap": 0.030000000000000027,
+      "oracle_pd_gap": 0.09999999999999998,
+      "delta_auc": 0.06771250000000001,
+      "delta_auc_ci95": [
+        -0.035062500000000024,
+        0.1975
+      ],
+      "delta_pd": 0.101125,
+      "delta_pd_ci95": [
+        -0.09999999999999998,
+        0.30000000000000004
+      ],
+      "delta_auc_vs_nominal": 0.07000000000000006,
+      "delta_pd_vs_nominal": 0.09999999999999998,
+      "median_runtime_s": 1186.432786899968,
+      "p95_runtime_s": 1190.3607495850652
+    },
+    {
+      "error_radius_m": 150.0,
+      "method": "local_crossfit",
+      "threshold": 99.20824943345275,
+      "test_auc": 0.915,
+      "empirical_pfa": 0.2,
+      "pfa_ci95": [
+        0.08065766257979806,
+        0.41601743225189364
+      ],
+      "test_pd": 0.85,
+      "pd_ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "n_calibration": 20,
+      "n_test": 20,
+      "oracle_auc_gap": 0.07250000000000001,
+      "oracle_pd_gap": 0.09999999999999998,
+      "delta_auc": 0.033575,
+      "delta_auc_ci95": [
+        -0.0725625,
+        0.15500000000000003
+      ],
+      "delta_pd": 0.10675000000000001,
+      "delta_pd_ci95": [
+        -0.050000000000000044,
+        0.30000000000000004
+      ],
+      "delta_auc_vs_nominal": 0.02750000000000008,
+      "delta_pd_vs_nominal": 0.09999999999999998,
+      "median_runtime_s": 1186.432786899968,
+      "p95_runtime_s": 1190.3607495850652
+    },
+    {
+      "error_radius_m": 150.0,
+      "method": "shared_crossfit",
+      "threshold": 101.5077279777144,
+      "test_auc": 0.96,
+      "empirical_pfa": 0.05,
+      "pfa_ci95": [
+        0.008881448800795402,
+        0.23613119344674205
+      ],
+      "test_pd": 0.9,
+      "pd_ci95": [
+        0.6989663547715128,
+        0.9721335187862319
+      ],
+      "n_calibration": 20,
+      "n_test": 20,
+      "oracle_auc_gap": 0.02750000000000008,
+      "oracle_pd_gap": 0.04999999999999993,
+      "delta_auc": 0.07198125,
+      "delta_auc_ci95": [
+        -0.022499999999999964,
+        0.18012499999999984
+      ],
+      "delta_pd": 0.145,
+      "delta_pd_ci95": [
+        0.0,
+        0.30000000000000004
+      ],
+      "delta_auc_vs_nominal": 0.07250000000000001,
+      "delta_pd_vs_nominal": 0.15000000000000002,
+      "state_rmse_m": 115.47860913842355,
+      "state_rmse_p95_m": 331.7003277671224,
+      "state_median_m": 11.686889651388302,
+      "median_runtime_s": 1186.432786899968,
+      "p95_runtime_s": 1190.3607495850652
+    },
+    {
+      "error_radius_m": 150.0,
+      "method": "oracle",
+      "threshold": 99.81908777360175,
+      "test_auc": 0.9875,
+      "empirical_pfa": 0.0,
+      "pfa_ci95": [
+        0.0,
+        0.16112515805281938
+      ],
+      "test_pd": 0.95,
+      "pd_ci95": [
+        0.763868806553258,
+        0.9911185511992047
+      ],
+      "n_calibration": 20,
+      "n_test": 20,
+      "oracle_auc_gap": 0.0,
+      "oracle_pd_gap": 0.0,
+      "delta_auc": 0.10131875000000001,
+      "delta_auc_ci95": [
+        0.030000000000000027,
+        0.20768749999999986
+      ],
+      "delta_pd": 0.193,
+      "delta_pd_ci95": [
+        0.04999999999999993,
+        0.35124999999999884
+      ],
+      "delta_auc_vs_nominal": 0.10000000000000009,
+      "delta_pd_vs_nominal": 0.19999999999999996,
+      "median_runtime_s": 1186.432786899968,
+      "p95_runtime_s": 1190.3607495850652
+    }
+  ]
+}

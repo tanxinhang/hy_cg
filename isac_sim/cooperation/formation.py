@@ -7,6 +7,47 @@ from scipy.optimize import linear_sum_assignment
 from isac_sim.sensing.model import Geometry
 
 
+def minimum_uav_separation(positions) -> float:
+    """Return the minimum three-dimensional centre-to-centre distance."""
+    points = np.asarray(positions, dtype=float)
+    if len(points) < 2:
+        return float("inf")
+    distance = np.linalg.norm(points[:, None, :] - points[None, :, :], axis=2)
+    distance[np.diag_indices_from(distance)] = np.inf
+    return float(np.min(distance))
+
+
+def project_uav_separation(cfg, positions, origins, max_movement_m=None):
+    """Deterministically project planned positions onto the hard safety set."""
+    points = np.asarray(positions, dtype=float).copy()
+    origins = np.asarray(origins, dtype=float)
+    minimum = float(cfg.geometry.min_uav_separation_m)
+    budget = None if max_movement_m is None else np.broadcast_to(
+        np.asarray(max_movement_m, dtype=float), (len(points),))
+    for _ in range(200):
+        delta = points[:, None, :] - points[None, :, :]
+        distance = np.linalg.norm(delta, axis=2)
+        np.fill_diagonal(distance, np.inf)
+        i, j = np.unravel_index(np.argmin(distance), distance.shape)
+        if distance[i, j] >= minimum - 1e-9:
+            return points
+        direction = delta[i, j] / max(float(distance[i, j]), 1e-12)
+        if distance[i, j] < 1e-12:
+            direction = np.array([1.0, 0.0, 0.0])
+        shift = 0.5 * (minimum - float(distance[i, j]) + 1e-6) * direction
+        points[i] += shift
+        points[j] -= shift
+        points[:, :2] = np.clip(points[:, :2], 0.0, cfg.geometry.area_xy)
+        points[:, 2] = np.clip(points[:, 2], cfg.geometry.h_uav_min,
+                               cfg.geometry.h_uav_max)
+        if budget is not None:
+            motion = points - origins
+            norm = np.linalg.norm(motion, axis=1)
+            scale = np.minimum(1.0, budget / np.maximum(norm, 1e-30))
+            points = origins + motion * scale[:, None]
+    raise RuntimeError("formation cannot satisfy the configured UAV separation")
+
+
 def target_ring_formation(
     cfg,
     geom: Geometry,
@@ -62,6 +103,8 @@ def target_ring_formation(
         distance = np.linalg.norm(displacement, axis=1)
         scale = np.minimum(1.0, budget / np.maximum(distance, 1e-30))
         positions = np.asarray(geom.p_uav, dtype=float) + displacement * scale[:, None]
+    positions = project_uav_separation(
+        cfg, positions, np.asarray(geom.p_uav, dtype=float), max_movement_m)
     return Geometry(
         p_uav=positions,
         v_uav=np.asarray(geom.v_uav).copy(),

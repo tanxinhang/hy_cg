@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN",
+  "calibration_regime": "r=0 only",
+  "threshold_formula_preregistered": {
+    "gain_over_zero": "empirical q=0.95, method=higher",
+    "receiver_support": "fixed strict majority: >=4 of 6",
+    "cross_fold_distance_m": "empirical q=0.95, method=higher",
+    "boundary": "reject every boundary hit"
+  },
+  "accept_rule": {
+    "gain_over_zero_strictly_gt": 5.326836236383258,
+    "receiver_support_ge": 4,
+    "cross_fold_distance_m_le": 38.65411524016557,
+    "boundary_hit_must_equal": false
+  },
+  "calibration_counts": {
+    "scenes": 8,
+    "folds": 16
+  },
+  "forbidden_after_freeze": [
+    "changing thresholds from injected truth errors",
+    "changing thresholds from test-set AUC, P_D, or oracle gap"
+  ]
+}

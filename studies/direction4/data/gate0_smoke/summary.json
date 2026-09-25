@@ -1,0 +1,192 @@
+{
+  "protocol": {
+    "master_seed": 20261007,
+    "target": 2,
+    "receivers": "all",
+    "error_radius_m": [
+      150.0
+    ],
+    "arms": [
+      "nominal",
+      "self_fit",
+      "local_crossfit",
+      "shared_crossfit",
+      "oracle"
+    ],
+    "arm": "tp_uic_full",
+    "looks": 2,
+    "solver": "coarse_to_fine",
+    "search_sigma": 4.0,
+    "prior_sigma_m": 150.0,
+    "target_rcs": 0.5,
+    "p_fa": 0.05,
+    "bootstrap": 50,
+    "train_scenes": 1,
+    "calibration_scenes": 2,
+    "test_scenes": 2,
+    "note": "other targets' belief means are pinned to truth; only the tested target carries the injected offset"
+  },
+  "evaluation": [
+    {
+      "error_radius_m": 150.0,
+      "method": "nominal",
+      "threshold": Infinity,
+      "test_auc": 1.0,
+      "empirical_pfa": 0.0,
+      "pfa_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "test_pd": 0.0,
+      "pd_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "n_calibration": 2,
+      "n_test": 2,
+      "oracle_auc_gap": 0.0,
+      "oracle_pd_gap": 0.0,
+      "state_rmse_m": 22500.000000000004,
+      "median_runtime_s": 222.02002820011694,
+      "p95_runtime_s": 223.33870955010644
+    },
+    {
+      "error_radius_m": 150.0,
+      "method": "self_fit",
+      "threshold": Infinity,
+      "test_auc": 1.0,
+      "empirical_pfa": 0.0,
+      "pfa_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "test_pd": 0.0,
+      "pd_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "n_calibration": 2,
+      "n_test": 2,
+      "oracle_auc_gap": 0.0,
+      "oracle_pd_gap": 0.0,
+      "delta_auc": 0.0,
+      "delta_auc_ci95": [
+        0.0,
+        0.0
+      ],
+      "delta_pd": 0.0,
+      "delta_pd_ci95": [
+        0.0,
+        0.0
+      ],
+      "delta_auc_vs_nominal": 0.0,
+      "delta_pd_vs_nominal": 0.0,
+      "median_runtime_s": 222.02002820011694,
+      "p95_runtime_s": 223.33870955010644
+    },
+    {
+      "error_radius_m": 150.0,
+      "method": "local_crossfit",
+      "threshold": Infinity,
+      "test_auc": 1.0,
+      "empirical_pfa": 0.0,
+      "pfa_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "test_pd": 0.0,
+      "pd_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "n_calibration": 2,
+      "n_test": 2,
+      "oracle_auc_gap": 0.0,
+      "oracle_pd_gap": 0.0,
+      "delta_auc": 0.0,
+      "delta_auc_ci95": [
+        0.0,
+        0.0
+      ],
+      "delta_pd": 0.0,
+      "delta_pd_ci95": [
+        0.0,
+        0.0
+      ],
+      "delta_auc_vs_nominal": 0.0,
+      "delta_pd_vs_nominal": 0.0,
+      "median_runtime_s": 222.02002820011694,
+      "p95_runtime_s": 223.33870955010644
+    },
+    {
+      "error_radius_m": 150.0,
+      "method": "shared_crossfit",
+      "threshold": Infinity,
+      "test_auc": 1.0,
+      "empirical_pfa": 0.0,
+      "pfa_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "test_pd": 0.0,
+      "pd_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "n_calibration": 2,
+      "n_test": 2,
+      "oracle_auc_gap": 0.0,
+      "oracle_pd_gap": 0.0,
+      "delta_auc": 0.0,
+      "delta_auc_ci95": [
+        0.0,
+        0.0
+      ],
+      "delta_pd": 0.0,
+      "delta_pd_ci95": [
+        0.0,
+        0.0
+      ],
+      "delta_auc_vs_nominal": 0.0,
+      "delta_pd_vs_nominal": 0.0,
+      "state_rmse_m": 236.98247749850879,
+      "state_rmse_p95_m": 334.5612793613809,
+      "median_runtime_s": 222.02002820011694,
+      "p95_runtime_s": 223.33870955010644
+    },
+    {
+      "error_radius_m": 150.0,
+      "method": "oracle",
+      "threshold": Infinity,
+      "test_auc": 1.0,
+      "empirical_pfa": 0.0,
+      "pfa_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "test_pd": 0.0,
+      "pd_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "n_calibration": 2,
+      "n_test": 2,
+      "oracle_auc_gap": 0.0,
+      "oracle_pd_gap": 0.0,
+      "delta_auc": 0.0,
+      "delta_auc_ci95": [
+        0.0,
+        0.0
+      ],
+      "delta_pd": 0.0,
+      "delta_pd_ci95": [
+        0.0,
+        0.0
+      ],
+      "delta_auc_vs_nominal": 0.0,
+      "delta_pd_vs_nominal": 0.0,
+      "median_runtime_s": 222.02002820011694,
+      "p95_runtime_s": 223.33870955010644
+    }
+  ]
+}

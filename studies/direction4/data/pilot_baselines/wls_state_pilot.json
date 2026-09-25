@@ -1,0 +1,15 @@
+{
+  "protocol": {
+    "scenes": [0, 1, 3],
+    "target": 2,
+    "error_radius_m": 150.0,
+    "min_uav_separation_m": 20.0,
+    "comparison": ["jacobian_wls", "gated_topk"],
+    "note": "one H1 look; state-estimation and solver-cost pilot only"
+  },
+  "records": [
+    {"scene": 0, "jacobian_wls_error_m": 126.1, "jacobian_wls_s": 0.34, "gated_topk_error_m": 16.7, "gated_topk_s": 15.89},
+    {"scene": 1, "jacobian_wls_error_m": 151.9, "jacobian_wls_s": 0.36, "gated_topk_error_m": 2.0, "gated_topk_s": 16.87},
+    {"scene": 3, "jacobian_wls_error_m": 144.0, "jacobian_wls_s": 0.37, "gated_topk_error_m": 5.6, "gated_topk_s": 16.16}
+  ]
+}

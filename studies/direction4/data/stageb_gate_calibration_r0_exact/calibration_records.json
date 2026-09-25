@@ -1,0 +1,234 @@
+[
+  {
+    "scene_id": 0,
+    "normalized_error": 0.0,
+    "cross_fold_distance_m": 29.646353064078557,
+    "folds": [
+      {
+        "fold": "A",
+        "delta": [
+          18.75,
+          -4.6875
+        ],
+        "gain_over_zero": 3.465605812844842,
+        "receiver_support": 4,
+        "boundary_hit": false,
+        "audit_state_error_m": 19.327057620082783
+      },
+      {
+        "fold": "B",
+        "delta": [
+          9.375,
+          -32.8125
+        ],
+        "gain_over_zero": 5.326836236383258,
+        "receiver_support": 5,
+        "boundary_hit": false,
+        "audit_state_error_m": 34.12551510600243
+      }
+    ]
+  },
+  {
+    "scene_id": 1,
+    "normalized_error": 0.0,
+    "cross_fold_distance_m": 0.0,
+    "folds": [
+      {
+        "fold": "A",
+        "delta": [
+          0.0,
+          0.0
+        ],
+        "gain_over_zero": 0.0,
+        "receiver_support": 0,
+        "boundary_hit": false,
+        "audit_state_error_m": 0.0
+      },
+      {
+        "fold": "B",
+        "delta": [
+          0.0,
+          0.0
+        ],
+        "gain_over_zero": 0.0,
+        "receiver_support": 0,
+        "boundary_hit": false,
+        "audit_state_error_m": 0.0
+      }
+    ]
+  },
+  {
+    "scene_id": 2,
+    "normalized_error": 0.0,
+    "cross_fold_distance_m": 4.6875,
+    "folds": [
+      {
+        "fold": "A",
+        "delta": [
+          0.0,
+          0.0
+        ],
+        "gain_over_zero": 0.0,
+        "receiver_support": 0,
+        "boundary_hit": false,
+        "audit_state_error_m": 0.0
+      },
+      {
+        "fold": "B",
+        "delta": [
+          0.0,
+          -4.6875
+        ],
+        "gain_over_zero": 0.763358980217447,
+        "receiver_support": 2,
+        "boundary_hit": false,
+        "audit_state_error_m": 4.6875
+      }
+    ]
+  },
+  {
+    "scene_id": 3,
+    "normalized_error": 0.0,
+    "cross_fold_distance_m": 0.0,
+    "folds": [
+      {
+        "fold": "A",
+        "delta": [
+          0.0,
+          0.0
+        ],
+        "gain_over_zero": 0.0,
+        "receiver_support": 0,
+        "boundary_hit": false,
+        "audit_state_error_m": 0.0
+      },
+      {
+        "fold": "B",
+        "delta": [
+          0.0,
+          0.0
+        ],
+        "gain_over_zero": 0.0,
+        "receiver_support": 0,
+        "boundary_hit": false,
+        "audit_state_error_m": 0.0
+      }
+    ]
+  },
+  {
+    "scene_id": 4,
+    "normalized_error": 0.0,
+    "cross_fold_distance_m": 10.481568644530265,
+    "folds": [
+      {
+        "fold": "A",
+        "delta": [
+          4.6875,
+          -4.6875
+        ],
+        "gain_over_zero": 0.6983339894769216,
+        "receiver_support": 5,
+        "boundary_hit": false,
+        "audit_state_error_m": 6.629126073623883
+      },
+      {
+        "fold": "B",
+        "delta": [
+          9.375,
+          4.6875
+        ],
+        "gain_over_zero": 2.204843313169107,
+        "receiver_support": 4,
+        "boundary_hit": false,
+        "audit_state_error_m": 10.481568644530265
+      }
+    ]
+  },
+  {
+    "scene_id": 5,
+    "normalized_error": 0.0,
+    "cross_fold_distance_m": 0.0,
+    "folds": [
+      {
+        "fold": "A",
+        "delta": [
+          0.0,
+          0.0
+        ],
+        "gain_over_zero": 0.0,
+        "receiver_support": 0,
+        "boundary_hit": false,
+        "audit_state_error_m": 0.0
+      },
+      {
+        "fold": "B",
+        "delta": [
+          0.0,
+          0.0
+        ],
+        "gain_over_zero": 0.0,
+        "receiver_support": 0,
+        "boundary_hit": false,
+        "audit_state_error_m": 0.0
+      }
+    ]
+  },
+  {
+    "scene_id": 6,
+    "normalized_error": 0.0,
+    "cross_fold_distance_m": 38.65411524016557,
+    "folds": [
+      {
+        "fold": "A",
+        "delta": [
+          -4.6875,
+          42.1875
+        ],
+        "gain_over_zero": 4.776875695256187,
+        "receiver_support": 4,
+        "boundary_hit": false,
+        "audit_state_error_m": 42.44711783501914
+      },
+      {
+        "fold": "B",
+        "delta": [
+          -14.0625,
+          4.6875
+        ],
+        "gain_over_zero": 4.511297023576077,
+        "receiver_support": 3,
+        "boundary_hit": false,
+        "audit_state_error_m": 14.823176532039279
+      }
+    ]
+  },
+  {
+    "scene_id": 7,
+    "normalized_error": 0.0,
+    "cross_fold_distance_m": 0.0,
+    "folds": [
+      {
+        "fold": "A",
+        "delta": [
+          0.0,
+          0.0
+        ],
+        "gain_over_zero": 0.0,
+        "receiver_support": 0,
+        "boundary_hit": false,
+        "audit_state_error_m": 0.0
+      },
+      {
+        "fold": "B",
+        "delta": [
+          0.0,
+          0.0
+        ],
+        "gain_over_zero": 0.0,
+        "receiver_support": 0,
+        "boundary_hit": false,
+        "audit_state_error_m": 0.0
+      }
+    ]
+  }
+]

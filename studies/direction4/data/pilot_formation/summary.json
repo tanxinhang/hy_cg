@@ -1,0 +1,1078 @@
+{
+  "protocol": {
+    "scenes": 20,
+    "samples": 250,
+    "movement_m": 200.0,
+    "error_m": 150.0,
+    "out": "studies\\direction4\\data\\pilot_formation\\summary.json"
+  },
+  "summary": {
+    "random": {
+      "median_realised_proxy": 4.022049486277832e-10,
+      "p10_realised_proxy": 7.877480176451244e-11,
+      "min_separation_m": 43.774921166522205,
+      "max_movement_m": 0.0
+    },
+    "single": {
+      "median_realised_proxy": 2.1275505072797567e-09,
+      "p10_realised_proxy": 2.2547898197562772e-10,
+      "min_separation_m": 51.69896611726983,
+      "max_movement_m": 200.00000000000003
+    },
+    "dual": {
+      "median_realised_proxy": 5.890334505087076e-09,
+      "p10_realised_proxy": 2.911616084996291e-10,
+      "min_separation_m": 46.42591103113591,
+      "max_movement_m": 200.00000000000009
+    },
+    "belief_aware": {
+      "median_realised_proxy": 6.1777164174531186e-09,
+      "p10_realised_proxy": 4.5324615852413817e-10,
+      "min_separation_m": 40.08355688861039,
+      "max_movement_m": 200.0000000000001
+    }
+  },
+  "records": [
+    {
+      "scene": 0,
+      "formation": "random",
+      "predicted_proxy": 5.244345512053441e-11,
+      "realised_proxy": 1.1739352725355965e-10,
+      "per_target": [
+        4.681616178437152e-09,
+        1.745749278795231e-09,
+        1.1739352725355965e-10
+      ],
+      "min_separation_m": 126.85637561938287,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 0,
+      "formation": "single",
+      "predicted_proxy": 3.421547705911799e-10,
+      "realised_proxy": 5.582223833460687e-10,
+      "per_target": [
+        1.76849136889583e-08,
+        5.500028697716194e-09,
+        5.582223833460687e-10
+      ],
+      "min_separation_m": 53.497396211986164,
+      "max_movement_m": 199.99999999999997
+    },
+    {
+      "scene": 0,
+      "formation": "dual",
+      "predicted_proxy": 2.0327308032021183e-10,
+      "realised_proxy": 2.0353921145004534e-10,
+      "per_target": [
+        1.76849136889583e-08,
+        5.500028697716194e-09,
+        2.0353921145004534e-10
+      ],
+      "min_separation_m": 53.497396211986164,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 0,
+      "formation": "belief_aware",
+      "predicted_proxy": 4.046886208618693e-10,
+      "realised_proxy": 6.149137548288831e-10,
+      "per_target": [
+        1.710146725333716e-08,
+        7.78121947643123e-09,
+        6.149137548288831e-10
+      ],
+      "min_separation_m": 122.561344189737,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 1,
+      "formation": "random",
+      "predicted_proxy": 1.937243083841967e-09,
+      "realised_proxy": 2.7346444635193412e-09,
+      "per_target": [
+        2.7346444635193412e-09,
+        4.123460858500722e-09,
+        7.737348419895983e-08
+      ],
+      "min_separation_m": 122.060919205897,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 1,
+      "formation": "single",
+      "predicted_proxy": 9.582836630412536e-09,
+      "realised_proxy": 1.2923074858153643e-08,
+      "per_target": [
+        1.2923074858153643e-08,
+        2.81870460207271e-07,
+        1.8272971226364875e-08
+      ],
+      "min_separation_m": 148.99091147597835,
+      "max_movement_m": 154.02732307703653
+    },
+    {
+      "scene": 1,
+      "formation": "dual",
+      "predicted_proxy": 1.2431309856674902e-08,
+      "realised_proxy": 7.638299185798614e-08,
+      "per_target": [
+        7.638299185798614e-08,
+        2.4364876527306247e-07,
+        1.7199032022698378e-06
+      ],
+      "min_separation_m": 86.05531331710057,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 1,
+      "formation": "belief_aware",
+      "predicted_proxy": 1.2627059940610366e-08,
+      "realised_proxy": 6.09636227501427e-08,
+      "per_target": [
+        6.09636227501427e-08,
+        1.7165036773407418e-07,
+        1.1538199643760339e-07
+      ],
+      "min_separation_m": 110.74666531117886,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 2,
+      "formation": "random",
+      "predicted_proxy": 6.522500273684046e-10,
+      "realised_proxy": 2.390081126941208e-09,
+      "per_target": [
+        2.9900879638405028e-09,
+        7.593595073580205e-09,
+        2.390081126941208e-09
+      ],
+      "min_separation_m": 102.11097594512391,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 2,
+      "formation": "single",
+      "predicted_proxy": 3.914190370278628e-09,
+      "realised_proxy": 3.914190370278628e-09,
+      "per_target": [
+        3.914190370278628e-09,
+        1.875073806796528e-08,
+        5.536944081643329e-08
+      ],
+      "min_separation_m": 102.51279093855165,
+      "max_movement_m": 172.5406337396777
+    },
+    {
+      "scene": 2,
+      "formation": "dual",
+      "predicted_proxy": 7.4450891019185355e-09,
+      "realised_proxy": 7.4450891019185355e-09,
+      "per_target": [
+        7.4450891019185355e-09,
+        2.0817518805594706e-08,
+        6.579721203048307e-08
+      ],
+      "min_separation_m": 174.47997847464728,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 2,
+      "formation": "belief_aware",
+      "predicted_proxy": 1.1226282777391081e-08,
+      "realised_proxy": 1.1226282777391081e-08,
+      "per_target": [
+        1.1226282777391081e-08,
+        1.3488460681820351e-08,
+        2.6016734388979596e-07
+      ],
+      "min_separation_m": 132.38226102096536,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 3,
+      "formation": "random",
+      "predicted_proxy": 9.94758766424438e-10,
+      "realised_proxy": 9.94758766424438e-10,
+      "per_target": [
+        2.997605876914943e-09,
+        9.94758766424438e-10,
+        4.82536240870055e-09
+      ],
+      "min_separation_m": 134.9794885833758,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 3,
+      "formation": "single",
+      "predicted_proxy": 1.224971951710125e-08,
+      "realised_proxy": 1.18042331527824e-09,
+      "per_target": [
+        3.36429380627866e-08,
+        1.6888556343711432e-08,
+        1.18042331527824e-09
+      ],
+      "min_separation_m": 139.43894327115555,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 3,
+      "formation": "dual",
+      "predicted_proxy": 2.2564409534338814e-08,
+      "realised_proxy": 2.143323646381785e-08,
+      "per_target": [
+        3.6891063628053516e-08,
+        4.750791990996956e-08,
+        2.143323646381785e-08
+      ],
+      "min_separation_m": 172.13795104387685,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 3,
+      "formation": "belief_aware",
+      "predicted_proxy": 4.6124993189579386e-08,
+      "realised_proxy": 2.2993407288752983e-08,
+      "per_target": [
+        4.6124993189579386e-08,
+        2.0956431739656957e-07,
+        2.2993407288752983e-08
+      ],
+      "min_separation_m": 64.29540285988283,
+      "max_movement_m": 200.00000000000009
+    },
+    {
+      "scene": 4,
+      "formation": "random",
+      "predicted_proxy": 2.0248598416788946e-10,
+      "realised_proxy": 3.1452324038134735e-10,
+      "per_target": [
+        9.000003292541248e-09,
+        1.7606156670032107e-09,
+        3.1452324038134735e-10
+      ],
+      "min_separation_m": 125.01835104730385,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 4,
+      "formation": "single",
+      "predicted_proxy": 4.953605914715198e-09,
+      "realised_proxy": 1.032031217703556e-08,
+      "per_target": [
+        2.1716142616704062e-08,
+        6.012293021052525e-08,
+        1.032031217703556e-08
+      ],
+      "min_separation_m": 155.15992721273903,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 4,
+      "formation": "dual",
+      "predicted_proxy": 7.131371495225403e-09,
+      "realised_proxy": 1.4698207068335553e-08,
+      "per_target": [
+        2e-08,
+        4.7759045148490145e-08,
+        1.4698207068335553e-08
+      ],
+      "min_separation_m": 176.95397478472793,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 4,
+      "formation": "belief_aware",
+      "predicted_proxy": 1.2838859701272452e-08,
+      "realised_proxy": 8.67256328132796e-09,
+      "per_target": [
+        8.701868659937402e-08,
+        4.883132017659161e-08,
+        8.67256328132796e-09
+      ],
+      "min_separation_m": 128.3596161701212,
+      "max_movement_m": 200.00000000000009
+    },
+    {
+      "scene": 5,
+      "formation": "random",
+      "predicted_proxy": 6.512616100334614e-10,
+      "realised_proxy": 3.469131056341179e-10,
+      "per_target": [
+        2.0501959455118555e-09,
+        1.7070492178091421e-07,
+        3.469131056341179e-10
+      ],
+      "min_separation_m": 77.0214219020715,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 5,
+      "formation": "single",
+      "predicted_proxy": 1.366376011565459e-09,
+      "realised_proxy": 5.737736666806163e-10,
+      "per_target": [
+        1.722913966734928e-08,
+        3.045978649874059e-08,
+        5.737736666806163e-10
+      ],
+      "min_separation_m": 120.6973012224182,
+      "max_movement_m": 158.77099826827094
+    },
+    {
+      "scene": 5,
+      "formation": "dual",
+      "predicted_proxy": 1.4886540770050228e-09,
+      "realised_proxy": 5.631792853130803e-10,
+      "per_target": [
+        2.1883400384716296e-08,
+        2e-08,
+        5.631792853130803e-10
+      ],
+      "min_separation_m": 144.84989038788024,
+      "max_movement_m": 199.99999999999997
+    },
+    {
+      "scene": 5,
+      "formation": "belief_aware",
+      "predicted_proxy": 3.7108967039543517e-09,
+      "realised_proxy": 8.651715160160163e-10,
+      "per_target": [
+        2.9663255578462322e-08,
+        1.4418262865126631e-08,
+        8.651715160160163e-10
+      ],
+      "min_separation_m": 110.55794021862916,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 6,
+      "formation": "random",
+      "predicted_proxy": 6.842751739966098e-11,
+      "realised_proxy": 8.169311394479396e-11,
+      "per_target": [
+        1.9830187463639372e-08,
+        7.166060659862959e-08,
+        8.169311394479396e-11
+      ],
+      "min_separation_m": 150.9599809756607,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 6,
+      "formation": "single",
+      "predicted_proxy": 2.633491379021193e-10,
+      "realised_proxy": 2.283103714611486e-10,
+      "per_target": [
+        2.2404532193312788e-08,
+        5.2208875312797096e-08,
+        2.283103714611486e-10
+      ],
+      "min_separation_m": 108.97758122880022,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 6,
+      "formation": "dual",
+      "predicted_proxy": 4.1229957954145383e-10,
+      "realised_proxy": 3.1820912282835115e-10,
+      "per_target": [
+        8.654338895546154e-08,
+        5.236626357317141e-08,
+        3.1820912282835115e-10
+      ],
+      "min_separation_m": 113.18232961570928,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 6,
+      "formation": "belief_aware",
+      "predicted_proxy": 4.541629518515076e-10,
+      "realised_proxy": 4.802701408346109e-10,
+      "per_target": [
+        9.242901782907701e-07,
+        2.1948692593126085e-07,
+        4.802701408346109e-10
+      ],
+      "min_separation_m": 91.32603113562458,
+      "max_movement_m": 199.99999999999997
+    },
+    {
+      "scene": 7,
+      "formation": "random",
+      "predicted_proxy": 1.861619520151999e-10,
+      "realised_proxy": 1.861619520151999e-10,
+      "per_target": [
+        1.861619520151999e-10,
+        1.3507589686025324e-08,
+        9.391219996381569e-08
+      ],
+      "min_separation_m": 51.69896611726983,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 7,
+      "formation": "single",
+      "predicted_proxy": 2.011369811261774e-09,
+      "realised_proxy": 2.011369811261774e-09,
+      "per_target": [
+        2.011369811261774e-09,
+        1.4695278302485433e-08,
+        9.094585779082123e-09
+      ],
+      "min_separation_m": 51.69896611726983,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 7,
+      "formation": "dual",
+      "predicted_proxy": 1.7956628467844572e-09,
+      "realised_proxy": 1.7956628467844572e-09,
+      "per_target": [
+        1.7956628467844572e-09,
+        1.6493400916975183e-08,
+        8.60760753986174e-09
+      ],
+      "min_separation_m": 87.89897125852464,
+      "max_movement_m": 200.00000000000006
+    },
+    {
+      "scene": 7,
+      "formation": "belief_aware",
+      "predicted_proxy": 7.592256826769242e-09,
+      "realised_proxy": 7.592256826769242e-09,
+      "per_target": [
+        7.592256826769242e-09,
+        2.7702540733102134e-08,
+        2.180493219667405e-08
+      ],
+      "min_separation_m": 54.67408792618422,
+      "max_movement_m": 200.00000000000009
+    },
+    {
+      "scene": 8,
+      "formation": "random",
+      "predicted_proxy": 5.250999214197877e-11,
+      "realised_proxy": 5.250999214197877e-11,
+      "per_target": [
+        2.9906697483022133e-10,
+        5.250999214197877e-11,
+        9.560636698644664e-11
+      ],
+      "min_separation_m": 112.37699855179721,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 8,
+      "formation": "single",
+      "predicted_proxy": 3.0089743039402727e-10,
+      "realised_proxy": 1.9999647660593993e-10,
+      "per_target": [
+        2.1548826348774532e-08,
+        3.0089743039402727e-10,
+        1.9999647660593993e-10
+      ],
+      "min_separation_m": 107.38699127264708,
+      "max_movement_m": 199.99999999999997
+    },
+    {
+      "scene": 8,
+      "formation": "dual",
+      "predicted_proxy": 3.0089743039402727e-10,
+      "realised_proxy": 3.0089743039402727e-10,
+      "per_target": [
+        1.694364278841506e-08,
+        3.0089743039402727e-10,
+        3.033149538122237e-10
+      ],
+      "min_separation_m": 46.42591103113591,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 8,
+      "formation": "belief_aware",
+      "predicted_proxy": 3.3674498977537245e-10,
+      "realised_proxy": 2.6330046872645514e-10,
+      "per_target": [
+        1.0678388104764604e-08,
+        3.3674498977537245e-10,
+        2.6330046872645514e-10
+      ],
+      "min_separation_m": 40.67074519787241,
+      "max_movement_m": 200.0000000000001
+    },
+    {
+      "scene": 9,
+      "formation": "random",
+      "predicted_proxy": 1.1259037130593223e-09,
+      "realised_proxy": 1.1259037130593223e-09,
+      "per_target": [
+        1.1259037130593223e-09,
+        1.9115631816275426e-08,
+        1.1282510333671084e-08
+      ],
+      "min_separation_m": 70.67850737418478,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 9,
+      "formation": "single",
+      "predicted_proxy": 2.0603852313108117e-08,
+      "realised_proxy": 1.7442087077066597e-08,
+      "per_target": [
+        2.6188913396539635e-08,
+        2.0603852313108117e-08,
+        1.7442087077066597e-08
+      ],
+      "min_separation_m": 70.67850737418478,
+      "max_movement_m": 199.99999999999997
+    },
+    {
+      "scene": 9,
+      "formation": "dual",
+      "predicted_proxy": 2e-08,
+      "realised_proxy": 1.6020615828150778e-08,
+      "per_target": [
+        2.1811161461845255e-08,
+        2e-08,
+        1.6020615828150778e-08
+      ],
+      "min_separation_m": 127.67339265627142,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 9,
+      "formation": "belief_aware",
+      "predicted_proxy": 3.176963135641944e-07,
+      "realised_proxy": 4.29356453617671e-08,
+      "per_target": [
+        1.1862430992543813e-06,
+        8.924204406733109e-07,
+        4.29356453617671e-08
+      ],
+      "min_separation_m": 99.91926489085124,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 10,
+      "formation": "random",
+      "predicted_proxy": 1.4622394575251413e-10,
+      "realised_proxy": 1.4622394575251413e-10,
+      "per_target": [
+        1.4622394575251413e-10,
+        1.3798666382286585e-08,
+        1.5618631641980223e-09
+      ],
+      "min_separation_m": 76.75046244986429,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 10,
+      "formation": "single",
+      "predicted_proxy": 1.1176020588638995e-09,
+      "realised_proxy": 1.1176020588638995e-09,
+      "per_target": [
+        1.1176020588638995e-09,
+        2.3533558609109478e-08,
+        1.5618631641980223e-09
+      ],
+      "min_separation_m": 119.178484381473,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 10,
+      "formation": "dual",
+      "predicted_proxy": 1.0394542977951487e-09,
+      "realised_proxy": 1.0394542977951487e-09,
+      "per_target": [
+        1.0394542977951487e-09,
+        2e-08,
+        6.527207058971456e-08
+      ],
+      "min_separation_m": 88.53178912652224,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 10,
+      "formation": "belief_aware",
+      "predicted_proxy": 1.7570123514526847e-09,
+      "realised_proxy": 1.7570123514526847e-09,
+      "per_target": [
+        1.7570123514526847e-09,
+        5.805958214110851e-09,
+        7.633522051186997e-09
+      ],
+      "min_separation_m": 71.39849257261747,
+      "max_movement_m": 200.00000000000009
+    },
+    {
+      "scene": 11,
+      "formation": "random",
+      "predicted_proxy": 2.2340273303761665e-10,
+      "realised_proxy": 1.6784310847213859e-09,
+      "per_target": [
+        3.008504737565486e-08,
+        1.6784310847213859e-09,
+        2.981289828126687e-09
+      ],
+      "min_separation_m": 95.56139436068753,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 11,
+      "formation": "single",
+      "predicted_proxy": 3.6266761753366288e-09,
+      "realised_proxy": 1.2376463128838444e-08,
+      "per_target": [
+        1.2376463128838444e-08,
+        3.663381212023042e-08,
+        1.0143232589547219e-05
+      ],
+      "min_separation_m": 112.93745554475129,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 11,
+      "formation": "dual",
+      "predicted_proxy": 7.677232929048616e-09,
+      "realised_proxy": 1.3422341890800263e-08,
+      "per_target": [
+        3.8668603718320265e-08,
+        1.3422341890800263e-08,
+        8.344691621388266e-06
+      ],
+      "min_separation_m": 76.22178014239248,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 11,
+      "formation": "belief_aware",
+      "predicted_proxy": 7.10080141606836e-09,
+      "realised_proxy": 5.225451610352838e-08,
+      "per_target": [
+        2.831356213108259e-07,
+        1.7233052148460731e-07,
+        5.225451610352838e-08
+      ],
+      "min_separation_m": 137.7754298418587,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 12,
+      "formation": "random",
+      "predicted_proxy": 4.917390382207233e-10,
+      "realised_proxy": 4.917390382207233e-10,
+      "per_target": [
+        3.766907645229992e-09,
+        4.917390382207233e-10,
+        9.4472397235467e-10
+      ],
+      "min_separation_m": 86.4291022921228,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 12,
+      "formation": "single",
+      "predicted_proxy": 1.0216067845835226e-08,
+      "realised_proxy": 8.995529711069097e-09,
+      "per_target": [
+        1.5256945126967254e-07,
+        1.0216067845835226e-08,
+        8.995529711069097e-09
+      ],
+      "min_separation_m": 115.26791919148515,
+      "max_movement_m": 167.18106993920685
+    },
+    {
+      "scene": 12,
+      "formation": "dual",
+      "predicted_proxy": 1.0216067845835226e-08,
+      "realised_proxy": 1.0216067845835226e-08,
+      "per_target": [
+        8.863471494838553e-08,
+        1.0216067845835226e-08,
+        1.3876951491912892e-08
+      ],
+      "min_separation_m": 115.26791919148515,
+      "max_movement_m": 200.00000000000009
+    },
+    {
+      "scene": 12,
+      "formation": "belief_aware",
+      "predicted_proxy": 8.446916404418166e-08,
+      "realised_proxy": 4.485199256007515e-08,
+      "per_target": [
+        3.273688044559213e-07,
+        8.446916404418166e-08,
+        4.485199256007515e-08
+      ],
+      "min_separation_m": 72.20852958272772,
+      "max_movement_m": 200.00000000000009
+    },
+    {
+      "scene": 13,
+      "formation": "random",
+      "predicted_proxy": 4.5499495197866945e-10,
+      "realised_proxy": 4.5499495197866945e-10,
+      "per_target": [
+        4.5499495197866945e-10,
+        2.8506476327790583e-09,
+        3.756770431924896e-09
+      ],
+      "min_separation_m": 137.43591396018456,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 13,
+      "formation": "single",
+      "predicted_proxy": 2.24373120329774e-09,
+      "realised_proxy": 2.24373120329774e-09,
+      "per_target": [
+        2.24373120329774e-09,
+        2.1233536728484414e-08,
+        3.297747063235466e-09
+      ],
+      "min_separation_m": 138.21227854488066,
+      "max_movement_m": 121.84364287886291
+    },
+    {
+      "scene": 13,
+      "formation": "dual",
+      "predicted_proxy": 5.168090572336774e-09,
+      "realised_proxy": 5.168090572336774e-09,
+      "per_target": [
+        5.168090572336774e-09,
+        2.4390158921832554e-08,
+        5.725195612443701e-08
+      ],
+      "min_separation_m": 152.82084200215306,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 13,
+      "formation": "belief_aware",
+      "predicted_proxy": 4.763176008136994e-09,
+      "realised_proxy": 4.763176008136994e-09,
+      "per_target": [
+        4.763176008136994e-09,
+        7.931915711110443e-09,
+        4.050031901771679e-08
+      ],
+      "min_separation_m": 114.84508046637279,
+      "max_movement_m": 200.00000000000009
+    },
+    {
+      "scene": 14,
+      "formation": "random",
+      "predicted_proxy": 2.2266641024519407e-10,
+      "realised_proxy": 2.2266641024519407e-10,
+      "per_target": [
+        2.9341492628434244e-10,
+        2.2266641024519407e-10,
+        4.247847536156578e-10
+      ],
+      "min_separation_m": 105.99054795031059,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 14,
+      "formation": "single",
+      "predicted_proxy": 5.669576645313729e-10,
+      "realised_proxy": 2.67660432437363e-10,
+      "per_target": [
+        3.8464502239553366e-08,
+        4.441029354183851e-09,
+        2.67660432437363e-10
+      ],
+      "min_separation_m": 145.1348945774962,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 14,
+      "formation": "dual",
+      "predicted_proxy": 5.508706685992803e-10,
+      "realised_proxy": 5.136572764472471e-10,
+      "per_target": [
+        1.9315203442156118e-08,
+        4.895649661136332e-09,
+        5.136572764472471e-10
+      ],
+      "min_separation_m": 128.0747803595095,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 14,
+      "formation": "belief_aware",
+      "predicted_proxy": 7.901266182254186e-10,
+      "realised_proxy": 4.70813896242515e-10,
+      "per_target": [
+        5.994361437603083e-09,
+        1.9024432018751416e-09,
+        4.70813896242515e-10
+      ],
+      "min_separation_m": 107.37327267617307,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 15,
+      "formation": "random",
+      "predicted_proxy": 7.15451499269962e-10,
+      "realised_proxy": 9.106336997252745e-10,
+      "per_target": [
+        1.9338648102863505e-08,
+        9.106336997252745e-10,
+        2.8809312240452266e-09
+      ],
+      "min_separation_m": 60.40751659342287,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 15,
+      "formation": "single",
+      "predicted_proxy": 9.79862811723359e-09,
+      "realised_proxy": 1.1629719006215469e-08,
+      "per_target": [
+        1.931517704409811e-08,
+        1.1629719006215469e-08,
+        1.2556654061402686e-08
+      ],
+      "min_separation_m": 71.00570500755683,
+      "max_movement_m": 196.0133104877317
+    },
+    {
+      "scene": 15,
+      "formation": "dual",
+      "predicted_proxy": 1.2397956070930063e-08,
+      "realised_proxy": 1.2397956070930063e-08,
+      "per_target": [
+        2e-08,
+        1.2397956070930063e-08,
+        8.914801156692925e-08
+      ],
+      "min_separation_m": 127.02960951351304,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 15,
+      "formation": "belief_aware",
+      "predicted_proxy": 1.4801071384413097e-08,
+      "realised_proxy": 1.4801071384413097e-08,
+      "per_target": [
+        1.4801071384413097e-08,
+        1.5552961220713176e-08,
+        4.3371825042151556e-08
+      ],
+      "min_separation_m": 160.65930016870288,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 16,
+      "formation": "random",
+      "predicted_proxy": 4.050628587357273e-11,
+      "realised_proxy": 4.050628587357273e-11,
+      "per_target": [
+        4.050628587357273e-11,
+        1.3098134897467783e-08,
+        5.004718520825594e-10
+      ],
+      "min_separation_m": 100.59209373700155,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 16,
+      "formation": "single",
+      "predicted_proxy": 1.2895080839395878e-10,
+      "realised_proxy": 1.2895080839395878e-10,
+      "per_target": [
+        1.2895080839395878e-10,
+        1.982272641834009e-08,
+        7.974380903226896e-10
+      ],
+      "min_separation_m": 120.77999643877214,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 16,
+      "formation": "dual",
+      "predicted_proxy": 2.015914468367518e-10,
+      "realised_proxy": 2.015914468367518e-10,
+      "per_target": [
+        2.015914468367518e-10,
+        2.567638307161679e-08,
+        1.059755187192143e-08
+      ],
+      "min_separation_m": 141.4502572205657,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 16,
+      "formation": "belief_aware",
+      "predicted_proxy": 2.95136519058747e-10,
+      "realised_proxy": 2.95136519058747e-10,
+      "per_target": [
+        2.95136519058747e-10,
+        2.6154241404233366e-08,
+        4.979072011685079e-10
+      ],
+      "min_separation_m": 92.5021220435487,
+      "max_movement_m": 200.00000000000006
+    },
+    {
+      "scene": 17,
+      "formation": "random",
+      "predicted_proxy": 3.4941494527689694e-10,
+      "realised_proxy": 3.4941494527689694e-10,
+      "per_target": [
+        3.4941494527689694e-10,
+        1.2085746689314627e-07,
+        1.5849778162067166e-09
+      ],
+      "min_separation_m": 93.64125706338103,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 17,
+      "formation": "single",
+      "predicted_proxy": 9.378901464976482e-09,
+      "realised_proxy": 9.378901464976482e-09,
+      "per_target": [
+        9.378901464976482e-09,
+        1.8030168982701193e-08,
+        1.3324640961020884e-07
+      ],
+      "min_separation_m": 93.64125706338103,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 17,
+      "formation": "dual",
+      "predicted_proxy": 1.1374462988223225e-08,
+      "realised_proxy": 1.1374462988223225e-08,
+      "per_target": [
+        1.1374462988223225e-08,
+        2.073908257898621e-07,
+        9.095504348739121e-08
+      ],
+      "min_separation_m": 143.10150472800316,
+      "max_movement_m": 200.00000000000006
+    },
+    {
+      "scene": 17,
+      "formation": "belief_aware",
+      "predicted_proxy": 1.7496696153793668e-08,
+      "realised_proxy": 1.4601840691878879e-09,
+      "per_target": [
+        1.7496696153793668e-08,
+        2.7051759740576945e-08,
+        1.4601840691878879e-09
+      ],
+      "min_separation_m": 83.9731195925793,
+      "max_movement_m": 200.00000000000006
+    },
+    {
+      "scene": 18,
+      "formation": "random",
+      "predicted_proxy": 5.899160940837735e-10,
+      "realised_proxy": 5.899160940837735e-10,
+      "per_target": [
+        1.2051587322051631e-08,
+        5.899160940837735e-10,
+        1.0746884866336295e-08
+      ],
+      "min_separation_m": 43.774921166522205,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 18,
+      "formation": "single",
+      "predicted_proxy": 1.5327644430391241e-09,
+      "realised_proxy": 1.5327644430391241e-09,
+      "per_target": [
+        9.154973215208478e-09,
+        1.5327644430391241e-09,
+        8.566291880327689e-09
+      ],
+      "min_separation_m": 145.036250132982,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 18,
+      "formation": "dual",
+      "predicted_proxy": 1.5327644430391241e-09,
+      "realised_proxy": 1.5327644430391241e-09,
+      "per_target": [
+        1.848715390655409e-08,
+        1.5327644430391241e-09,
+        8.320943597773188e-09
+      ],
+      "min_separation_m": 96.94726898981376,
+      "max_movement_m": 200.00000000000006
+    },
+    {
+      "scene": 18,
+      "formation": "belief_aware",
+      "predicted_proxy": 2.4922441651193344e-09,
+      "realised_proxy": 2.4922441651193344e-09,
+      "per_target": [
+        5.2410706016611e-09,
+        2.4922441651193344e-09,
+        3.2958716959207016e-09
+      ],
+      "min_separation_m": 107.57539430246732,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 19,
+      "formation": "random",
+      "predicted_proxy": 1.792392577564271e-10,
+      "realised_proxy": 5.999412459557993e-10,
+      "per_target": [
+        2.153222969142848e-09,
+        1.315660743109381e-09,
+        5.999412459557993e-10
+      ],
+      "min_separation_m": 80.6796015316174,
+      "max_movement_m": 0.0
+    },
+    {
+      "scene": 19,
+      "formation": "single",
+      "predicted_proxy": 2.4702860249066557e-09,
+      "realised_proxy": 6.796972722304162e-09,
+      "per_target": [
+        1.0704997791287397e-07,
+        8.896727755276984e-09,
+        6.796972722304162e-09
+      ],
+      "min_separation_m": 99.77824591798363,
+      "max_movement_m": 200.00000000000003
+    },
+    {
+      "scene": 19,
+      "formation": "dual",
+      "predicted_proxy": 5.198785588093063e-09,
+      "realised_proxy": 6.6125784378373785e-09,
+      "per_target": [
+        3.446438404073018e-08,
+        7.343060899704946e-09,
+        6.6125784378373785e-09
+      ],
+      "min_separation_m": 88.57810321040634,
+      "max_movement_m": 200.0
+    },
+    {
+      "scene": 19,
+      "formation": "belief_aware",
+      "predicted_proxy": 8.893622829553478e-09,
+      "realised_proxy": 1.1260103150466472e-08,
+      "per_target": [
+        2.6664643866364906e-07,
+        1.1260103150466472e-08,
+        1.5689973127138777e-08
+      ],
+      "min_separation_m": 40.08355688861039,
+      "max_movement_m": 200.00000000000006
+    }
+  ],
+  "warning": "screening proxy only; full receiver-chain validation required"
+}

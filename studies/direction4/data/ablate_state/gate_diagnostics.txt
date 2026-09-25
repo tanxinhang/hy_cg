@@ -1,0 +1,41 @@
+scene solver              err        J0    J_best     gain      gap sup bnd
+    0 coarse_to_fine/A   342.9       nan     47.63      nan      nan   0   .
+    0 coarse_to_fine/B    74.4       nan     76.48      nan      nan   0   .
+    0 gated_topk/A       16.7     44.73     52.47     7.74     3.68   4   .
+    0 gated_topk/B       36.8     62.39     77.66    15.27     0.00   4   .
+      (先验不动)            150.0
+    7 coarse_to_fine/A   117.0       nan   1048.76      nan      nan   0   .
+    7 coarse_to_fine/B     5.6       nan   2241.46      nan      nan   0   .
+    7 gated_topk/A        5.6     95.56   2327.27  2231.71  1224.83   6   .
+    7 gated_topk/B        5.6     92.77   2241.46  2148.68  1444.72   6   .
+      (先验不动)            150.0
+    8 coarse_to_fine/A    82.2       nan     49.02      nan      nan   0   .
+    8 coarse_to_fine/B   168.5       nan     41.83      nan      nan   0   .
+    8 gated_topk/A      120.5     26.69     49.65    22.96     0.00   5   .
+    8 gated_topk/B       72.0     29.90     43.11    13.21     1.62   5   .
+      (先验不动)            150.0
+   14 coarse_to_fine/A     6.0       nan     85.48      nan      nan   0   .
+   14 coarse_to_fine/B   359.6       nan     56.71      nan      nan   0   .
+   14 gated_topk/A        6.0     34.54     85.48    50.95     0.00   6   .
+   14 gated_topk/B       25.5     36.75     59.26    22.50     1.62   5   .
+      (先验不动)            150.0
+   19 coarse_to_fine/A    52.2       nan     51.78      nan      nan   0   .
+   19 coarse_to_fine/B    33.5       nan     93.37      nan      nan   0   .
+   19 gated_topk/A      400.8     30.94     51.89    20.95     0.12   5   Y
+   19 gated_topk/B       33.5     29.11     93.37    64.26     5.09   6   .
+      (先验不动)            150.0
+   34 coarse_to_fine/A   377.4       nan     46.80      nan      nan   0   .
+   34 coarse_to_fine/B   329.3       nan     43.41      nan      nan   0   .
+   34 gated_topk/A      370.2     26.49     46.96    20.47     5.29   6   Y
+   34 gated_topk/B      601.6     31.51     44.17    12.66     0.76   4   Y
+      (先验不动)            150.0
+   38 coarse_to_fine/A   428.7       nan     46.86      nan      nan   0   .
+   38 coarse_to_fine/B   139.7       nan     43.56      nan      nan   0   .
+   38 gated_topk/A       23.4     31.84     47.39    15.55     0.00   4   .
+   38 gated_topk/B      139.7     34.54     43.56     9.02     0.41   5   .
+      (先验不动)            150.0
+   40 coarse_to_fine/A   151.3       nan     50.27      nan      nan   0   .
+   40 coarse_to_fine/B    85.6       nan     67.94      nan      nan   0   .
+   40 gated_topk/A      160.6     47.84     50.29     2.44     0.34   3   .
+   40 gated_topk/B       85.6     33.21     67.94    34.73     0.70   5   .
+      (先验不动)            150.0

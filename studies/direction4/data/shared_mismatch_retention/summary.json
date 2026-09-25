@@ -1,0 +1,290 @@
+{
+  "protocol": {
+    "scenes": 12,
+    "radii_m": [
+      0.0,
+      50.0,
+      150.0,
+      250.0,
+      400.0
+    ],
+    "prior_sigma_m": 150.0,
+    "target": 2,
+    "receivers": 6,
+    "min_uav_separation_m": 20.0,
+    "metric": "truth-energy-weighted subspace retention",
+    "scope": "mechanism diagnostic; not a detection-performance claim"
+  },
+  "summary": [
+    {
+      "error_radius_m": 0.0,
+      "normalized_error": 0.0,
+      "receiver_count": 1,
+      "retention_mean": 0.9999999999999997,
+      "retention_ci95_low": 0.9999999999999991,
+      "retention_ci95_high": 1.0,
+      "mean_subset_sd": 4.733220403224334e-16
+    },
+    {
+      "error_radius_m": 0.0,
+      "normalized_error": 0.0,
+      "receiver_count": 2,
+      "retention_mean": 0.9999999999999997,
+      "retention_ci95_low": 0.9999999999999994,
+      "retention_ci95_high": 1.0,
+      "mean_subset_sd": 3.3086247886189747e-16
+    },
+    {
+      "error_radius_m": 0.0,
+      "normalized_error": 0.0,
+      "receiver_count": 3,
+      "retention_mean": 0.9999999999999999,
+      "retention_ci95_low": 0.9999999999999996,
+      "retention_ci95_high": 1.0,
+      "mean_subset_sd": 2.3856208397365177e-16
+    },
+    {
+      "error_radius_m": 0.0,
+      "normalized_error": 0.0,
+      "receiver_count": 4,
+      "retention_mean": 0.9999999999999999,
+      "retention_ci95_low": 0.9999999999999994,
+      "retention_ci95_high": 1.0,
+      "mean_subset_sd": 1.9751544754850492e-16
+    },
+    {
+      "error_radius_m": 0.0,
+      "normalized_error": 0.0,
+      "receiver_count": 5,
+      "retention_mean": 0.9999999999999997,
+      "retention_ci95_low": 0.9999999999999994,
+      "retention_ci95_high": 1.0,
+      "mean_subset_sd": 1.451963346470583e-16
+    },
+    {
+      "error_radius_m": 0.0,
+      "normalized_error": 0.0,
+      "receiver_count": 6,
+      "retention_mean": 0.9999999999999997,
+      "retention_ci95_low": 0.9999999999999994,
+      "retention_ci95_high": 1.0,
+      "mean_subset_sd": 0.0
+    },
+    {
+      "error_radius_m": 50.0,
+      "normalized_error": 0.3333333333333333,
+      "receiver_count": 1,
+      "retention_mean": 0.7509293841817355,
+      "retention_ci95_low": 0.29821265472022374,
+      "retention_ci95_high": 0.9688954416736397,
+      "mean_subset_sd": 0.08665478734765152
+    },
+    {
+      "error_radius_m": 50.0,
+      "normalized_error": 0.3333333333333333,
+      "receiver_count": 2,
+      "retention_mean": 0.7337063117193207,
+      "retention_ci95_low": 0.256606219714809,
+      "retention_ci95_high": 0.9682005980217775,
+      "mean_subset_sd": 0.0712391755708497
+    },
+    {
+      "error_radius_m": 50.0,
+      "normalized_error": 0.3333333333333333,
+      "receiver_count": 3,
+      "retention_mean": 0.7253852098478243,
+      "retention_ci95_low": 0.23436626581599274,
+      "retention_ci95_high": 0.9679430113135208,
+      "mean_subset_sd": 0.05531342109771739
+    },
+    {
+      "error_radius_m": 50.0,
+      "normalized_error": 0.3333333333333333,
+      "receiver_count": 4,
+      "retention_mean": 0.7207049080102633,
+      "retention_ci95_low": 0.22180369501804584,
+      "retention_ci95_high": 0.9678096859126235,
+      "mean_subset_sd": 0.04052763991809249
+    },
+    {
+      "error_radius_m": 50.0,
+      "normalized_error": 0.3333333333333333,
+      "receiver_count": 5,
+      "retention_mean": 0.7178661100000313,
+      "retention_ci95_low": 0.21461189637684663,
+      "retention_ci95_high": 0.9677282929971707,
+      "mean_subset_sd": 0.025803354485600533
+    },
+    {
+      "error_radius_m": 50.0,
+      "normalized_error": 0.3333333333333333,
+      "receiver_count": 6,
+      "retention_mean": 0.7160667838803988,
+      "retention_ci95_low": 0.21056078005086687,
+      "retention_ci95_high": 0.9676734337784907,
+      "mean_subset_sd": 0.0
+    },
+    {
+      "error_radius_m": 150.0,
+      "normalized_error": 1.0,
+      "receiver_count": 1,
+      "retention_mean": 0.267136617426403,
+      "retention_ci95_low": 0.04441642595330327,
+      "retention_ci95_high": 0.7506090763157843,
+      "mean_subset_sd": 0.0864368728216041
+    },
+    {
+      "error_radius_m": 150.0,
+      "normalized_error": 1.0,
+      "receiver_count": 2,
+      "retention_mean": 0.257208770420307,
+      "retention_ci95_low": 0.04199856500644323,
+      "retention_ci95_high": 0.7466881004545869,
+      "mean_subset_sd": 0.06061783861356407
+    },
+    {
+      "error_radius_m": 150.0,
+      "normalized_error": 1.0,
+      "receiver_count": 3,
+      "retention_mean": 0.25325001135086195,
+      "retention_ci95_low": 0.04104054136132116,
+      "retention_ci95_high": 0.7457293309349224,
+      "mean_subset_sd": 0.044658404180601546
+    },
+    {
+      "error_radius_m": 150.0,
+      "normalized_error": 1.0,
+      "receiver_count": 4,
+      "retention_mean": 0.25111299522144526,
+      "retention_ci95_low": 0.040464033427757826,
+      "retention_ci95_high": 0.745360238893707,
+      "mean_subset_sd": 0.032366004131443214
+    },
+    {
+      "error_radius_m": 150.0,
+      "normalized_error": 1.0,
+      "receiver_count": 5,
+      "retention_mean": 0.2497666821571597,
+      "retention_ci95_low": 0.0400343845740805,
+      "retention_ci95_high": 0.7451767657287629,
+      "mean_subset_sd": 0.02085532253782474
+    },
+    {
+      "error_radius_m": 150.0,
+      "normalized_error": 1.0,
+      "receiver_count": 6,
+      "retention_mean": 0.2488301130382521,
+      "retention_ci95_low": 0.039676347932345056,
+      "retention_ci95_high": 0.7450705667241522,
+      "mean_subset_sd": 0.0
+    },
+    {
+      "error_radius_m": 250.0,
+      "normalized_error": 1.6666666666666667,
+      "receiver_count": 1,
+      "retention_mean": 0.10123543850476142,
+      "retention_ci95_low": 0.012829833326135555,
+      "retention_ci95_high": 0.49123747239400395,
+      "mean_subset_sd": 0.04726433286826315
+    },
+    {
+      "error_radius_m": 250.0,
+      "normalized_error": 1.6666666666666667,
+      "receiver_count": 2,
+      "retention_mean": 0.09841027207792515,
+      "retention_ci95_low": 0.014574677348200334,
+      "retention_ci95_high": 0.48009186558119554,
+      "mean_subset_sd": 0.031220909916900005
+    },
+    {
+      "error_radius_m": 250.0,
+      "normalized_error": 1.6666666666666667,
+      "receiver_count": 3,
+      "retention_mean": 0.09764090712939129,
+      "retention_ci95_low": 0.015134111369175052,
+      "retention_ci95_high": 0.47649570720166945,
+      "mean_subset_sd": 0.02252446707009935
+    },
+    {
+      "error_radius_m": 250.0,
+      "normalized_error": 1.6666666666666667,
+      "receiver_count": 4,
+      "retention_mean": 0.09724202450342795,
+      "retention_ci95_low": 0.015196649612495618,
+      "retention_ci95_high": 0.4747809773376891,
+      "mean_subset_sd": 0.016134945963304267
+    },
+    {
+      "error_radius_m": 250.0,
+      "normalized_error": 1.6666666666666667,
+      "receiver_count": 5,
+      "retention_mean": 0.09696490835224336,
+      "retention_ci95_low": 0.015168758897714043,
+      "retention_ci95_high": 0.4737840069944344,
+      "mean_subset_sd": 0.010298182406534889
+    },
+    {
+      "error_radius_m": 250.0,
+      "normalized_error": 1.6666666666666667,
+      "receiver_count": 6,
+      "retention_mean": 0.09674612599672094,
+      "retention_ci95_low": 0.015093772724886892,
+      "retention_ci95_high": 0.4731331080957948,
+      "mean_subset_sd": 0.0
+    },
+    {
+      "error_radius_m": 400.0,
+      "normalized_error": 2.6666666666666665,
+      "receiver_count": 1,
+      "retention_mean": 0.038211556788384816,
+      "retention_ci95_low": 0.0016198236067981604,
+      "retention_ci95_high": 0.18419956384806885,
+      "mean_subset_sd": 0.025291653886336796
+    },
+    {
+      "error_radius_m": 400.0,
+      "normalized_error": 2.6666666666666665,
+      "receiver_count": 2,
+      "retention_mean": 0.03840482652075761,
+      "retention_ci95_low": 0.0014467330090697243,
+      "retention_ci95_high": 0.17744786530461046,
+      "mean_subset_sd": 0.01757222005591651
+    },
+    {
+      "error_radius_m": 400.0,
+      "normalized_error": 2.6666666666666665,
+      "receiver_count": 3,
+      "retention_mean": 0.038591502867258855,
+      "retention_ci95_low": 0.001360136736654582,
+      "retention_ci95_high": 0.1753583575378534,
+      "mean_subset_sd": 0.01289858228113057
+    },
+    {
+      "error_radius_m": 400.0,
+      "normalized_error": 2.6666666666666665,
+      "receiver_count": 4,
+      "retention_mean": 0.03867394449875012,
+      "retention_ci95_low": 0.001310532479175227,
+      "retention_ci95_high": 0.1743947609231073,
+      "mean_subset_sd": 0.009278714305423378
+    },
+    {
+      "error_radius_m": 400.0,
+      "normalized_error": 2.6666666666666665,
+      "receiver_count": 5,
+      "retention_mean": 0.038699210013775194,
+      "retention_ci95_low": 0.001279418125514162,
+      "retention_ci95_high": 0.17384908383079245,
+      "mean_subset_sd": 0.005918426356812399
+    },
+    {
+      "error_radius_m": 400.0,
+      "normalized_error": 2.6666666666666665,
+      "receiver_count": 6,
+      "retention_mean": 0.03869593738800705,
+      "retention_ci95_low": 0.0012583875935729026,
+      "retention_ci95_high": 0.17349981433366293,
+      "mean_subset_sd": 0.0
+    }
+  ]
+}

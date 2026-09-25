@@ -16,6 +16,11 @@ def check_scenario(cfg: Config) -> None:
         raise ValueError("scale.M must be at least two")
     if cfg.scale.Q < 1:
         raise ValueError("scale.Q must be at least one")
+    if (not math.isfinite(cfg.geometry.min_uav_separation_m)
+            or cfg.geometry.min_uav_separation_m < 0.0):
+        raise ValueError(
+            "geometry.min_uav_separation_m must be finite and non-negative"
+        )
     if cfg.run.num_mc < 1:
         raise ValueError("run.num_mc must be at least one")
     if not math.isfinite(cfg.detect.Pfa_target) or not 0.0 < cfg.detect.Pfa_target < 1.0:

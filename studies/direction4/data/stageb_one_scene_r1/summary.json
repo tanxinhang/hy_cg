@@ -1,0 +1,152 @@
+{
+  "protocol": {
+    "scene": 0,
+    "error_m": 150.0,
+    "normalized_error": 1.0,
+    "arms": [
+      "nominal",
+      "wls_map",
+      "local_crossfit",
+      "shared_crossfit",
+      "oracle"
+    ],
+    "shared_solver": "coarse_to_fine",
+    "minimum_uav_separation_constraint_m": 20.0,
+    "scope": "one-row compute smoke; no calibrated P_D claim"
+  },
+  "audit": {
+    "runtime_s": 406.2254492000211,
+    "minimum_uav_separation_m": 126.85637561938287,
+    "shared_state_error_mean_m": 208.66306759320892,
+    "wls_state_error_mean_m": 111.46791053275464,
+    "missing_fields": [],
+    "gates": {
+      "schema_complete": true,
+      "minimum_separation_ge_20m": true,
+      "shared_state_moves_toward_truth": false,
+      "finite_runtime": true
+    },
+    "passed": false
+  },
+  "row": {
+    "split": "train",
+    "scene_id": 0,
+    "error_radius_m": 150.0,
+    "error_angle_rad": 4.57284853378179,
+    "true_delta_x_m": 20.863206420048527,
+    "true_delta_y_m": 148.5420028741852,
+    "nominal_h1": 135.80810159610184,
+    "wls_map_h1": 132.08706063692534,
+    "local_crossfit_h1": 116.98159167567312,
+    "shared_crossfit_h1": 87.39792349365773,
+    "oracle_h1": 142.0014956999963,
+    "estimated_delta_a_x": -309.375,
+    "estimated_delta_a_y": 56.25,
+    "estimated_delta_b_x": 9.375,
+    "estimated_delta_b_y": 75.0,
+    "state_error_a_m": 342.89223784457295,
+    "state_error_b_m": 74.43389734184491,
+    "objective_a": 47.634132894465424,
+    "objective_b": 76.47810448264447,
+    "wls_state_error_a_m": 126.05941326634668,
+    "wls_state_error_b_m": 96.87640779916262,
+    "nominal_h0": 61.43424539565617,
+    "wls_map_h0": 68.68863463760702,
+    "local_crossfit_h0": 67.43505663323742,
+    "shared_crossfit_h0": 59.5200790543183,
+    "oracle_h0": 61.774541985302754,
+    "runtime_s": 406.2254492000211
+  },
+  "diagnosis": [
+    {
+      "fold": "A",
+      "objective_zero": 44.73371686096742,
+      "objective_truth": 48.954694865081905,
+      "objective_selected": 47.634132894465424,
+      "nearest_truth_coarse_point": [
+        0.0,
+        150.0
+      ],
+      "nearest_truth_coarse_objective": 39.09575341987729,
+      "nearest_truth_coarse_rank": 11,
+      "nearest_truth_in_top3_nms": false,
+      "wls_seed": [
+        -1.6694090953381568,
+        24.512744587717403
+      ],
+      "wls_seed_error_m": 126.05941326634668,
+      "wls_refined": [
+        -104.79440909533815,
+        146.3877445877174
+      ],
+      "wls_refined_objective": 45.21707740521178,
+      "wls_refined_error_m": 125.67608032468853,
+      "dense_step_m": 37.5,
+      "dense_candidate_count": 625,
+      "dense_best": [
+        37.5,
+        150.0
+      ],
+      "dense_best_objective": 52.47284267013465,
+      "dense_best_error_m": 16.700558560742774,
+      "dense_gain_over_zero": 7.739125809167234,
+      "dense_peak_gap": 3.1174336727957837,
+      "dense_receiver_support": 4,
+      "dense_boundary_hit": false,
+      "classification": "search_missed_better_truth_peak",
+      "dense_cross_fold_distance_m": 37.5,
+      "provisional_gate_inputs_only": {
+        "positive_gain": true,
+        "majority_receiver_support": true,
+        "not_boundary": true,
+        "cross_fold_distance_le_prior_sigma": true
+      },
+      "provisional_gate_accepts": true
+    },
+    {
+      "fold": "B",
+      "objective_zero": 62.38874193672062,
+      "objective_truth": 72.16604182793469,
+      "objective_selected": 76.47810448264447,
+      "nearest_truth_coarse_point": [
+        0.0,
+        150.0
+      ],
+      "nearest_truth_coarse_objective": 64.87590615101514,
+      "nearest_truth_coarse_rank": 3,
+      "nearest_truth_in_top3_nms": true,
+      "wls_seed": [
+        -14.850055340684154,
+        58.488677991207965
+      ],
+      "wls_seed_error_m": 96.87640779916262,
+      "wls_refined": [
+        32.02494465931585,
+        114.73867799120796
+      ],
+      "wls_refined_objective": 77.59763332224199,
+      "wls_refined_error_m": 35.59844341633535,
+      "dense_step_m": 37.5,
+      "dense_candidate_count": 625,
+      "dense_best": [
+        37.5,
+        112.5
+      ],
+      "dense_best_objective": 76.98044686377531,
+      "dense_best_error_m": 39.69645918472689,
+      "dense_gain_over_zero": 14.591704927054693,
+      "dense_peak_gap": 8.755313887162188,
+      "dense_receiver_support": 4,
+      "dense_boundary_hit": false,
+      "classification": "objective_prefers_false_peak",
+      "dense_cross_fold_distance_m": 37.5,
+      "provisional_gate_inputs_only": {
+        "positive_gain": true,
+        "majority_receiver_support": true,
+        "not_boundary": true,
+        "cross_fold_distance_le_prior_sigma": true
+      },
+      "provisional_gate_accepts": true
+    }
+  ]
+}

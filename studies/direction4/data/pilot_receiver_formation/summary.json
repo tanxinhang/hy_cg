@@ -1,0 +1,23 @@
+{
+  "protocol": {
+    "scenes": [0, 1, 2],
+    "targets": [0, 1, 2],
+    "target_2_belief_error_m": 150.0,
+    "min_uav_separation_m": 20.0,
+    "max_movement_m": 200.0,
+    "metric": "sum of six receiver TP-UIC target-neighbourhood ncp_unit",
+    "note": "paired receiver-chain pilot; not a calibrated P_D experiment"
+  },
+  "worst_target_ncp": {
+    "random": [31.179, 210.204, 238.183],
+    "single": [52.179, 519.248, 247.779],
+    "dual": [64.843, 1594.910, 394.135],
+    "belief_aware": [97.397, 284.946, 624.937]
+  },
+  "median_worst_target_ncp": {
+    "random": 210.204,
+    "single": 247.779,
+    "dual": 394.135,
+    "belief_aware": 284.946
+  }
+}

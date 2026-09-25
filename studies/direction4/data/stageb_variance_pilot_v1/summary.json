@@ -1,0 +1,134 @@
+{
+  "scope": "variance pilot only; no calibrated P_D claim",
+  "frozen_gate": "studies\\direction4\\data\\stageb_gate_calibration_r0_exact\\frozen_gate.json",
+  "radii_m": [
+    0.0,
+    50.0,
+    150.0,
+    250.0
+  ],
+  "start_scene": 8,
+  "requested_scenes": 8,
+  "summary": {
+    "0.0": {
+      "n": 8,
+      "nominal": {
+        "median_h1_minus_h0": 531.1980533816709,
+        "positive_margin_rate": 1.0
+      },
+      "wls_map": {
+        "median_h1_minus_h0": 529.3327146982547,
+        "positive_margin_rate": 1.0,
+        "median_state_error_m": 5.775278408464924,
+        "improvement_rate_over_nominal": 0.0
+      },
+      "local_crossfit": {
+        "median_h1_minus_h0": 517.6840218107423,
+        "positive_margin_rate": 1.0
+      },
+      "shared_crossfit": {
+        "median_h1_minus_h0": 531.1980533816709,
+        "positive_margin_rate": 1.0,
+        "median_state_error_m": 0.0,
+        "improvement_rate_over_nominal": 1.0,
+        "gate_accept_rate": 0.0
+      },
+      "oracle": {
+        "median_h1_minus_h0": 531.1980533816709,
+        "positive_margin_rate": 1.0
+      },
+      "median_runtime_s": 525.7897453000769,
+      "minimum_uav_separation_m": 60.40751659342287
+    },
+    "50.0": {
+      "n": 8,
+      "nominal": {
+        "median_h1_minus_h0": 360.0660060149782,
+        "positive_margin_rate": 1.0
+      },
+      "wls_map": {
+        "median_h1_minus_h0": 395.96931065469755,
+        "positive_margin_rate": 1.0,
+        "median_state_error_m": 46.63330645690766,
+        "improvement_rate_over_nominal": 0.625
+      },
+      "local_crossfit": {
+        "median_h1_minus_h0": 468.79973472553627,
+        "positive_margin_rate": 1.0
+      },
+      "shared_crossfit": {
+        "median_h1_minus_h0": 522.7507847889913,
+        "positive_margin_rate": 1.0,
+        "median_state_error_m": 10.347134717501806,
+        "improvement_rate_over_nominal": 0.875,
+        "gate_accept_rate": 0.75
+      },
+      "oracle": {
+        "median_h1_minus_h0": 531.1980533816709,
+        "positive_margin_rate": 1.0
+      },
+      "median_runtime_s": 525.2103647500044,
+      "minimum_uav_separation_m": 60.40751659342287
+    },
+    "150.0": {
+      "n": 8,
+      "nominal": {
+        "median_h1_minus_h0": 23.511821617748886,
+        "positive_margin_rate": 1.0
+      },
+      "wls_map": {
+        "median_h1_minus_h0": 28.15897010037711,
+        "positive_margin_rate": 1.0,
+        "median_state_error_m": 147.02186947511615,
+        "improvement_rate_over_nominal": 0.875
+      },
+      "local_crossfit": {
+        "median_h1_minus_h0": 508.698301040013,
+        "positive_margin_rate": 1.0
+      },
+      "shared_crossfit": {
+        "median_h1_minus_h0": 527.7781298161616,
+        "positive_margin_rate": 1.0,
+        "median_state_error_m": 6.659316671279058,
+        "improvement_rate_over_nominal": 0.875,
+        "gate_accept_rate": 0.75
+      },
+      "oracle": {
+        "median_h1_minus_h0": 531.1980533816703,
+        "positive_margin_rate": 1.0
+      },
+      "median_runtime_s": 518.3757604000857,
+      "minimum_uav_separation_m": 60.40751659342287
+    },
+    "250.0": {
+      "n": 8,
+      "nominal": {
+        "median_h1_minus_h0": 5.6416950178099725,
+        "positive_margin_rate": 0.75
+      },
+      "wls_map": {
+        "median_h1_minus_h0": 10.031311531630685,
+        "positive_margin_rate": 0.75,
+        "median_state_error_m": 246.6695988871209,
+        "improvement_rate_over_nominal": 0.5
+      },
+      "local_crossfit": {
+        "median_h1_minus_h0": 502.6591464386949,
+        "positive_margin_rate": 0.875
+      },
+      "shared_crossfit": {
+        "median_h1_minus_h0": 523.2374013855078,
+        "positive_margin_rate": 1.0,
+        "median_state_error_m": 8.458944518046872,
+        "improvement_rate_over_nominal": 0.875,
+        "gate_accept_rate": 0.875
+      },
+      "oracle": {
+        "median_h1_minus_h0": 531.1980533816543,
+        "positive_margin_rate": 1.0
+      },
+      "median_runtime_s": 516.1010283500655,
+      "minimum_uav_separation_m": 60.40751659342287
+    }
+  }
+}

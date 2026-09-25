@@ -7,6 +7,32 @@ from isac_sim.core.config import Config
 from isac_sim.sensing.model.containers import Geometry
 
 
+_MAX_UAV_PLACEMENT_ATTEMPTS = 10_000
+
+
+def _enforce_uav_separation(p_uav, g, rng):
+    """Repair random UAV positions until every 3-D pair meets the hard limit."""
+    minimum = float(g.min_uav_separation_m)
+    if not np.isfinite(minimum) or minimum < 0.0:
+        raise ValueError("geometry.min_uav_separation_m must be finite and non-negative")
+    if minimum == 0.0:
+        return p_uav
+
+    for i in range(1, len(p_uav)):
+        attempts = 0
+        while np.any(np.linalg.norm(p_uav[i] - p_uav[:i], axis=1) < minimum):
+            if attempts >= _MAX_UAV_PLACEMENT_ATTEMPTS:
+                raise RuntimeError(
+                    "could not place all UAVs with "
+                    f"geometry.min_uav_separation_m={minimum:g}; enlarge the "
+                    "deployment volume or reduce the UAV count/separation"
+                )
+            p_uav[i, :2] = rng.uniform(0.0, g.area_xy, size=2)
+            p_uav[i, 2] = rng.uniform(g.h_uav_min, g.h_uav_max)
+            attempts += 1
+    return p_uav
+
+
 # ==========================================================================
 # Geometry sampling
 # ==========================================================================
@@ -17,6 +43,7 @@ def generate_geometry(cfg: Config, rng: np.random.Generator) -> Geometry:
     p_uav = np.zeros((M, 3))
     p_uav[:, :2] = rng.uniform(0.0, g.area_xy, size=(M, 2))
     p_uav[:, 2] = rng.uniform(g.h_uav_min, g.h_uav_max, size=M)
+    p_uav = _enforce_uav_separation(p_uav, g, rng)
 
     p_tgt = np.zeros((Q, 3))
     p_tgt[:, :2] = rng.uniform(0.0, g.area_xy, size=(Q, 2))
